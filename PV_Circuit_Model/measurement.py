@@ -12,10 +12,10 @@ class Measurement():
     keys = []
     data_rows = []
     # measurement can be on its own, or belonging to a device
-    def __init__(self,measurement_condition=None,measurement_data=None,json_filepath=None,device=None):
+    def __init__(self,measurement_condition=None,measurement_data=None,json_filepath=None,device=None,key_parameters=None):
         # either must input the measurement_condition + measurement_data, or
         # read these from a json file
-        assert((measurement_condition is not None and measurement_data is not None) or json_filepath is not None)
+        assert((measurement_condition is not None and (measurement_data is not None or key_parameters is not None)) or json_filepath is not None)
         if json_filepath is not None:
             self.read_file(json_filepath)
         else:
@@ -29,7 +29,10 @@ class Measurement():
         self.simulated_key_parameters_baseline = {}
         self.unit_errors = {}
         self.parent_device=device
-        self.derive_key_parameters(self.measurement_data,self.key_parameters,self.measurement_condition)
+        if key_parameters is not None:
+            self.key_parameters = key_parameters
+        else:
+            self.derive_key_parameters(self.measurement_data,self.key_parameters,self.measurement_condition)
         self.set_unit_errors()
     def set_unit_error(self,key,value=None):
         if value is not None:
@@ -104,9 +107,8 @@ class Measurement():
                 print(self.key_parameters)
                 print(self.simulated_data)
                 assert(1==0)
-            diff_vector = parameter1-parameter2
-            diff_vector = diff_vector.tolist()
-            diff.extend(diff_vector/self.unit_errors[key]*fit_weight)
+            diff_vector = np.array(parameter1-parameter2)
+            diff.extend(list(diff_vector/self.unit_errors[key]*fit_weight))
         return np.array(diff)
     def set_simulation_baseline(self):
         self.simulated_key_parameters_baseline = self.simulated_key_parameters.copy()
@@ -246,22 +248,23 @@ def simulate_device_measurements(devices,measurement_class=None,include_tags=Non
 class IV_measurement(Measurement):
     keys = ["Voc", "Isc", "Pmax"]
     data_rows = ["Current(A)","Voltage(V)"]
-    def __init__(self,Suns=None,IV_curve=None,temperature=25,measurement_cond_kwargs={},IL=None,JL=None,json_filepath=None,**kwargs):
+    def __init__(self,Suns=None,IV_curve=None,temperature=25,measurement_cond_kwargs={},IL=None,JL=None,json_filepath=None,key_parameters=None,**kwargs):
         if json_filepath is not None:
             super().__init__(json_filepath=json_filepath)
         else:
-            if isinstance(IV_curve, np.ndarray) and IV_curve.shape[0]>0 and IV_curve.shape[1]==2:
-                IV_curve = IV_curve.T
-            # upside down
-            if (IV_curve[0,0]-IV_curve[0,-1])*(IV_curve[1,0]-IV_curve[1,-1]) < 0:
-                IV_curve[1,:] *= -1
+            if IV_curve is not None:
+                if isinstance(IV_curve, np.ndarray) and IV_curve.shape[0]>0 and IV_curve.shape[1]==2:
+                    IV_curve = IV_curve.T
+                # upside down
+                if (IV_curve[0,0]-IV_curve[0,-1])*(IV_curve[1,0]-IV_curve[1,-1]) < 0:
+                    IV_curve[1,:] *= -1
             if not hasattr(self,"measurement_condition"):
                 self.measurement_condition = {}
             self.measurement_condition = {**self.measurement_condition, 
                                     **{'Suns':Suns,'IL':IL,'JL':JL,'temperature':temperature},
                                     **measurement_cond_kwargs}
             super().__init__(measurement_condition=self.measurement_condition,
-                            measurement_data=IV_curve,**kwargs)
+                            measurement_data=IV_curve,key_parameters=key_parameters,**kwargs)
     @staticmethod
     def derive_key_parameters(data,key_parameters,conditions):
         key_parameters["Voc"] = get_Voc(data)

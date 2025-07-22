@@ -30,13 +30,14 @@ class Module(CircuitGroup):
     def build_IV(self, max_num_points=500):
         super().build_IV(max_num_points=max_num_points,
                          cap_current=self.cap_current)
-def draw_modules(modules,show_names=False,colour_what="EL_Vint"):
+def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False):
     all_shapes = []
     all_names = []
     all_Vints = []
     all_EL_Vints = []
     xlim_ = [modules[0].location[0]-modules[0].extent[0]/2*1.1, modules[0].location[0]+modules[0].extent[0]/2*1.1]
     ylim_ = [modules[0].location[1]-modules[0].extent[1]/2*1.1, modules[0].location[1]+modules[0].extent[1]/2*1.1]
+    fig, ax = plt.subplots()
     for module in modules:
         shapes, names, Vints, EL_Vints = module.draw_cells(display=False)
         all_shapes.extend(shapes)
@@ -47,6 +48,8 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint"):
         xlim_[1] = max(xlim_[1], module.location[0]+module.extent[0]/2*1.1)
         ylim_[0] = min(ylim_[0], module.location[1]-module.extent[1]/2*1.1)
         ylim_[1] = max(ylim_[1], module.location[1]+module.extent[1]/2*1.1)
+        if show_module_names and module.name is not None:
+            ax.text(module.location[0], module.location[1]+module.extent[1]/2*1.05, module.name, fontsize=9, color='black', ha="center", va="center")
 
     has_Vint = False
     has_EL_Vint = False
@@ -75,8 +78,6 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint"):
         norm = mcolors.Normalize(vmin=min(all_aux), vmax=max(all_aux))
         cmap = cm.viridis
 
-
-    fig, ax = plt.subplots()
     for i, shape in enumerate(all_shapes):
         color = 'skyblue'
         if has_EL_Vint:
@@ -89,7 +90,7 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint"):
         x = 0.5*(np.max(shape[:,0])+np.min(shape[:,0]))
         y = 0.5*(np.max(shape[:,1])+np.min(shape[:,1]))
         if show_names:
-            ax.text(x, y, all_names[i], fontsize=12, color='black')
+            ax.text(x, y, all_names[i], fontsize=9, color='black', ha="center", va="center")
         ax.add_patch(polygon)
     ax.set_xlim(xlim_[0],xlim_[1])
     ax.set_ylim(ylim_[0],ylim_[1])
