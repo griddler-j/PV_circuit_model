@@ -14,6 +14,9 @@ class const():
 def get_VT(temperature):
     return const.VT*(temperature + 273.15)/(25 + 273.15)
 
+def get_ni(temperature):
+    return 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
+
 class CircuitElement:
     def __init__(self,tag=None):
         self.IV_table = None
@@ -153,8 +156,8 @@ class Diode(CircuitElement):
 
     def changeTemperature(self,temperature,rebuild_IV=True):
         self.VT = get_VT(temperature)
-        old_ni  = 9.15e19*((self.refT+273.15)/300)**2*np.exp(-6880/(self.refT+273.15))
-        new_ni  = 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
+        old_ni  = get_ni(self.refT)
+        new_ni  = get_ni(temperature)
         scale_factor = (new_ni/old_ni)**(2/self.n)
         self.set_I0(self.refI0*scale_factor)
         if rebuild_IV:

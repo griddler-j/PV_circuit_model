@@ -5,16 +5,102 @@ import matplotlib.patches as patches
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
-# For Si, the intrinsic recomb limit for every cm3, for 1e15cm-3 doped n type,
-# works out to be around
-# I01 = 9.664293091887626e-14A, n1 = 1
-# I02 = 4.882772711642952e-19A, n2 = 0.6849
 class instrinsic_Si():
-    J01 = 9.664293091887626e-14
-    n1 = 1
-    J0x = 4.882772711642952e-19
-    nx = 0.6849
     Jsc_fractional_temp_coeff = 0.0004
+
+class Instrinsic_Si_diode(ForwardDiode):
+    bandgap_narrowing_RT = np.array([[1.00E+10,	1.41E-03],
+        [1.00E+14,	0.00145608],
+        [3.00E+14,	0.00155279],
+        [1.00E+15,	0.00187385],
+        [3.00E+15,	0.00258644],
+        [1.00E+16,	0.00414601],
+        [3.00E+16,	0.00664397],
+        [1.00E+17,	0.0112257],
+        [3.00E+17,	0.018247],
+        [1.00E+18,	0.0295337],
+        [3.00E+18,	0.0421825],
+        [1.00E+19,	0.0597645],
+        [3.00E+19,	0.0811658],
+        [1.00E+20,	0.113245]])
+    # area is 1 is OK because the cell subgroup has normalized area of 1
+    def __init__(self,base_thickness=160e-4,base_type="n",base_doping=1e15,area=1.0,temperature=25,tag=None):
+        CircuitElement.__init__(self, tag)
+        self.base_thickness = base_thickness
+        self.base_type = base_type
+        self.base_doping = base_doping
+        self.max_I = 0.2
+        self.temperature = temperature
+        self.I0 = 0.0
+        self.n = 0.0
+        self.V_shift = 0.0
+        self.area = area
+    def __str__(self):
+        return "Si Instrinsic Diode"
+    def get_value_text(self):
+        word = f"instrinsic"
+        return word
+    def set_I0(self,I0):
+        pass # does nothing
+    def copy(self,source):
+        self.base_thickness = source.base_thickness
+        self.base_type = source.base_type
+        self.base_doping = source.base_doping
+        self.temperature = source.temperature
+    def changeTemperature(self,temperature,rebuild_IV=True):
+        self.temperature = temperature
+        if rebuild_IV:
+            self.build_IV()
+    def intrinsic_recomb_current(self,V):
+        ni = get_ni(self.temperature)
+        VT = get_VT(self.temperature)
+        N_doping = self.base_doping
+        if self.base_type == "p":
+            n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+            p = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+            delta_n = n
+        else:
+            p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            p = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+            n = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+            delta_n = p
+        BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
+        ni_eff = ni*np.exp(BGN/2/VT)
+
+        q = 1.602e-19
+        geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
+        gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
+        Brel = 1
+        Blow = 4.73e-15
+        intrinsic_recomb = (n*p - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
+        return q*intrinsic_recomb*self.base_thickness*self.area
+        
+    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
+        if V is None:
+            if max_num_points is None:
+                max_num_points = 100
+            max_I = 0.2
+            if hasattr(self,"max_I"):
+                max_I = self.max_I
+                max_num_points *= max_I/0.2
+            # assume that 0.2 A/cm2 is max you'll need
+            if self.base_thickness==0:
+                Voc = 10
+            else:
+                VT = get_VT(self.temperature)
+                Voc = 0.7
+                for _ in range(10):
+                    I = self.intrinsic_recomb_current(Voc)
+                    if I >= max_I and I <= max_I*1.1:
+                        break
+                    Voc += VT*np.log(max_I/I)
+            V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
+            V = np.array(V)
+        I = self.intrinsic_recomb_current(V)
+        self.IV_table = np.array([V,I])
 
 class Cell(CircuitGroup):
     def __init__(self,components,connection="series",area=None,location=None,
@@ -103,7 +189,7 @@ class Cell(CircuitGroup):
         diodes = self.findElementType(ForwardDiode)
         for diode in diodes:
             if diode.n==n:
-                if diode.tag != "intrinsic" and not isinstance(diode,PhotonCouplingDiode):
+                if not isinstance(diode,Instrinsic_Si_diode) and not isinstance(diode,PhotonCouplingDiode):
                     J0 += diode.I0
         return J0
     def J01(self):
@@ -135,7 +221,7 @@ class Cell(CircuitGroup):
     def set_J0(self,J0,n,temperature=25,rebuild_IV=True):
         diodes = self.findElementType(ForwardDiode)
         for diode in diodes:
-            if diode.tag != "defect" and diode.tag != "intrinsic" and diode.n==n and not isinstance(diode,PhotonCouplingDiode):
+            if diode.tag != "defect" and not isinstance(diode,Instrinsic_Si_diode) and diode.n==n and not isinstance(diode,PhotonCouplingDiode):
                 diode.refI0 = J0
                 diode.refT = temperature
                 diode.changeTemperature(temperature=self.temperature,rebuild_IV=False)
@@ -157,7 +243,7 @@ class Cell(CircuitGroup):
     def set_PC_J0(self,J0,n,temperature=25,rebuild_IV=True):
         diodes = self.findElementType(PhotonCouplingDiode)
         for diode in diodes:
-            if diode.tag != "defect" and diode.tag != "intrinsic" and diode.n==n:
+            if diode.tag != "defect" and not isinstance(diode,Instrinsic_Si_diode) and diode.n==n:
                 diode.refI0 = J0
                 diode.refT = temperature
                 diode.changeTemperature(temperature=self.temperature,rebuild_IV=False)
@@ -334,8 +420,7 @@ def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.
     if J01_photon_coupling > 0:
         elements.append(PhotonCouplingDiode(I0=J01_photon_coupling,n=1))
     if Si_intrinsic_limit:
-        elements.extend([ForwardDiode(I0=instrinsic_Si.J01*thickness, n=instrinsic_Si.n1,tag="intrinsic"),
-                ForwardDiode(I0=instrinsic_Si.J0x*thickness, n=instrinsic_Si.nx,tag="intrinsic")])
+        elements.append(Instrinsic_Si_diode(base_thickness=thickness))
     elements.extend([ReverseDiode(I0=J0_rev, n=1, V_shift = -breakdown_V),
                 Resistor(cond=1/Rshunt)])
     if Rs == 0.0:
