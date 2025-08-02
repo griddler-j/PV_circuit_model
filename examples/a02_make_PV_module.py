@@ -12,7 +12,7 @@ def main(display=True):
     num_half_strings = n_cells[1]
 
     cells = [circuit_deepcopy(cell) for _ in range(num_half_strings*num_cells_per_halfstring)]
-    module = make_butterly_module(cells, num_strings=num_half_strings // 2, num_cells_per_halfstring=num_cells_per_halfstring)
+    module = make_butterfly_module(cells, num_strings=num_half_strings // 2, num_cells_per_halfstring=num_cells_per_halfstring)
     if display:
         # draw module cells layout
         module.draw_cells(show_names=True)

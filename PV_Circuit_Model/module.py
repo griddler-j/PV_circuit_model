@@ -101,7 +101,7 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
     fig.tight_layout()
     plt.show()
     
-def make_butterly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
+def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
                          halfstring_resistor = 0.02, I0_rev = 1000e-15):
     count = 0
     cell_strings = []

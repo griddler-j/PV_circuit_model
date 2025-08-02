@@ -625,3 +625,12 @@ def circuit_deepcopy(circuit_group):
     circuit_group2 = copy.deepcopy(circuit_group)
     circuit_group2.reassign_parents()
     return circuit_group2
+
+def find_subgroups_by_name(circuit_group, target_name):
+    result = []
+    for element in circuit_group.subgroups:
+        if hasattr(element, 'name') and element.name == target_name:
+            result.append(element)
+        if isinstance(element, CircuitGroup):
+            result.extend(find_subgroups_by_name(element, target_name))
+    return result
