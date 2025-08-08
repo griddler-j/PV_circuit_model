@@ -27,9 +27,12 @@ class Module(CircuitGroup):
         self.temperature = temperature
         if rebuild_IV:
             self.build_IV()
-    def build_IV(self, max_num_points=500):
+    def build_IV(self, max_num_points=500, cap_current=None):
+        if cap_current is None:
+            cap_current = self.cap_current
         super().build_IV(max_num_points=max_num_points,
-                         cap_current=self.cap_current)
+                         cap_current=cap_current)
+        
 def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False):
     all_shapes = []
     all_names = []
@@ -119,8 +122,11 @@ def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24,
         cell_halfstrings[1].y_mirror = -1
         cell_halfstrings[1].location[1] -= cell_halfstrings[1].extent[1] + 1
 
-        cell_strings.append(CircuitGroup(cell_halfstrings+[ReverseDiode(I0=I0_rev, n=1, V_shift = 0)],
+        bypass_diode = ReverseDiode(I0=I0_rev, n=1, V_shift = 0)
+        bypass_diode.max_I = 0.2*cells[0].area
+        cell_strings.append(CircuitGroup(cell_halfstrings+[bypass_diode],
                                 "parallel",name="cell_string"))
+
     tile_elements(cell_strings, rows=1, x_gap = 1, y_gap = 0.0, turn=False)
     module = Module(cell_strings,"series",cap_current=cells[0].IL()*3)
     module.aux["halfstring_resistor"] = halfstring_resistor

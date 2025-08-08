@@ -210,3 +210,31 @@ def show(self):
     plt.show()
 CircuitGroup.show = show
 CircuitElement.show = show
+
+def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, thickness=160e-4, wafer_format="M10",half_cut=True):
+    shape, area = wafer_shape(format=wafer_format)
+    J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,thickness=thickness)
+    return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, thickness)
+
+def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24):
+    shape, area = wafer_shape(format=wafer_format)
+    Jsc = 0.042
+    if Isc is not None:
+        Jsc = Isc / area
+    cell_Voc = 0.735
+    if Voc is not None:
+        cell_Voc = Voc / (num_strings*num_cells_per_halfstring)
+    target_FF = 0.8
+    if FF is not None:
+        target_FF = FF
+    try_FF = target_FF
+    for _ in tqdm(range(10),desc="Tweaking module cell parameters..."):
+        cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True)
+        cells = [circuit_deepcopy(cell) for _ in range(2*num_strings*num_cells_per_halfstring)]
+        module = make_butterfly_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring)
+        module.set_Suns(1.0)
+        FF = module.get_FF()
+        if np.abs(FF-target_FF) < 1e-4:
+            break
+        try_FF += target_FF - FF
+    return module

@@ -4,15 +4,7 @@ from PV_Circuit_Model.cell_analysis import *
 import a01_make_solar_cell as example1
 
 def main(display=True):
-    cell = example1.main(display=False)
-
-    # butterfly module layout
-    n_cells = [22,6]
-    num_cells_per_halfstring = n_cells[0]
-    num_half_strings = n_cells[1]
-
-    cells = [circuit_deepcopy(cell) for _ in range(num_half_strings*num_cells_per_halfstring)]
-    module = make_butterfly_module(cells, num_strings=num_half_strings // 2, num_cells_per_halfstring=num_cells_per_halfstring)
+    module = quick_butterfly_module()
     if display:
         # draw module cells layout
         module.draw_cells(show_names=True)

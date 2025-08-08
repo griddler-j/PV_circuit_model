@@ -4,6 +4,19 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+from shapely.geometry import Polygon, Point
+
+class wafer_formats():
+    formats = {
+    "M0":   {"size": 15.6,   "diagonal": 20.52},
+    "M2":   {"size": 15.675, "diagonal": 20.98},
+    "G1":   {"size": 15.875, "diagonal": 22.3},
+    "M4":   {"size": 16.170, "diagonal": 21.05},
+    "M6":   {"size": 16.6,   "diagonal": 22.28},
+    "M10":  {"size": 18.2,   "diagonal": 25.0},
+    "M12":  {"size": 21.0,   "diagonal": 29.5},
+    "M12+": {"size": 21.7,   "diagonal": 29.5}
+    }
 
 class instrinsic_Si():
     Jsc_fractional_temp_coeff = 0.0004
@@ -403,12 +416,38 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_what="Vin
     return shapes, names, Vints, EL_Vints
 CircuitGroup.draw_cells = draw_cells
 
-def wafer_shape(L, W, ingot_center=None, ingot_diameter=None):
-    shape = np.array([[-W/2,-L/2],[W/2,-L/2],[W/2,L/2],[-W/2,L/2]])
-    x = shape[:,0]
-    y = shape[:,1]
+def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, half_cut=True):
+    if format is not None and format in wafer_formats.formats:
+        size = wafer_formats.formats[format]["size"]
+        L = size
+        W = size
+        ingot_diameter = wafer_formats.formats[format]["diagonal"]
+        ingot_center = [0,0]
+        if half_cut:
+            L = size/2
+            ingot_center[1] = -L/2
+    rect = np.array([[-W/2,-L/2],[W/2,-L/2],[W/2,L/2],[-W/2,L/2]]) # CCW
+    if ingot_center is not None and ingot_diameter is not None:
+        ingot_radius = ingot_diameter/2
+        circle = Point(ingot_center[0], ingot_center[1]).buffer(ingot_radius, resolution=180)
+        rect_poly = Polygon(rect)
+        intersection = rect_poly.intersection(circle)
+        if intersection.is_empty:
+            if ingot_radius < W/2 and ingot_radius < L/2:
+                intersection = circle
+            else:
+                intersection = rect
+        elif intersection.geom_type == "Polygon":
+            intersection = np.array(intersection.exterior.coords)
+        else:
+            assert(1==0)
+    else:
+        intersection = rect
+    
+    x = intersection[:,0]
+    y = intersection[:,1]
     area = 0.5 * np.abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-    return shape, area
+    return intersection, area
 
 # note: always made at 25C 1 Sun
 def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.0, 
@@ -428,5 +467,7 @@ def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.
     else:
         group = CircuitGroup(elements,"parallel")
         cell = Cell([group,Resistor(cond=1/Rs)],"series",area=area,thickness=thickness,location=np.array([0.0,0.0]).astype(float),shape=shape,name="cell")
-    
     return cell
+
+
+
