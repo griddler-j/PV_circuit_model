@@ -25,12 +25,17 @@ class CircuitElement:
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
-    def set_operating_point(self,V=None,I=None,dark_IV=None):
+    def set_operating_point(self,V=None,I=None,refine_IV=False):
         if V is not None:
             I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
         elif I is not None:
             V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
         self.operating_point = [V,I]
+        if refine_IV and hasattr(self,"I0"):
+            V_range = np.sort(np.concatenate([self.IV_table[0, :], np.linspace(V - 0.001, V + 0.001, 100)]))
+            self.build_IV(V=V_range)
+            if self.parent is not None:
+                self.parent.null_IV(keep_dark=False)
     def get_value_text(self):
         pass
     def get_draw_func(self):
@@ -273,7 +278,7 @@ class CircuitGroup():
             if isinstance(element,CircuitGroup):
                 element.reassign_parents()
 
-    def set_operating_point(self,V=None,I=None):
+    def set_operating_point(self,V=None,I=None,refine_IV=False):
         if self.IV_table is None:
             self.build_IV()
         if V is not None:
@@ -286,9 +291,9 @@ class CircuitGroup():
                 # solar cell needs to scale IV table by area
                 if hasattr(self,"shape") and self.area is not None:
                     target_I /= self.area
-                element.set_operating_point(V=None,I=target_I)
+                element.set_operating_point(V=None,I=target_I,refine_IV=refine_IV)
             else: # then all elements have same voltage
-                element.set_operating_point(V=V,I=None)
+                element.set_operating_point(V=V,I=None,refine_IV=refine_IV)
         self.operating_point = [V,I]
         # cells also store Vint
         if hasattr(self,"shape"):
@@ -344,7 +349,13 @@ class CircuitGroup():
             for element in self.subgroups:
                 Is.extend(list(element.IV_table[1,:]))
             Is = np.sort(np.array(Is))
-            Is = np.unique(Is)
+            if max_num_points is None:
+                Is = np.unique(Is)
+            else:
+                tol = (Is[-1]-Is[0])/(max_num_points*1000)
+                quantized = np.round(Is / tol)
+                _, idx = np.unique(quantized, return_index=True)
+                Is = Is[idx]
             Vs = np.zeros_like(Is)
             Vints = np.zeros_like(Is)
             # do reverse order to allow for photon coupling
@@ -402,13 +413,19 @@ class CircuitGroup():
                             else:
                                 left_limit = min(element.IV_table[0,0],left_limit)
                 Vs = np.sort(np.array(Vs))
-                Vs = np.unique(Vs)
                 if left_limit is not None:
                     find_ = np.where(Vs >= left_limit)[0]
                     Vs = Vs[find_]
                 if right_limit is not None:
                     find_ = np.where(Vs <= right_limit)[0]
                     Vs = Vs[find_]
+                if max_num_points is None:
+                    Vs = np.unique(Vs)
+                else:
+                    tol = (Vs[-1]-Vs[0])/(max_num_points*1000)
+                    quantized = np.round(Vs / tol)
+                    _, idx = np.unique(quantized, return_index=True)
+                    Vs = Vs[idx]
                 Is = np.zeros_like(Vs)
                 for element in self.subgroups:
                     if not isinstance(element,CurrentSource):

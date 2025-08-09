@@ -35,7 +35,11 @@ def get_Pmax(argument, return_op_point=False):
         IV_curve = argument
         return_op_point = True
     Voc = get_Voc(IV_curve)
-    V = np.linspace(0,Voc,1000)
+    V = IV_curve[0,:]
+    I = IV_curve[1,:]
+    power = -V*I
+    index = np.argmax(power)
+    V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
     I = interp_(V,IV_curve[0,:],IV_curve[1,:])
     power = -V*I
     index = np.argmax(power)
@@ -104,7 +108,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
         trial_cell.set_temperature(temperature,rebuild_IV=False)
         trial_cell.set_Suns(Sun)
         Voc_ = trial_cell.get_Voc()
-        if abs(Voc_-Voc) < 1e-4:
+        if abs(Voc_-Voc) < 1e-10:
             break 
         max_J01 *= np.exp((Voc_-Voc)/VT)
     max_J02 = Jsc/np.exp(Voc/(2*VT))
@@ -114,7 +118,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
         trial_cell.set_temperature(temperature,rebuild_IV=False)
         trial_cell.set_Suns(Sun)
         Voc_ = trial_cell.get_Voc()
-        if abs(Voc_-Voc) < 1e-4:
+        if abs(Voc_-Voc) < 1e-10:
             break 
         max_J02 *= np.exp((Voc_-Voc)/(2*VT))
     outer_record = []
@@ -148,12 +152,12 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
             trial_cell.set_temperature(temperature,rebuild_IV=False)
             trial_cell.set_Suns(Sun)
             Voc_ = trial_cell.get_Voc()
-            if abs(Voc_-Voc) < 1e-4 or (trial_J02==0 and Voc_<Voc) or (trial_J02==max_J02 and Voc_>Voc):
+            if abs(Voc_-Voc) < 1e-10 or (trial_J02==0 and Voc_<Voc) or (trial_J02==max_J02 and Voc_>Voc):
                 break 
             inner_record.append([trial_J02,Voc_])
         Pmax_ = trial_cell.get_Pmax()
         outer_record.append([trial_J01,Pmax_])
-        if abs(Voc_-Voc)<1e-4 and abs(Pmax_-Pmax)/Pmax<1e-4:
+        if abs(Voc_-Voc)<1e-10 and abs(Pmax_-Pmax)/Pmax<1e-10:
             break
         if outer_k==1 and Pmax_ < Pmax: # will never be bigger then
             break
@@ -220,21 +224,40 @@ def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format=
     shape, area = wafer_shape(format=wafer_format)
     Jsc = 0.042
     if Isc is not None:
-        Jsc = Isc / area
+        Jsc = Isc / area /2
+    else:
+        Isc = Jsc * area * 2 
     cell_Voc = 0.735
     if Voc is not None:
         cell_Voc = Voc / (num_strings*num_cells_per_halfstring)
-    target_FF = 0.8
-    if FF is not None:
-        target_FF = FF
-    try_FF = target_FF
-    for _ in tqdm(range(10),desc="Tweaking module cell parameters..."):
+    target_Pmax = 0.8*cell_Voc*Isc
+    if Pmax is not None:
+        target_Pmax = Pmax
+    elif FF is not None:
+        target_Pmax = Voc*Isc*FF
+    try_FF = target_Pmax/Isc/Voc
+    record = []
+    for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
         cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True)
         cells = [circuit_deepcopy(cell) for _ in range(2*num_strings*num_cells_per_halfstring)]
         module = make_butterfly_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring)
-        module.set_Suns(1.0)
-        FF = module.get_FF()
-        if np.abs(FF-target_FF) < 1e-4:
+        module.set_Suns(1.0,rebuild_IV=False)
+        module.build_IV(max_num_points=None)
+        Pmax, Vmp, Imp = module.get_Pmax(return_op_point=True)
+        module.set_operating_point(V=Vmp,refine_IV=True)
+        module.build_IV(max_num_points=None)
+        Pmax, Vmp, Imp = module.get_Pmax(return_op_point=True)
+        record.append([try_FF, Pmax, cell.get_Pmax()])
+        if np.abs(Pmax-target_Pmax) < 1e-6:
             break
-        try_FF += target_FF - FF
+        record_ = np.array(record)
+        record_ = record_[record_[:, 0].argsort()]
+        if len(record)>1:
+            find_ = np.where(record_[1:, 1]<record_[:-1, 1])[0]
+            if len(find_)>0:
+                break
+        if np.max(record_[:,1])>=target_Pmax and np.min(record_[:,1])<=target_Pmax:
+            try_FF = np.interp(target_Pmax, record_[:,1], record_[:,0])
+        else:
+            try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
     return module
