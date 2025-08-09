@@ -55,6 +55,8 @@ class CircuitElement:
             ax.text(x,y+0.5,str(self.pos_node), va='center', fontsize=6)
     def null_IV(self, keep_dark=False):
         self.IV_table = None
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
         if self.parent is not None:
             self.parent.null_IV(keep_dark=keep_dark)
 
@@ -266,6 +268,8 @@ class CircuitGroup():
     def null_IV(self, keep_dark=False):
         if self.IV_table is not None or self.dark_IV_table is not None:
             self.IV_table = None
+            if hasattr(self,"IV_parameters"):
+                del self.IV_parameters
             if keep_dark==False:
                 self.dark_IV_table = None
             if self.parent is not None:
@@ -340,6 +344,8 @@ class CircuitGroup():
         return list_
     
     def build_IV(self, max_num_points=None, cap_current=None):
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
         # if solar cell, then express in current density
         Vints = None
         if hasattr(self,"shape") and self.area is not None and cap_current is not None:

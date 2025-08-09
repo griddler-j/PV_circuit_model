@@ -6,19 +6,33 @@ from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
 
 def get_Voc(argument):
+    if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Voc" in argument.IV_parameters:
+        return argument.IV_parameters["Voc"]
     if isinstance(argument,CircuitGroup):
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
-    return interp_(0,IV_curve[1,:],IV_curve[0,:])
+    Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])
+    if isinstance(argument,CircuitGroup):
+        if not hasattr(argument,"IV_parameters"):
+            argument.IV_parameters = {}
+        argument.IV_parameters["Voc"] = Voc
+    return Voc
 CircuitGroup.get_Voc = get_Voc
 
 def get_Isc(argument):
+    if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Isc" in argument.IV_parameters:
+        return argument.IV_parameters["Isc"]
     if isinstance(argument,CircuitGroup):
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
-    return -interp_(0,IV_curve[0,:],IV_curve[1,:])
+    Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:])
+    if isinstance(argument,CircuitGroup):
+        if not hasattr(argument,"IV_parameters"):
+            argument.IV_parameters = {}
+        argument.IV_parameters["Isc"] = Isc
+    return Isc
 CircuitGroup.get_Isc = get_Isc
 
 def get_Jsc(argument):
@@ -30,6 +44,13 @@ CircuitGroup.get_Jsc = get_Jsc
 
 def get_Pmax(argument, return_op_point=False):
     if isinstance(argument,CircuitGroup):
+        if hasattr(argument,"IV_parameters") and "Pmax" in argument.IV_parameters:
+            Pmax = argument.IV_parameters["Pmax"]
+            Vmp = argument.IV_parameters["Vmp"]
+            Imp = argument.IV_parameters["Imp"]
+            if return_op_point:
+                return Pmax, Vmp, Imp
+            return Pmax
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
@@ -59,10 +80,16 @@ def get_Pmax(argument, return_op_point=False):
             index = np.argmax(power)
             Vmp = V[index]
             Imp = I[index]
-    max_power = power[index]
+    Pmax = power[index]
+    if isinstance(argument,CircuitGroup):
+        if not hasattr(argument,"IV_parameters"):
+            argument.IV_parameters = {}
+        argument.IV_parameters["Pmax"] = Pmax
+        argument.IV_parameters["Vmp"] = Vmp
+        argument.IV_parameters["Imp"] = Imp
     if return_op_point:
-        return max_power, Vmp, Imp
-    return max_power
+        return Pmax, Vmp, Imp
+    return Pmax
 CircuitGroup.get_Pmax = get_Pmax
 
 def get_Eff(argument):
@@ -179,6 +206,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
     if fourth_quadrant and isinstance(self,CircuitGroup):
+        self.get_Pmax()
         Voc = self.get_Voc()
         Isc = self.get_Isc()
         plt.plot(self.IV_table[0,:],-self.IV_table[1,:])
