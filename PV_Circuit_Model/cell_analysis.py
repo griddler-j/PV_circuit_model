@@ -34,7 +34,6 @@ def get_Pmax(argument, return_op_point=False):
     else:
         IV_curve = argument
         return_op_point = True
-    Voc = get_Voc(IV_curve)
     V = IV_curve[0,:]
     I = IV_curve[1,:]
     power = -V*I
@@ -45,6 +44,21 @@ def get_Pmax(argument, return_op_point=False):
     index = np.argmax(power)
     Vmp = V[index]
     Imp = I[index]
+    if isinstance(argument,CircuitGroup):
+        argument.set_operating_point(V=Vmp, refine_IV=True)
+        if argument.IV_table is None:
+            argument.build_IV()
+            IV_curve = argument.IV_table
+            V = IV_curve[0,:]
+            I = IV_curve[1,:]
+            power = -V*I
+            index = np.argmax(power)
+            V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
+            I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+            power = -V*I
+            index = np.argmax(power)
+            Vmp = V[index]
+            Imp = I[index]
     max_power = power[index]
     if return_op_point:
         return max_power, Vmp, Imp
@@ -242,11 +256,8 @@ def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format=
         cells = [circuit_deepcopy(cell) for _ in range(2*num_strings*num_cells_per_halfstring)]
         module = make_butterfly_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring)
         module.set_Suns(1.0,rebuild_IV=False)
-        module.build_IV(max_num_points=None)
-        Pmax, Vmp, Imp = module.get_Pmax(return_op_point=True)
-        module.set_operating_point(V=Vmp,refine_IV=True)
-        module.build_IV(max_num_points=None)
-        Pmax, Vmp, Imp = module.get_Pmax(return_op_point=True)
+        module.build_IV()
+        Pmax = module.get_Pmax()
         record.append([try_FF, Pmax, cell.get_Pmax()])
         if np.abs(Pmax-target_Pmax) < 1e-6:
             break

@@ -32,7 +32,12 @@ class CircuitElement:
             V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
         self.operating_point = [V,I]
         if refine_IV and hasattr(self,"I0"):
-            V_range = np.sort(np.concatenate([self.IV_table[0, :], np.linspace(V - 0.001, V + 0.001, 100)]))
+            findright_ = np.where(self.IV_table[0,:] > V)[0]
+            findleft_ = np.where(self.IV_table[0,:] < V)[0]
+            if len(findright_)>2 and self.IV_table[0,findright_[1]]-V < 0.001/100*5 and len(findleft_)>2 and V-self.IV_table[0,findleft_[-2]] < 0.001/100*5:
+                return # already refined IV before, good
+            Vs = self.get_V_range()
+            V_range = np.sort(np.concatenate([Vs, np.linspace(V - 0.001, V + 0.001, 100)]))
             self.build_IV(V=V_range)
             if self.parent is not None:
                 self.parent.null_IV(keep_dark=False)
@@ -167,22 +172,26 @@ class Diode(CircuitElement):
         self.set_I0(self.refI0*scale_factor)
         if rebuild_IV:
             self.build_IV()
-        
+
+    def get_V_range(self,max_num_points=100):
+        if max_num_points is None:
+            max_num_points = 100
+        max_I = 0.2
+        if hasattr(self,"max_I"):
+            max_I = self.max_I
+            max_num_points *= max_I/0.2
+        # assume that 0.2 A/cm2 is max you'll need
+        if self.I0==0:
+            Voc = 10
+        else:
+            Voc = self.n*self.VT*np.log(max_I/self.I0)
+        V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
+        V = np.array(V)
+        return V
+
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
         if V is None:
-            if max_num_points is None:
-                max_num_points = 100
-            max_I = 0.2
-            if hasattr(self,"max_I"):
-                max_I = self.max_I
-                max_num_points *= max_I/0.2
-            # assume that 0.2 A/cm2 is max you'll need
-            if self.I0==0:
-                Voc = 10
-            else:
-                Voc = self.n*self.VT*np.log(max_I/self.I0)
-            V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
-            V = np.array(V)
+            V = self.get_V_range(max_num_points)
         I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
         self.IV_table = np.array([V,I])
     

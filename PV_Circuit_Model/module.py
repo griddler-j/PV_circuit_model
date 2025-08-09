@@ -27,7 +27,7 @@ class Module(CircuitGroup):
         self.temperature = temperature
         if rebuild_IV:
             self.build_IV()
-    def build_IV(self, max_num_points=500, cap_current=None):
+    def build_IV(self, max_num_points=None, cap_current=None):
         if cap_current is None:
             cap_current = self.cap_current
         super().build_IV(max_num_points=max_num_points,

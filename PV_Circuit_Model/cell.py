@@ -90,28 +90,32 @@ class Instrinsic_Si_diode(ForwardDiode):
         Blow = 4.73e-15
         intrinsic_recomb = (n*p - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
         return q*intrinsic_recomb*self.base_thickness*self.area
-        
+    
+    def get_V_range(self,max_num_points=100):
+        if max_num_points is None:
+            max_num_points = 100
+        max_I = 0.2
+        if hasattr(self,"max_I"):
+            max_I = self.max_I
+            max_num_points *= max_I/0.2
+        # assume that 0.2 A/cm2 is max you'll need
+        if self.base_thickness==0:
+            Voc = 10
+        else:
+            VT = get_VT(self.temperature)
+            Voc = 0.7
+            for _ in range(10):
+                I = self.intrinsic_recomb_current(Voc)
+                if I >= max_I and I <= max_I*1.1:
+                    break
+                Voc += VT*np.log(max_I/I)
+        V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
+        V = np.array(V)
+        return V
+    
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
         if V is None:
-            if max_num_points is None:
-                max_num_points = 100
-            max_I = 0.2
-            if hasattr(self,"max_I"):
-                max_I = self.max_I
-                max_num_points *= max_I/0.2
-            # assume that 0.2 A/cm2 is max you'll need
-            if self.base_thickness==0:
-                Voc = 10
-            else:
-                VT = get_VT(self.temperature)
-                Voc = 0.7
-                for _ in range(10):
-                    I = self.intrinsic_recomb_current(Voc)
-                    if I >= max_I and I <= max_I*1.1:
-                        break
-                    Voc += VT*np.log(max_I/I)
-            V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
-            V = np.array(V)
+            V = self.get_V_range(max_num_points=max_num_points)
         I = self.intrinsic_recomb_current(V)
         self.IV_table = np.array([V,I])
 
