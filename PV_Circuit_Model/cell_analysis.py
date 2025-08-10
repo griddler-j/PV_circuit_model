@@ -100,6 +100,8 @@ def get_Eff(argument):
 CircuitGroup.get_Eff = get_Eff
 
 def get_FF(argument):
+    if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "FF" in argument.IV_parameters:
+        return argument.IV_parameters["FF"]
     if isinstance(argument,CircuitGroup):
         IV_curve = argument.IV_table
     else:
@@ -107,6 +109,11 @@ def get_FF(argument):
     Voc = get_Voc(IV_curve)
     Isc = get_Isc(IV_curve)
     Pmax, _, _ = get_Pmax(IV_curve)
+    FF = Pmax/(Isc*Voc)
+    if isinstance(argument,CircuitGroup):
+        if not hasattr(argument,"IV_parameters"):
+            argument.IV_parameters = {}
+        argument.IV_parameters["FF"] = FF
     return Pmax/(Isc*Voc)
 CircuitGroup.get_FF = get_FF
 
@@ -205,10 +212,11 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
     return trial_J01, trial_J02
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
+    max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
+    Voc = self.get_Voc()
+    Isc = self.get_Isc()
+    FF = self.get_FF()
     if fourth_quadrant and isinstance(self,CircuitGroup):
-        self.get_Pmax()
-        Voc = self.get_Voc()
-        Isc = self.get_Isc()
         plt.plot(self.IV_table[0,:],-self.IV_table[1,:])
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],-self.operating_point[1],marker='o')
@@ -223,10 +231,6 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
             if len(self.operating_point)==3:
                 plt.plot(self.operating_point[2],self.operating_point[1],marker='o')
     if show_IV_parameters and fourth_quadrant and (isinstance(self,Cell) or isinstance(self,Module) or isinstance(self,MultiJunctionCell) or self.__class__.__name__=="Module" or self.__class__.__name__=="Cell" or self.__class__.__name__=="MultiJunctionCell"):
-        max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
-        Voc = self.get_Voc()
-        Isc = self.get_Isc()
-        FF = self.get_FF()
         y_space = 0.07
         plt.plot(Voc,0,marker='o',color="blue")
         plt.plot(0,Isc,marker='o',color="blue")
@@ -262,7 +266,11 @@ def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, thick
     J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,thickness=thickness)
     return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, thickness)
 
-def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24):
+def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None):
+    force_n1 = False
+    if special_conditions is not None:
+        if "force_n1" in special_conditions:
+            force_n1 = special_conditions["force_n1"]
     shape, area = wafer_shape(format=wafer_format)
     Jsc = 0.042
     if Isc is not None:
@@ -277,26 +285,48 @@ def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format=
         target_Pmax = Pmax
     elif FF is not None:
         target_Pmax = Voc*Isc*FF
-    try_FF = target_Pmax/Isc/Voc
-    record = []
-    for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
-        cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True)
+    if force_n1: # vary the module Rs
+        cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=1.0, wafer_format=wafer_format,half_cut=True)
         cells = [circuit_deepcopy(cell) for _ in range(2*num_strings*num_cells_per_halfstring)]
-        module = make_butterfly_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring)
-        module.set_Suns(1.0,rebuild_IV=False)
-        module.build_IV()
-        Pmax = module.get_Pmax()
-        record.append([try_FF, Pmax, cell.get_Pmax()])
-        if np.abs(Pmax-target_Pmax) < 1e-6:
-            break
-        record_ = np.array(record)
-        record_ = record_[record_[:, 0].argsort()]
-        if len(record)>1:
-            find_ = np.where(record_[1:, 1]<record_[:-1, 1])[0]
-            if len(find_)>0:
+        try_R = 0.02
+        record = []
+        for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
+            module = make_butterfly_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, halfstring_resistor = try_R)
+            module.set_Suns(1.0,rebuild_IV=False)
+            module.build_IV()
+            Pmax = module.get_Pmax()
+            record.append([try_R, Pmax, cell.get_Pmax()])
+            if np.abs(Pmax-target_Pmax) < 1e-6:
                 break
-        if np.max(record_[:,1])>=target_Pmax and np.min(record_[:,1])<=target_Pmax:
-            try_FF = np.interp(target_Pmax, record_[:,1], record_[:,0])
-        else:
-            try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
+            record_ = np.array(record)
+            record_ = record_[record_[:, 0].argsort()]
+            if np.max(record_[:,1])>=target_Pmax and np.min(record_[:,1])<=target_Pmax:
+                try_R = interp_(target_Pmax, record_[:,1], record_[:,0])
+            elif np.max(record_[:,1])<target_Pmax:
+                try_R /= 10
+            else:
+                try_R *= 10
+    else:
+        try_FF = target_Pmax/Isc/Voc
+        record = []
+        for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
+            cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True)
+            cells = [circuit_deepcopy(cell) for _ in range(2*num_strings*num_cells_per_halfstring)]
+            module = make_butterfly_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring)
+            module.set_Suns(1.0,rebuild_IV=False)
+            module.build_IV()
+            Pmax = module.get_Pmax()
+            record.append([try_FF, Pmax, cell.get_Pmax()])
+            if np.abs(Pmax-target_Pmax) < 1e-6:
+                break
+            record_ = np.array(record)
+            record_ = record_[record_[:, 0].argsort()]
+            if len(record)>1:
+                find_ = np.where(record_[1:, 1]<record_[:-1, 1])[0]
+                if len(find_)>0:
+                    break
+            if np.max(record_[:,1])>=target_Pmax and np.min(record_[:,1])<=target_Pmax:
+                try_FF = np.interp(target_Pmax, record_[:,1], record_[:,0])
+            else:
+                try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
     return module
