@@ -208,7 +208,7 @@ class ForwardDiode(Diode):
     def get_value_text(self):
         word = f"I0 = {self.I0:.3e}"
         if "error" in self.aux and not np.isnan(self.aux["error"]):
-            word += f"\n\u00B1{self.aux["error"]:.3e}"
+            word += f"\n\u00B1{self.aux['error']:.3e}"
         word += f" A\nn = {self.n:.2f}"
         return word
     def get_draw_func(self):
