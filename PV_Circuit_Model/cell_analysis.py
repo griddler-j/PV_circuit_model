@@ -230,7 +230,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
             if len(self.operating_point)==3:
                 plt.plot(self.operating_point[2],self.operating_point[1],marker='o')
-    if show_IV_parameters and fourth_quadrant and (isinstance(self,Cell) or isinstance(self,Module) or isinstance(self,MultiJunctionCell) or self.__class__.__name__=="Module" or self.__class__.__name__=="Cell" or self.__class__.__name__=="MultiJunctionCell"):
+    if show_IV_parameters and fourth_quadrant:
         y_space = 0.07
         plt.plot(Voc,0,marker='o',color="blue")
         plt.plot(0,Isc,marker='o',color="blue")
