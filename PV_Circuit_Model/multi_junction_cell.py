@@ -1,10 +1,6 @@
 import numpy as np
 from PV_Circuit_Model.circuit_model import *
 from PV_Circuit_Model.cell import *
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
 
 class MultiJunctionCell(CircuitGroup):
     def __init__(self,subcells,Rs=0.1,connection="series",location=None,

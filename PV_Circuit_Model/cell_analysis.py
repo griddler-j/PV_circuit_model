@@ -212,10 +212,15 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
     return trial_J01, trial_J02
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
+    op_point = None
+    if self.operating_point is not None:
+        op_point = self.operating_point
     max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
     Voc = self.get_Voc()
     Isc = self.get_Isc()
     FF = self.get_FF()
+    if op_point is not None:
+        self.operating_point = op_point
     if fourth_quadrant and isinstance(self,CircuitGroup):
         plt.plot(self.IV_table[0,:],-self.IV_table[1,:])
         if self.operating_point is not None:
@@ -330,3 +335,14 @@ def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format=
             else:
                 try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
     return module
+
+def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=[0.3333,0.5], Rshunts=[1e6,5e4], thicknesses=[160e-4,1e-6], wafer_format="M10",half_cut=True):
+    shape, area = wafer_shape(format=wafer_format)
+    cells = []
+    for i in range(len(Jscs)):
+        Si_intrinsic_limit = True
+        if i > 0:
+            Si_intrinsic_limit = False
+        J01, J02 = estimate_cell_J01_J02(Jscs[i],Vocs[i],FF=FFs[i],Rs=Rss[i],Rshunt=Rshunts[i],thickness=thicknesses[i],Si_intrinsic_limit=Si_intrinsic_limit)
+        cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], area, shape, thicknesses[i]))
+    return MultiJunctionCell(cells)
