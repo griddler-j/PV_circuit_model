@@ -421,4 +421,28 @@ def simulate_Suns_Voc(cell, Suns=None, Iscs=None):
         Vocs = Vocs[0]
     return Suns_Isc_Voc_curve, Vocs
 
-
+def get_measurements(measurements_directory):
+    # Read in all the measurements and collate them
+    measurements = []
+    json_files = [f for f in os.listdir(measurements_directory) if f.endswith('.json')]
+    for filename in json_files:
+        print(os.path.join(measurements_directory, filename))
+        try:
+            fullpath = os.path.join(measurements_directory, filename)
+            with open(fullpath, 'r', encoding='utf-8') as fh:
+                data = json.load(fh)
+                measurement_type = data["measurement_type"]
+                print(measurement_type)
+                match measurement_type:
+                    case "Suns_Voc_measurement":
+                        measurements.append(Suns_Voc_measurement(json_filepath=fullpath))
+                    case "Light_IV_measurement":
+                        measurements.append(Light_IV_measurement(json_filepath=fullpath))
+                    case "Dark_IV_measurement":
+                        measurements.append(Dark_IV_measurement(json_filepath=fullpath))
+                print("Im here")
+        except Exception as e:
+            # Log and keep going (or re-raise if you want to fail fast)
+            print(f"ERROR reading {filename}: {e}")
+    print("got through")
+    return measurements

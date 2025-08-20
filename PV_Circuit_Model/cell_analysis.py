@@ -225,8 +225,8 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         plt.plot(self.IV_table[0,:],-self.IV_table[1,:])
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],-self.operating_point[1],marker='o')
-            if len(self.operating_point)==3:
-                plt.plot(self.operating_point[2],-self.operating_point[1],marker='o')
+            # if len(self.operating_point)==3:
+            #     plt.plot(self.operating_point[2],-self.operating_point[1],marker='o')
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:

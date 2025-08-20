@@ -45,6 +45,7 @@ class Fit_Parameter():
             else:
                 self.d_value = self.value / 100
     def limit_order_of_mag(self,order_of_mag=1.0):
+        self.aux["limit_order_of_mag"] = order_of_mag
         if self.is_log:
             self.this_min = self.value - order_of_mag
             self.this_max = self.value + order_of_mag
@@ -99,14 +100,18 @@ class Fit_Parameters():
                     list_.append(element.get_min())
                 elif attribute=="max":
                     list_.append(element.get_max())
+                elif attribute=="limit_order_of_mag":
+                    if attribute in element.aux:
+                        list_.append(element.aux[attribute])
+                    else:
+                        list_.append(np.NaN)
                 else:
-                    if hasattr(element,attribute):
+                    if attribute in element.aux:
+                        list_.append(element.aux[attribute])
+                    elif hasattr(element,attribute):
                         list_.append(getattr(element, attribute))
                     else:
-                        if attribute in element.aux:
-                            list_.append(element.aux[attribute])
-                        else:
-                            list_.append(np.NaN)
+                        list_.append(np.NaN)
         if len(list_)==1:
             return list_[0]
         return list_
@@ -515,14 +520,13 @@ def fit_routine(measurement_samples,fit_parameters,
     routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
     record = []
-    if fit_dashboard is None:
-        fit_dashboard = Fit_Dashboard(2,2)
-    fit_dashboard.RMS_errors = RMS_errors
-    fit_dashboard.measurements = collate_device_measurements(measurement_samples)
+    if fit_dashboard is not None and num_of_epochs>0:
+        fit_dashboard.RMS_errors = RMS_errors
+        fit_dashboard.measurements = collate_device_measurements(measurement_samples)
     if "comparison_function_iterations" not in aux:
         aux["comparison_function_iterations"] = 1
     aux["pbar"] = tqdm(total=((num_of_epochs-1)*(fit_parameters.num_of_enabled_parameters()+1)+1)*aux["comparison_function_iterations"],desc="Calibrating")
-    for epoch in range(num_of_epochs):
+    for epoch in range(max(1,num_of_epochs)):
         M = []
         for iteration in range(fit_parameters.num_of_enabled_parameters()+1):
             fit_parameters.set_differential(iteration-1)
@@ -531,11 +535,15 @@ def fit_routine(measurement_samples,fit_parameters,
             pbar_after = aux["pbar"].n
             if pbar_after == pbar_before:
                 aux["pbar"].update(aux["comparison_function_iterations"])
+            if "f_out" in aux:
+                aux["f_out"].write(f"STATUS:Fitting proress: {aux["pbar"].n} of {aux["pbar"].total}\n")
+                aux["f_out"].flush()
             if iteration==0:
                 Y = np.array(output["error_vector"])
                 RMS_errors.append(np.sqrt(np.mean(Y**2)))
                 record.append({"fit_parameters": copy.deepcopy(fit_parameters),"output": output})
-                fit_dashboard.plot()
+                if fit_dashboard is not None and num_of_epochs>0:
+                    fit_dashboard.plot()
             else:
                 M.append(output["differential_vector"])
             if epoch==num_of_epochs-1:
@@ -546,6 +554,8 @@ def fit_routine(measurement_samples,fit_parameters,
                 return output
         M = np.array(M)
         M = M.T
+        if num_of_epochs==0: # if num_of_epochs=0, just calculate M, Y but do not try to update
+            return (M, Y, fit_parameters, aux)
         if epoch==num_of_epochs-2:
             resolution, error = uncertainty_analysis(M,Y)
             # scale them back to be in the parameter native units

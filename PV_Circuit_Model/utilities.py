@@ -2,6 +2,8 @@ import numpy as np
 import numbers
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
+import json
+from collections.abc import Mapping, Sequence
 
 def interp_(x, xp, fp):
     """
