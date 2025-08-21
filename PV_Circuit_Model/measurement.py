@@ -247,7 +247,7 @@ def simulate_device_measurements(devices,measurement_class=None,include_tags=Non
 # row 0 = voltage, row 1 = current
 class IV_measurement(Measurement):
     keys = ["Voc", "Isc", "Pmax"]
-    data_rows = ["Current(A)","Voltage(V)"]
+    data_rows = ["Voltage(V)","Current(A)"]
     def __init__(self,Suns=None,IV_curve=None,temperature=25,measurement_cond_kwargs={},IL=None,JL=None,json_filepath=None,key_parameters=None,**kwargs):
         if json_filepath is not None:
             super().__init__(json_filepath=json_filepath)
@@ -298,11 +298,11 @@ class IV_measurement(Measurement):
 
 class Light_IV_measurement(IV_measurement):
     keys = ["Voc", "Isc", "Pmax"]
-    data_rows = ["Current(A)","Voltage(V)"]
+    data_rows = ["Voltage(V)","Current(A)"]
 
 class Dark_IV_measurement(IV_measurement):
     keys = ["log_shunt_cond","I_bias"]
-    data_rows = ["Current(A)","Voltage(V)"]
+    data_rows = ["Voltage(V)","Current(A)"]
     def __init__(self,Suns=None,IV_curve=None,temperature=25,measurement_cond_kwargs={},IL=None,JL=None,json_filepath=None):
         if json_filepath is not None:
             super().__init__(json_filepath=json_filepath)
