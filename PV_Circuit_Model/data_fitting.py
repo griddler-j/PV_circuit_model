@@ -136,8 +136,6 @@ class Fit_Parameters():
     def initialize(self, values, names=None, enabled_only=True):
         self.set("value",values,names=names,enabled_only=enabled_only)
         self.set("nominal_value",values,names=names,enabled_only=enabled_only)
-    def initialize_from_sample(sample):
-        pass
     def set_nominal(self):
         for element in self.fit_parameters:
             element.set_nominal()

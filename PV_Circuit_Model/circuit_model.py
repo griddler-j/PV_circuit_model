@@ -669,3 +669,12 @@ def find_subgroups_by_name(circuit_group, target_name):
         if isinstance(element, CircuitGroup):
             result.extend(find_subgroups_by_name(element, target_name))
     return result
+
+def find_subgroups_by_tag(circuit_group, tag):
+    result = []
+    for element in circuit_group.subgroups:
+        if hasattr(element, 'tag') and element.tag == tag:
+            result.append(element)
+        if isinstance(element, CircuitGroup):
+            result.extend(find_subgroups_by_name(element, tag))
+    return result
