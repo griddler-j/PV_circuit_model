@@ -74,6 +74,9 @@ class Fit_Parameters():
         else:
             self.fit_parameters = []
         self.is_differential = False
+        self.ref_sample = None
+    def initialize_from_sample(self,sample):
+        self.ref_sample = sample
     def add_fit_parameter(self,fit_parameter):
         self.fit_parameters.append(fit_parameter)
     def enable_parameter(self,name=None):
@@ -171,16 +174,18 @@ class Fit_Parameters():
             if element.enabled:
                 count += 1
         return count
-    def apply_to_ref_cell(self, aux_info):
+    def apply_to_ref(self, aux_info):
         pass
     def apply_to_device(self, device):
         pass
     def __str__(self):
         return str(self.get_parameters())
 
-def compare_experiments_to_simulations(fit_parameters, sample, aux):
-    fit_parameters.apply_to_ref_cell(aux)
-    measurements = collate_device_measurements(sample)
+# generally, measurment samples may not be equal to fit_parameters.ref_sample
+# but this default implementation asssumes so, and so it doesn't use measurement_sample
+def compare_experiments_to_simulations(fit_parameters, measurement_samples, aux):
+    fit_parameters.apply_to_ref(aux)
+    measurements = collate_device_measurements(fit_parameters.ref_sample)
     for measurement in measurements:
         measurement.simulate()
     output = {}
@@ -190,10 +195,6 @@ def compare_experiments_to_simulations(fit_parameters, sample, aux):
     else:
         output["differential_vector"] = get_measurements_differential_vector(measurements,exclude_tags=["do_not_fit"])
     return output
-
-def initial_guess(fit_parameters,sample,*args,**kwargs):
-    fit_parameters.initialize_from_sample(sample)
-    fit_parameters.set_d_value()
 
 class Fit_Dashboard():
     def __init__(self,nrows,ncols,save_file_name=None,measurements=None,RMS_errors=None):
@@ -354,7 +355,7 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         for slider in self.sliders:
             update_values.append(slider.get())
         self.fit_parameters.set("value",update_values,enabled_only=False)
-        self.fit_parameters.apply_to_ref_cell(aux_info=None)
+        self.fit_parameters.apply_to_ref(aux_info=None)
         for measurement in self.measurements:
             measurement.simulate()
         self.prep_plot()
@@ -516,8 +517,8 @@ def uncertainty_analysis(M,Y):
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
                 aux={},num_of_epochs=10):
-    # Initial Guess
-    routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
+    if "initial_guess" in routine_functions:
+        routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
     record = []
     if fit_dashboard is not None and num_of_epochs>0:
