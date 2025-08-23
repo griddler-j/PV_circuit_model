@@ -75,6 +75,7 @@ class Fit_Parameters():
             self.fit_parameters = []
         self.is_differential = False
         self.ref_sample = None
+        self.aux = {}
     def initialize_from_sample(self,sample):
         self.ref_sample = sample
     def add_fit_parameter(self,fit_parameter):
