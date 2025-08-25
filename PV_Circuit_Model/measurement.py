@@ -166,7 +166,7 @@ def set_simulation_baseline(measurements):
     for measurement in measurements:
         measurement.set_simulation_baseline()
         
-def get_measurements_error_vector(measurements,measurement_class=None,include_tags=None,exclude_tags=None):
+def get_measurements_error_vector(measurements,measurement_class=None,include_tags=None,exclude_tags=["do_not_fit"]):
     vector = []
     for measurement in measurements:
         if measurement_class is None or isinstance(measurement,measurement_class):
@@ -174,7 +174,7 @@ def get_measurements_error_vector(measurements,measurement_class=None,include_ta
                 vector.extend(measurement.get_error_vector())
     return vector
 
-def get_measurements_differential_vector(measurements,measurement_class=None,include_tags=None,exclude_tags=None):
+def get_measurements_differential_vector(measurements,measurement_class=None,include_tags=None,exclude_tags=["do_not_fit"]):
     vector = []
     for measurement in measurements:
         if measurement_class is None or isinstance(measurement,measurement_class):

@@ -190,9 +190,9 @@ def compare_experiments_to_simulations(fit_parameters, measurement_samples, aux)
     output = {}
     if fit_parameters is None or fit_parameters.is_differential==False: # baseline case
         set_simulation_baseline(measurements)
-        output["error_vector"] = get_measurements_error_vector(measurements,exclude_tags=["do_not_fit"])
+        output["error_vector"] = get_measurements_error_vector(measurements)
     else:
-        output["differential_vector"] = get_measurements_differential_vector(measurements,exclude_tags=["do_not_fit"])
+        output["differential_vector"] = get_measurements_differential_vector(measurements)
     return output
 
 class Fit_Dashboard():
@@ -521,10 +521,11 @@ def fit_routine(measurement_samples,fit_parameters,
     RMS_errors = []
     this_RMS_errors = []
     record = []
+    measurements = collate_device_measurements(measurement_samples)
     if fit_dashboard is not None and num_of_epochs>0:
         if fit_dashboard.RMS_errors is None:
             fit_dashboard.RMS_errors = RMS_errors
-            fit_dashboard.measurements = collate_device_measurements(measurement_samples)
+            fit_dashboard.measurements = measurements
         else:
             RMS_errors = fit_dashboard.RMS_errors  
         
@@ -545,8 +546,8 @@ def fit_routine(measurement_samples,fit_parameters,
                 aux["f_out"].flush()
             if iteration==0:
                 Y = np.array(output["error_vector"])
-                RMS_errors.append(np.sqrt(np.mean(Y**2)))
-                this_RMS_errors.append(RMS_errors[-1])
+                this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
+                RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements))**2)))
                 record.append({"fit_parameters": copy.deepcopy(fit_parameters),"output": output})
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
@@ -556,6 +557,11 @@ def fit_routine(measurement_samples,fit_parameters,
                 index = np.argmin(np.array(this_RMS_errors))
                 fit_parameters = record[index]["fit_parameters"]
                 output = record[index]["output"]
+                fit_parameters.set_differential(-1)
+                if index < len(this_RMS_errors):
+                    routine_functions["comparison_function"](fit_parameters,measurement_samples,aux)
+                    if fit_dashboard is not None and num_of_epochs>0:
+                        fit_dashboard.plot()
                 aux["pbar"].close()
                 return output
         M = np.array(M)
