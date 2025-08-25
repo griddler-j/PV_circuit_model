@@ -16,7 +16,9 @@ class Measurement():
         # either must input the measurement_condition + measurement_data, or
         # read these from a json file
         assert((measurement_condition is not None and (measurement_data is not None or key_parameters is not None)) or json_filepath is not None)
+        self.aux = {}
         if json_filepath is not None:
+            self.aux["filepath"] = json_filepath
             self.read_file(json_filepath)
         else:
             self.measurement_condition = measurement_condition

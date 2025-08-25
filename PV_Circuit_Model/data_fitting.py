@@ -181,14 +181,14 @@ class Fit_Parameters():
         return str(self.get_parameters())
 
 # generally, measurment samples may not be equal to fit_parameters.ref_sample
-# but this default implementation asssumes so, and so it doesn't use measurement_sample
 def compare_experiments_to_simulations(fit_parameters, measurement_samples, aux):
-    fit_parameters.apply_to_ref(aux)
-    measurements = collate_device_measurements(fit_parameters.ref_sample)
+    if fit_parameters is not None:
+        fit_parameters.apply_to_ref(aux)
+    measurements = collate_device_measurements(measurement_samples)
     for measurement in measurements:
         measurement.simulate()
     output = {}
-    if fit_parameters.is_differential==False: # baseline case
+    if fit_parameters is None or fit_parameters.is_differential==False: # baseline case
         set_simulation_baseline(measurements)
         output["error_vector"] = get_measurements_error_vector(measurements,exclude_tags=["do_not_fit"])
     else:
@@ -519,10 +519,15 @@ def fit_routine(measurement_samples,fit_parameters,
     if "initial_guess" in routine_functions:
         routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
+    this_RMS_errors = []
     record = []
     if fit_dashboard is not None and num_of_epochs>0:
-        fit_dashboard.RMS_errors = RMS_errors
-        fit_dashboard.measurements = collate_device_measurements(measurement_samples)
+        if fit_dashboard.RMS_errors is None:
+            fit_dashboard.RMS_errors = RMS_errors
+            fit_dashboard.measurements = collate_device_measurements(measurement_samples)
+        else:
+            RMS_errors = fit_dashboard.RMS_errors  
+        
     if "comparison_function_iterations" not in aux:
         aux["comparison_function_iterations"] = 1
     aux["pbar"] = tqdm(total=((num_of_epochs-1)*(fit_parameters.num_of_enabled_parameters()+1)+1)*aux["comparison_function_iterations"],desc="Calibrating")
@@ -541,13 +546,14 @@ def fit_routine(measurement_samples,fit_parameters,
             if iteration==0:
                 Y = np.array(output["error_vector"])
                 RMS_errors.append(np.sqrt(np.mean(Y**2)))
+                this_RMS_errors.append(RMS_errors[-1])
                 record.append({"fit_parameters": copy.deepcopy(fit_parameters),"output": output})
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
             else:
                 M.append(output["differential_vector"])
             if epoch==num_of_epochs-1:
-                index = np.argmin(np.array(RMS_errors))
+                index = np.argmin(np.array(this_RMS_errors))
                 fit_parameters = record[index]["fit_parameters"]
                 output = record[index]["output"]
                 aux["pbar"].close()
@@ -557,20 +563,23 @@ def fit_routine(measurement_samples,fit_parameters,
         if num_of_epochs==0: # if num_of_epochs=0, just calculate M, Y but do not try to update
             return (M, Y, fit_parameters, aux)
         if epoch==num_of_epochs-2:
-            resolution, error = uncertainty_analysis(M,Y)
-            # scale them back to be in the parameter native units
-            d_values = fit_parameters.get("d_value")
-            is_logs = fit_parameters.get("is_log")
-            values = fit_parameters.get("value")
-            for i, is_log in enumerate(is_logs):
-                if is_log:
-                    resolution[i] *= 10**(values[i])*(10**(d_values[i])-1)
-                    error[i] *= 10**(values[i])*(10**(d_values[i])-1)
-                else:
-                    resolution[i] *= d_values[i]
-                    error[i] *= d_values[i]
-            fit_parameters.set("error",error)
-            fit_parameters.set("resolution",resolution)
+            try:
+                resolution, error = uncertainty_analysis(M,Y)
+                # scale them back to be in the parameter native units
+                d_values = fit_parameters.get("d_value")
+                is_logs = fit_parameters.get("is_log")
+                values = fit_parameters.get("value")
+                for i, is_log in enumerate(is_logs):
+                    if is_log:
+                        resolution[i] *= 10**(values[i])*(10**(d_values[i])-1)
+                        error[i] *= 10**(values[i])*(10**(d_values[i])-1)
+                    else:
+                        resolution[i] *= d_values[i]
+                        error[i] *= d_values[i]
+                fit_parameters.set("error",error)
+                fit_parameters.set("resolution",resolution)
+            except Exception as e:
+                pass
         fit_parameters.set_differential(-1)
         routine_functions["update_function"](M, Y, fit_parameters, aux)
         if "post_update_function" in routine_functions:
