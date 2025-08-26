@@ -285,7 +285,9 @@ def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format=
     cell_Voc = 0.735
     if Voc is not None:
         cell_Voc = Voc / (num_strings*num_cells_per_halfstring)
-    target_Pmax = 0.8*cell_Voc*Isc
+    else:
+        Voc = cell_Voc * (num_strings*num_cells_per_halfstring)
+    target_Pmax = 0.8*Voc*Isc
     if Pmax is not None:
         target_Pmax = Pmax
     elif FF is not None:
