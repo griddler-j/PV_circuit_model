@@ -279,7 +279,7 @@ class Fit_Dashboard():
                 result = get_measurements_groups(self.measurements,
                                 measurement_class=measurement_type,
                                 categories=categories,
-                                optional_x_axis=cond_key)
+                                optional_x_axis=cond_key,plot_offset=True)
                 exp_groups = result[0]
                 sim_groups = result[1]
                 index = (key_parameter, *values)

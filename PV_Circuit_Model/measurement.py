@@ -184,7 +184,7 @@ def get_measurements_differential_vector(measurements,measurement_class=None,inc
 
 def get_measurements_groups(measurements,measurement_class=None,
                             include_tags=None,exclude_tags=None,categories=[],
-                            optional_x_axis=None):
+                            optional_x_axis=None,plot_offset=False):
     exp_groups = {}
     sim_groups = {}
     x_axis_groups = {}
@@ -204,10 +204,13 @@ def get_measurements_groups(measurements,measurement_class=None,
                         exp_groups[tuple_] = []
                         sim_groups[tuple_] = []
                         x_axis_groups[tuple_] = []
-                    exp_ = measurement.key_parameters[key]
+                    offset = 0
+                    if plot_offset and "plot_offset" in measurement.aux:
+                        offset = measurement.aux["plot_offset"]
+                    exp_ = measurement.key_parameters[key] + offset
                     sim_ = []
                     if key in measurement.simulated_key_parameters:
-                        sim_ = measurement.simulated_key_parameters[key]
+                        sim_ = measurement.simulated_key_parameters[key] + offset
                     if optional_x_axis is not None:
                         condition = measurement.measurement_condition[optional_x_axis]
                     if isinstance(exp_,numbers.Number):
