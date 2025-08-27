@@ -1,0 +1,20 @@
+{
+	"measurement_condition":{
+		"temperature":25,
+		"cell_area":244.26,
+		"c":null,
+		"b":null,
+		"IL":[0,4.8852],
+		"drive_voltage":null,
+		"drive_current":null
+	},
+	"fit_weight":{
+	},
+	"tag":null,
+	"experimental_data":null,
+	"measurement_type":"luminescence_imaging",
+	"image_paths":{
+		"top_cell":"PL_top_cell.txt",
+		"bottom_cell":null
+	}
+}

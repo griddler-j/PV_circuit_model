@@ -1,0 +1,33 @@
+{
+	"measurement_condition":{
+		"temperature":25,
+		"cell_area":244.26,
+		"spectrum":"red"
+	},
+	"fit_weight":{
+	},
+	"tag":null,
+	"experimental_data":[
+		{
+			"row_name":"Voc(V)",
+			"data":[0.100438841,0.199767389,0.36463122,0.491581657,0.535996228,0.567961945,0.601875769,0.624208071,0.6448411190000001,0.670366441,0.68870796,0.7063943070000001,0.723522987]
+		},
+		{
+			"row_name":"subcell 0 Suns",
+			"data":[NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN]
+		},
+		{
+			"row_name":"subcell 1 Suns",
+			"data":[NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN]
+		},
+		{
+			"row_name":"subcell 0 IL(A)",
+			"data":[0.00115803666,0.00231607332,0.00463214664,0.0115803666,0.0231607332,0.0463214664,0.115803666,0.231607332,0.4632146640000001,1.15803666,2.31607332,4.63214664,9.26429328]
+		},
+		{
+			"row_name":"subcell 1 IL(A)",
+			"data":[0,0,0,0,0,0,0,0,0,0,0,0,0]
+		}
+	],
+	"measurement_type":"Suns_Voc_measurement"
+}
