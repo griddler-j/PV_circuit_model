@@ -163,5 +163,5 @@ example_calc_solar_simulator_error/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-*.json
 *.jpg
+*.zip
