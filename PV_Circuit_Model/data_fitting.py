@@ -311,7 +311,7 @@ class Fit_Dashboard():
             plt.show(block=False)
         plt.draw()
         if self.save_file_name is not None:
-            word = self.save_file_name + "calibration_fit_round_"+str(len(self.RMS_errors)-1)+".jpg"
+            word = self.save_file_name + "_fit_round_"+str(len(self.RMS_errors)-1)+".jpg"
             plt.savefig(word, format='jpg', dpi=300)
         plt.pause(0.1)
     def plot(self):
@@ -534,15 +534,19 @@ def fit_routine(measurement_samples,fit_parameters,
     if "comparison_function_iterations" not in aux:
         aux["comparison_function_iterations"] = 1
     total=((num_of_epochs-1)*(fit_parameters.num_of_enabled_parameters()+1)+1)*aux["comparison_function_iterations"]
-    if "f_out" not in aux:
-        aux["pbar"] = tqdm(total=total,desc="Calibrating")
-    else:
-        aux["pbar"] = SimpleNamespace(
-            n=0,
-            total=total,
-            update=lambda N: setattr(aux["pbar"], "n", aux["pbar"].n + N),
-            close=lambda: None,
-        )
+    has_outer_loop = False
+    if "pbar" in aux:
+        has_outer_loop = True
+    if "pbar" not in aux:
+        if "f_out" not in aux:
+            aux["pbar"] = tqdm(total=total,desc="Calibrating")
+        else:
+            aux["pbar"] = SimpleNamespace(
+                n=0,
+                total=total,
+                update=lambda N: setattr(aux["pbar"], "n", aux["pbar"].n + N),
+                close=lambda: None,
+            )
 
     for epoch in range(max(1,num_of_epochs)):
         M = []
@@ -568,6 +572,8 @@ def fit_routine(measurement_samples,fit_parameters,
             else:
                 M.append(output["differential_vector"])
             if epoch==num_of_epochs-1:
+                if has_outer_loop:
+                    return record[-1]["output"]
                 index = np.argmin(np.array(this_RMS_errors))
                 fit_parameters = record[index]["fit_parameters"]
                 output = record[index]["output"]
@@ -583,7 +589,7 @@ def fit_routine(measurement_samples,fit_parameters,
         M = M.T
         if num_of_epochs==0: # if num_of_epochs=0, just calculate M, Y but do not try to update
             return (M, Y, fit_parameters, aux)
-        if epoch==num_of_epochs-2:
+        if epoch==num_of_epochs-2 and not has_outer_loop:
             try:
                 resolution, error = uncertainty_analysis(M,Y)
                 # scale them back to be in the parameter native units
