@@ -110,14 +110,14 @@ class Fit_Parameters():
                     if attribute in element.aux:
                         list_.append(element.aux[attribute])
                     else:
-                        list_.append(np.NaN)
+                        list_.append(np.nan)
                 else:
                     if attribute in element.aux:
                         list_.append(element.aux[attribute])
                     elif hasattr(element,attribute):
                         list_.append(getattr(element, attribute))
                     else:
-                        list_.append(np.NaN)
+                        list_.append(np.nan)
         if len(list_)==1:
             return list_[0]
         return list_

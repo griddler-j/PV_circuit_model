@@ -395,14 +395,14 @@ def simulate_Suns_Voc(cell, Suns=None, Iscs=None):
         if Iscs.ndim == 1:
             Iscs = Iscs[None,:]
         assert(Iscs.shape[0]==subcells_num)
-        Suns = np.ones_like(Iscs)*np.NaN
+        Suns = np.ones_like(Iscs)*np.nan
     else:
         if isinstance(Suns,numbers.Number):
             Suns = Suns*np.ones((subcells_num,1))
         if Suns.ndim == 1:
             Suns = Suns[None,:]
         assert(Suns.shape[0]==subcells_num)
-        Iscs = np.ones_like(Suns)*np.NaN
+        Iscs = np.ones_like(Suns)*np.nan
     Vocs = []
     cell.set_Suns(1.0, rebuild_IV=False)
     for i, _ in enumerate(Suns[0,:]):

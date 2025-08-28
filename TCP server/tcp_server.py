@@ -165,13 +165,14 @@ def main():
                     f_in  = conn.makefile("r", encoding="utf-8", newline=None)
                     f_out = conn.makefile("w", encoding="utf-8", newline="\n")
 
-                    block = read_block(f_in)   # blocks until END or client closes
-                    if block:
-                        result = handle_block(block, variables, f_out)
-                        if result == "BYE":
-                            f_out.write("FINISHED\n"); f_out.flush()
-                            return
-                        f_out.write(result + "\n"); f_out.flush()
+                    while not SHOULD_EXIT:
+                        block = read_block(f_in)   # blocks until END or client closes
+                        if block:
+                            result = handle_block(block, variables, f_out)
+                            if result == "BYE":
+                                f_out.write("FINISHED\n"); f_out.flush()
+                                return
+                            f_out.write(result + "\n"); f_out.flush()
                     # connection closes here -> back to accept() for the next client
         except KeyboardInterrupt:
             pass
