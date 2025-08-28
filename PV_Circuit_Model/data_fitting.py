@@ -561,7 +561,7 @@ def fit_routine(measurement_samples,fit_parameters,
             if iteration==0:
                 Y = np.array(output["error_vector"])
                 this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
-                RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements))**2)))
+                RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements,exclude_tags=None))**2)))
                 record.append({"fit_parameters": copy.deepcopy(fit_parameters),"output": output})
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
