@@ -1,6 +1,6 @@
 import socket, sys, shlex, signal, json
 
-from Tandem_Cell_Fit_Tools.calibrate_to_tandem_tests import (
+from PV_Circuit_Model.data_fitting_tandem_cell import (
     get_measurements, analyze_tandem_cell_measurements, generate_differentials
 )
 
@@ -45,7 +45,7 @@ def generate_differentials_wrapper(measurements,tandem_cell,f_out):
     f_out.write(f"OUTPUT:{limit_order_of_mag}\n")
 
 def handle_block(lines,variables,f_out):
-    try:
+    #try:
         for s in lines:
             s = s.strip()
             words = shlex.split(s)
@@ -111,8 +111,8 @@ def handle_block(lines,variables,f_out):
                     f_out.write(f"Unknown command: {command}\n")
                     f_out.flush()
         return "FINISHED"
-    except Exception as e:
-        return "FAILED: " + str(e)
+    # except Exception as e:
+    #     return "FAILED: " + str(e)
 
 def read_block(f_in):
     """Read lines until END (returns list[str]). Returns None if connection closed."""

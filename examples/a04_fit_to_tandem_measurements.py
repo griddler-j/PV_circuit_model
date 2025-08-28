@@ -1,4 +1,4 @@
-from Tandem_Cell_Fit_Tools.calibrate_to_tandem_tests import *
+from PV_Circuit_Model.data_fitting_tandem_cell import *
 
 # This example fits a tandem cell model to the tandem measurements of a large area
 # perovskite-silicon solar cell.  Each measurement is stored in a json file 

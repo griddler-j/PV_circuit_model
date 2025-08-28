@@ -8,6 +8,8 @@ import numbers
 import tkinter as tk
 from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import types
+from types import SimpleNamespace
 
 class Fit_Parameter():
     def __init__(self,name="variable",value=0.0,nominal_value=None,d_value=None,abs_min=-np.inf,abs_max=np.inf,is_log=False):
@@ -531,7 +533,17 @@ def fit_routine(measurement_samples,fit_parameters,
         
     if "comparison_function_iterations" not in aux:
         aux["comparison_function_iterations"] = 1
-    aux["pbar"] = tqdm(total=((num_of_epochs-1)*(fit_parameters.num_of_enabled_parameters()+1)+1)*aux["comparison_function_iterations"],desc="Calibrating")
+    total=((num_of_epochs-1)*(fit_parameters.num_of_enabled_parameters()+1)+1)*aux["comparison_function_iterations"]
+    if "f_out" not in aux:
+        aux["pbar"] = tqdm(total=total,desc="Calibrating")
+    else:
+        aux["pbar"] = SimpleNamespace(
+            n=0,
+            total=total,
+            update=lambda N: setattr(aux["pbar"], "n", aux["pbar"].n + N),
+            close=lambda: None,
+        )
+
     for epoch in range(max(1,num_of_epochs)):
         M = []
         for iteration in range(fit_parameters.num_of_enabled_parameters()+1):
@@ -542,7 +554,9 @@ def fit_routine(measurement_samples,fit_parameters,
             if pbar_after == pbar_before:
                 aux["pbar"].update(aux["comparison_function_iterations"])
             if "f_out" in aux:
-                aux["f_out"].write(f"STATUS:Fitting proress: {aux["pbar"].n} of {aux["pbar"].total}\n")
+                aux["f_out"].write(
+                    f"STATUS:Fitting progress: {aux['pbar'].n} of {aux['pbar'].total}\n"
+                )
                 aux["f_out"].flush()
             if iteration==0:
                 Y = np.array(output["error_vector"])
@@ -562,7 +576,8 @@ def fit_routine(measurement_samples,fit_parameters,
                     routine_functions["comparison_function"](fit_parameters,measurement_samples,aux)
                     if fit_dashboard is not None and num_of_epochs>0:
                         fit_dashboard.plot()
-                aux["pbar"].close()
+                if "pbar" in aux:
+                    aux["pbar"].close()
                 return output
         M = np.array(M)
         M = M.T
