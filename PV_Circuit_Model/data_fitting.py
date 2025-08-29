@@ -517,7 +517,7 @@ def uncertainty_analysis(M,Y):
 # could be mulitple samples
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
-                aux={},num_of_epochs=10):
+                aux={},num_of_epochs=10,enable_pbar=True):
     if "initial_guess" in routine_functions:
         routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
@@ -538,7 +538,7 @@ def fit_routine(measurement_samples,fit_parameters,
     if "pbar" in aux:
         has_outer_loop = True
     if "pbar" not in aux:
-        if "f_out" not in aux:
+        if "f_out" not in aux and enable_pbar:
             aux["pbar"] = tqdm(total=total,desc="Calibrating")
         else:
             aux["pbar"] = SimpleNamespace(
