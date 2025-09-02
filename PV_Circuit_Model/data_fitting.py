@@ -11,6 +11,21 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import types
 from types import SimpleNamespace
 
+import sys
+
+def _in_notebook() -> bool:
+    try:
+        from IPython import get_ipython
+        return get_ipython() is not None and hasattr(get_ipython(), "kernel")
+    except Exception:
+        return False
+
+try:
+    # only available in notebooks
+    from IPython.display import display as _ip_display
+except Exception:
+    _ip_display = None
+
 class Fit_Parameter():
     def __init__(self,name="variable",value=0.0,nominal_value=None,d_value=None,abs_min=-np.inf,abs_max=np.inf,is_log=False):
         self.name = name
@@ -199,7 +214,17 @@ def compare_experiments_to_simulations(fit_parameters, measurement_samples, aux)
 
 class Fit_Dashboard():
     def __init__(self,nrows,ncols,save_file_name=None,measurements=None,RMS_errors=None):
-        self.fig, self.axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(6, 5))
+        self.fig, self.axs = plt.subplots(nrows, ncols, figsize=(6, 5), constrained_layout=True)
+        self._display_handle = None   # for notebook live-updates
+        self._shown = False           # for desktop GUI
+        self._in_nb = _in_notebook()
+        if self._in_nb:
+            # prevent Jupyter from auto-rendering a static copy the moment it's created
+            plt.close(self.fig)
+        else:
+            # for scripts/desktop: enable interactive redraws
+            plt.ion()
+
         self.fig.canvas.manager.set_window_title("Fit Dashboard")
         self.nrows = nrows
         self.ncols = ncols
@@ -305,11 +330,30 @@ class Fit_Dashboard():
                             ax.set_ylabel(key_parameter, fontsize=6)
                     if title is not None:
                         ax.set_title(title, fontsize=6)
-        self.fig.tight_layout()
+        # self.fig.tight_layout()
     def plt_plot(self):
-        if plt.gcf().canvas.manager is None:
-            plt.show(block=False)
-        plt.draw()
+        # draw/flush the existing fig; do NOT call plt.show() in loops
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+
+        if self._in_nb and _ip_display is not None:
+            # single output that updates in place
+            if self._display_handle is None:
+                self._display_handle = _ip_display(self.fig, display_id=True)
+            else:
+                self._display_handle.update(self.fig)
+        else:
+            # normal Python: one non-blocking window, then just redraw
+            if not self._shown:
+                self._shown = True
+                try:
+                    # modern Matplotlib
+                    self.fig.show()
+                except Exception:
+                    # fallback
+                    plt.show(block=False)
+            # give the GUI event loop a breath
+            plt.pause(0.001)
         if self.save_file_name is not None:
             word = self.save_file_name + "_fit_round_"+str(len(self.RMS_errors)-1)+".jpg"
             plt.savefig(word, format='jpg', dpi=300)

@@ -33,12 +33,13 @@ class Tandem_Cell_Fit_Parameters(Fit_Parameters):
         self.set_d_value()
     def initialize_from_sample(self,sample):
         sample.set_temperature(25.0)
-        self.initialize([np.log10(sample.cells[0].J01()), np.log10(sample.cells[0].J02()), 
-                          np.log10(sample.cells[0].specific_shunt_cond()), 
-                          np.log10(sample.cells[1].J01()), np.log10(sample.cells[1].J02()), 
-                          np.log10(sample.cells[1].PC_J01()), 
-                          np.log10(sample.cells[1].specific_shunt_cond()), 
-                          np.log10(sample.specific_Rs_cond())],
+        abs_min = self.get("abs_min")
+        self.initialize([np.log10(max(abs_min[0],sample.cells[0].J01())), np.log10(max(abs_min[1],sample.cells[0].J02())), 
+                          np.log10(max(abs_min[2],sample.cells[0].specific_shunt_cond())), 
+                          np.log10(max(abs_min[3],sample.cells[1].J01())), np.log10(max(abs_min[4],sample.cells[1].J02())), 
+                          np.log10(max(abs_min[5],sample.cells[1].PC_J01())), 
+                          np.log10(max(abs_min[6],sample.cells[1].specific_shunt_cond())), 
+                          np.log10(max(abs_min[7],sample.specific_Rs_cond()))],
                           self.parameter_names)
         self.ref_sample = sample
     def apply_to_ref(self, aux_info):
@@ -137,6 +138,7 @@ def analyze_tandem_cell_measurements(measurements,num_of_rounds=40,regularizatio
             tandem_cell = MultiJunctionCell([bottom_cell,top_cell])
 
     tandem_cell.assign_measurements(measurements)
+
     fit_parameters = Tandem_Cell_Fit_Parameters(tandem_cell)
 
     fit_dashboard = None
