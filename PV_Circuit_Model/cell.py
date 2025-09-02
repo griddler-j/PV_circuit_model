@@ -5,6 +5,8 @@ import matplotlib.patches as patches
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 from shapely.geometry import Polygon, Point
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.ticker import ScalarFormatter
 
 class wafer_formats():
     formats = {
@@ -348,7 +350,7 @@ class Module(CircuitGroup):
         super().build_IV(max_num_points=max_num_points,
                          cap_current=self.cap_current)
     
-def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_what="Vint",title="Cells Layout"):
+def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",title="Cells Layout"):
     shapes = []
     names = []
     Vints = []
@@ -371,6 +373,7 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_what="Vin
 
     has_Vint = False
     has_EL_Vint = False
+    norm = None
     if len(EL_Vints)==len(shapes) and colour_what=="EL_Vint": # every cell has a EL_Vint
         has_EL_Vint = True
         norm = mcolors.Normalize(vmin=min(EL_Vints), vmax=max(EL_Vints))
@@ -408,14 +411,43 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_what="Vin
             if show_names:
                 ax.text(x, y, names[i], fontsize=8, color='black')
             ax.add_patch(polygon)
-        ax.set_xlim(self.location[0]-self.extent[0]/2*1.1, self.location[0]+self.extent[0]/2*1.1)
-        ax.set_ylim(self.location[1]-self.extent[1]/2*1.1, self.location[1]+self.extent[1]/2*1.1)
+
+        # ---- Tight axes from the actual polygons (fixes big blank space) ----
+        xs = np.concatenate([s[:,0] for s in shapes])
+        ys = np.concatenate([s[:,1] for s in shapes])
+        xmin, xmax = xs.min(), xs.max()
+        ymin, ymax = ys.min(), ys.max()
+        w, h = xmax - xmin, ymax - ymin
+        pad = 0.05 * max(w, h)
+        ax.set_xlim(xmin - pad, xmax + pad)
+        ax.set_ylim(ymin - pad, ymax + pad)
+
         ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         for spine in ax.spines.values():
             spine.set_visible(False)
         fig.tight_layout()
         ax.set_aspect('equal')
         plt.gcf().canvas.manager.set_window_title(title)
+
+        # 4) Inset colorbar (doesn't shrink the main axes)
+
+
+        if colour_bar and norm is not None:
+            sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+            sm.set_array([])
+
+            # place the bar just outside the right edge of the axes
+            cax = inset_axes(
+                ax, width="6%", height="90%", loc="center left",
+                bbox_to_anchor=(1.02, 0.0, 1.0, 1.0),  # x offset just to the right
+                bbox_transform=ax.transAxes, borderpad=0
+            )
+            cbar = fig.colorbar(sm, cax=cax)
+            fmt = ScalarFormatter(useMathText=True)
+            fmt.set_powerlimits((-2, 3))
+            cbar.ax.yaxis.set_major_formatter(fmt)
+            cbar.set_label(colour_what)
+
         plt.show()
     return shapes, names, Vints, EL_Vints
 CircuitGroup.draw_cells = draw_cells

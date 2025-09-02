@@ -1,4 +1,5 @@
-from PV_Circuit_Model.data_fitting_tandem_cell import *
+# %% [markdown]
+# # Tandem Cell Measurement Fitting Demo
 
 # This example fits a tandem cell model to the tandem measurements of a large area
 # perovskite-silicon solar cell.  Each measurement is stored in a json file 
@@ -7,6 +8,8 @@ from PV_Circuit_Model.data_fitting_tandem_cell import *
 # Light I-V at different top, bottom cell JLs (i.e. spectrometric IV)
 # "Dark I-V" where one subcell is in the "dark" and the other cell is illuminated
 # Suns-Voc, namely with blue, red (IR) and white light spectra
+
+from PV_Circuit_Model.data_fitting_tandem_cell import *
 
 json_directory = r"examples/tandem measurement json files/"
 sample_info = {"area":244.26,"bottom_cell_thickness":180e-4}
