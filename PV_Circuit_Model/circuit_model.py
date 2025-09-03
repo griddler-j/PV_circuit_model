@@ -50,15 +50,19 @@ class CircuitElement:
         if display_value:
             text = self.get_value_text()
         draw_symbol(self.get_draw_func(),ax=ax,x=x,y=y,color=color,text=text)
-        if hasattr(self,"pos_node"):
-            ax.text(x,y-0.5,str(self.neg_node), va='center', fontsize=6)
-            ax.text(x,y+0.5,str(self.pos_node), va='center', fontsize=6)
+        if "pos_node" in self.aux:
+            ax.text(x,y-0.5,str(self.aux["neg_node"]), va='center', fontsize=6)
+            ax.text(x,y+0.5,str(self.aux["pos_node"]), va='center', fontsize=6)
     def null_IV(self, keep_dark=False):
         self.IV_table = None
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
         if self.parent is not None:
             self.parent.null_IV(keep_dark=keep_dark)
+    def calc_I(self,V):
+        pass
+    def calc_dI_dV(self,V):
+        pass
 
 class CurrentSource(CircuitElement):
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
@@ -72,6 +76,18 @@ class CurrentSource(CircuitElement):
         self.refT = temperature
         self.T = temperature
         self.temp_coeff = temp_coeff
+
+    def calc_I(self,V):
+        if isinstance(V,numbers.Number):
+            return -self.IL
+        else:
+            return -self.IL*np.ones_like(V)
+    
+    def calc_dI_dV(self,V):
+        if isinstance(V,numbers.Number):
+            return 0.0
+        else:
+            return np.zeros_like(V)
 
     def set_IL(self,IL):
         self.IL = IL
@@ -107,7 +123,7 @@ class CurrentSource(CircuitElement):
             self.build_IV()
 
     def build_IV(self, V=np.array([-0.1,0.1]), *args, **kwargs):
-        self.IV_table = np.array([V, -self.IL*np.ones_like(V)])
+        self.IV_table = np.array([V, self.calc_I(V)])
 
     def __str__(self):
         return "Current Source: IL = " + self.get_value_text()
@@ -121,8 +137,15 @@ class Resistor(CircuitElement):
     def __init__(self, cond=1, tag=None):
         super().__init__(tag=tag)
         self.cond = cond
+    def calc_I(self,V):
+        return V*self.cond
+    def calc_dI_dV(self,V):
+        if isinstance(V,numbers.Number):
+            return self.cond
+        else:
+            return self.cond*np.ones_like(V)
     def build_IV(self, V=np.array([-0.1,-0.05,0,0.05,0.1]), *args, **kwargs):
-        self.IV_table = np.array([V, V*self.cond])
+        self.IV_table = np.array([V, self.calc_I(V)])
     def set_cond(self,cond):
         self.cond = cond
         self.null_IV()
@@ -191,11 +214,15 @@ class Diode(CircuitElement):
         V = np.array(V)
         return V
 
+    def calc_I(self,V):
+        return self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
+    def calc_dI_dV(self,V):
+        I = self.calc_I(V)
+        return I/(self.n*self.VT)
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
         if V is None:
             V = self.get_V_range(max_num_points)
-        I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
-        self.IV_table = np.array([V,I])
+        self.IV_table = np.array([V,self.calc_I(V)])
     
 class ForwardDiode(Diode):
     def __init__(self,I0=1e-15,n=1,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
@@ -223,6 +250,11 @@ class PhotonCouplingDiode(ForwardDiode):
 class ReverseDiode(Diode):
     def __init__(self,I0=1e-15,n=1, V_shift=0,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift, tag=tag)
+    def calc_I(self,V):
+        return -self.I0*np.exp((-V-self.V_shift)/(self.n*self.VT))
+    def calc_dI_dV(self,V):
+        I = self.calc_I(V)
+        return -I/(self.n*self.VT)
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
         super().build_IV(V,max_num_points)
         self.IV_table[1,:] += self.I0

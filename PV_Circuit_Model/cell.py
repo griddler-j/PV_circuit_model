@@ -20,10 +20,10 @@ class wafer_formats():
     "M12+": {"size": 21.7,   "diagonal": 29.5}
     }
 
-class instrinsic_Si():
+class intrinsic_Si():
     Jsc_fractional_temp_coeff = 0.0004
 
-class Instrinsic_Si_diode(ForwardDiode):
+class Intrinsic_Si_diode(ForwardDiode):
     bandgap_narrowing_RT = np.array([[1.00E+10,	1.41E-03],
         [1.00E+14,	0.00145608],
         [3.00E+14,	0.00155279],
@@ -51,9 +51,9 @@ class Instrinsic_Si_diode(ForwardDiode):
         self.V_shift = 0.0
         self.area = area
     def __str__(self):
-        return "Si Instrinsic Diode"
+        return "Si Intrinsic Diode"
     def get_value_text(self):
-        word = f"instrinsic"
+        word = f"intrinsic"
         return word
     def set_I0(self,I0):
         pass # does nothing
@@ -66,22 +66,21 @@ class Instrinsic_Si_diode(ForwardDiode):
         self.temperature = temperature
         if rebuild_IV:
             self.build_IV()
-    def intrinsic_recomb_current(self,V):
+    def calc_I(self,V,get_dI_dV=False):
         ni = get_ni(self.temperature)
         VT = get_VT(self.temperature)
         N_doping = self.base_doping
+        pn = ni**2*np.exp(V/VT)
+        delta_n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+        if get_dI_dV:
+            d_pn_dV = pn/VT
+            d_delta_n_dV = ni**2*np.exp(V/VT)/VT/np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT))
         if self.base_type == "p":
             n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
             p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-            n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-            p = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-            delta_n = n
         else:
             p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
             n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-            p = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-            n = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-            delta_n = p
         BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
         ni_eff = ni*np.exp(BGN/2/VT)
 
@@ -90,8 +89,14 @@ class Instrinsic_Si_diode(ForwardDiode):
         gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
         Brel = 1
         Blow = 4.73e-15
-        intrinsic_recomb = (n*p - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
+        intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
+        if get_dI_dV:
+            d_intrinsic_recomb_dV = d_pn_dV*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) + pn*3e-29*d_delta_n_dV**0.92
+            return q*d_intrinsic_recomb_dV*self.base_thickness*self.area
         return q*intrinsic_recomb*self.base_thickness*self.area
+    
+    def calc_dI_dV(self,V):
+        return self.calc_I(V,get_dI_dV=True)
     
     def get_V_range(self,max_num_points=100):
         if max_num_points is None:
@@ -107,7 +112,7 @@ class Instrinsic_Si_diode(ForwardDiode):
             VT = get_VT(self.temperature)
             Voc = 0.7
             for _ in range(10):
-                I = self.intrinsic_recomb_current(Voc)
+                I = self.calc_I(Voc)
                 if I >= max_I and I <= max_I*1.1:
                     break
                 Voc += VT*np.log(max_I/I)
@@ -118,7 +123,7 @@ class Instrinsic_Si_diode(ForwardDiode):
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
         if V is None:
             V = self.get_V_range(max_num_points=max_num_points)
-        I = self.intrinsic_recomb_current(V)
+        I = self.calc_I(V)
         self.IV_table = np.array([V,I])
 
 class Cell(CircuitGroup):
@@ -208,7 +213,7 @@ class Cell(CircuitGroup):
         diodes = self.findElementType(ForwardDiode)
         for diode in diodes:
             if diode.n==n:
-                if not isinstance(diode,Instrinsic_Si_diode) and not isinstance(diode,PhotonCouplingDiode):
+                if not isinstance(diode,Intrinsic_Si_diode) and not isinstance(diode,PhotonCouplingDiode):
                     J0 += diode.I0
         return J0
     def J01(self):
@@ -240,7 +245,7 @@ class Cell(CircuitGroup):
     def set_J0(self,J0,n,temperature=25,rebuild_IV=True):
         diodes = self.findElementType(ForwardDiode)
         for diode in diodes:
-            if diode.tag != "defect" and not isinstance(diode,Instrinsic_Si_diode) and diode.n==n and not isinstance(diode,PhotonCouplingDiode):
+            if diode.tag != "defect" and not isinstance(diode,Intrinsic_Si_diode) and diode.n==n and not isinstance(diode,PhotonCouplingDiode):
                 diode.refI0 = J0
                 diode.refT = temperature
                 diode.changeTemperature(temperature=self.temperature,rebuild_IV=False)
@@ -262,7 +267,7 @@ class Cell(CircuitGroup):
     def set_PC_J0(self,J0,n,temperature=25,rebuild_IV=True):
         diodes = self.findElementType(PhotonCouplingDiode)
         for diode in diodes:
-            if diode.tag != "defect" and not isinstance(diode,Instrinsic_Si_diode) and diode.n==n:
+            if diode.tag != "defect" and not isinstance(diode,Intrinsic_Si_diode) and diode.n==n:
                 diode.refI0 = J0
                 diode.refT = temperature
                 diode.changeTemperature(temperature=self.temperature,rebuild_IV=False)
@@ -489,13 +494,13 @@ def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, h
 def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.0, 
                     shape=None, thickness=180e-4, breakdown_V=-10, J0_rev=100e-15,
                     J01_photon_coupling=0.0, Si_intrinsic_limit=True):
-    elements = [CurrentSource(IL=Jsc, temp_coeff = instrinsic_Si.Jsc_fractional_temp_coeff*Jsc),
+    elements = [CurrentSource(IL=Jsc, temp_coeff = intrinsic_Si.Jsc_fractional_temp_coeff*Jsc),
                 ForwardDiode(I0=J01,n=1),
                 ForwardDiode(I0=J02,n=2)]
     if J01_photon_coupling > 0:
         elements.append(PhotonCouplingDiode(I0=J01_photon_coupling,n=1))
     if Si_intrinsic_limit:
-        elements.append(Instrinsic_Si_diode(base_thickness=thickness))
+        elements.append(Intrinsic_Si_diode(base_thickness=thickness))
     elements.extend([ReverseDiode(I0=J0_rev, n=1, V_shift = -breakdown_V),
                 Resistor(cond=1/Rshunt)])
     if Rs == 0.0:
