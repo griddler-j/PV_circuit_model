@@ -82,15 +82,22 @@ class Measurement():
             if title is not None:
                 ax.set_title(title, fontsize=6)
 
-    def get_diff_vector(self,key_parameters1,key_parameters2):
+    def get_diff_vector(self,key_parameters1,key_parameters2=None):
         diff = []
         for key in self.keys:
             fit_weight = 1.0
             if key in self.fit_weight:
                 fit_weight = self.fit_weight[key]
-                
-            parameter1 = key_parameters1[key]
-            parameter2 = key_parameters2[key]
+            
+            # in parallel mode, the baseline doesn't exist, so just return the simulated case without subtracting the baseline
+            if key not in key_parameters1:    
+                parameter1 = key_parameters2[key]*0.0
+            else:
+                parameter1 = key_parameters1[key]
+            if key_parameters2 is None or key not in key_parameters2:
+                parameter2 = key_parameters1[key]*0.0
+            else:
+                parameter2 = key_parameters2[key]
             if isinstance(parameter1,numbers.Number):
                 parameter1 = [parameter1]
                 parameter2 = [parameter2]
@@ -114,6 +121,8 @@ class Measurement():
         return np.array(diff)
     def set_simulation_baseline(self):
         self.simulated_key_parameters_baseline = self.simulated_key_parameters.copy()
+    def get_baseline_vector(self):
+        return self.get_diff_vector(self.simulated_key_parameters_baseline,None)
     def get_error_vector(self):
         return self.get_diff_vector(self.key_parameters,self.simulated_key_parameters)
     def get_differential_vector(self):
@@ -165,6 +174,14 @@ CircuitGroup.assign_measurements = assign_measurements
 def set_simulation_baseline(measurements):
     for measurement in measurements:
         measurement.set_simulation_baseline()
+
+def get_measurements_baseline_vector(measurements,measurement_class=None,include_tags=None,exclude_tags=["do_not_fit"]):
+    vector = []
+    for measurement in measurements:
+        if measurement_class is None or isinstance(measurement,measurement_class):
+            if (include_tags==None or (measurement.tag is not None and measurement.tag in include_tags)) and (exclude_tags==None or (measurement.tag is None or measurement.tag not in exclude_tags)):
+                vector.extend(measurement.get_baseline_vector())
+    return vector
         
 def get_measurements_error_vector(measurements,measurement_class=None,include_tags=None,exclude_tags=["do_not_fit"]):
     vector = []

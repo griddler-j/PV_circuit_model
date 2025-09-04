@@ -258,10 +258,10 @@ class ReverseDiode(Diode):
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
         if V is None:
             V = self.get_V_range(max_num_points)
-        I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
-        self.IV_table = np.array([V,I])
-        self.IV_table[1,:] += self.I0
-        self.IV_table *= -1
+        # I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
+        self.IV_table = np.array([-V,self.calc_I(-V)])
+        # self.IV_table[1,:] += self.I0
+        # self.IV_table *= -1
         self.IV_table = self.IV_table[:,::-1]
     def __str__(self):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)

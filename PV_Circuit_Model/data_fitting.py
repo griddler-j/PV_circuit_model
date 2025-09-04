@@ -10,6 +10,7 @@ from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import types
 from types import SimpleNamespace
+from joblib import Parallel, delayed
 
 import sys
 
@@ -208,6 +209,8 @@ def compare_experiments_to_simulations(fit_parameters, measurement_samples, aux)
     if fit_parameters is None or fit_parameters.is_differential==False: # baseline case
         set_simulation_baseline(measurements)
         output["error_vector"] = get_measurements_error_vector(measurements)
+        output["baseline_vector"] = get_measurements_baseline_vector(measurements)
+        output["measurement_samples"] = measurement_samples
     else:
         output["differential_vector"] = get_measurements_differential_vector(measurements)
     return output
@@ -554,14 +557,31 @@ def uncertainty_analysis(M,Y):
     resolution = np.sqrt(1/S**2 @ VT**2)
     # in units of the parameter deltas
     return resolution, error
-    
+
+def construct_M(iteration,measurement_samples,fit_parameters,
+                comparison_function,aux):
+    fit_parameters.set_differential(iteration-1)
+    if "pbar" in aux:
+        pbar_before = aux["pbar"].n
+    output = comparison_function(fit_parameters,measurement_samples,aux)
+    if "pbar" in aux:
+        pbar_after = aux["pbar"].n
+        if pbar_after == pbar_before:
+            aux["pbar"].update(aux["comparison_function_iterations"])
+    if "f_out" in aux:
+        aux["f_out"].write(
+            f"STATUS:Fitting progress: {aux['pbar'].n} of {aux['pbar'].total}\n"
+        )
+        aux["f_out"].flush()
+    return output
+        
 # measurement_samples = collection of devices (Cell, Module, etc)
 # each with its measurements stored inside .measurements attribute
 # could be one sample only
 # could be mulitple samples
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
-                aux={},num_of_epochs=10,enable_pbar=True):
+                aux={},num_of_epochs=10,enable_pbar=True,parallel=False):
     if "initial_guess" in routine_functions:
         routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
@@ -594,19 +614,43 @@ def fit_routine(measurement_samples,fit_parameters,
 
     for epoch in range(max(1,num_of_epochs)):
         M = []
-        for iteration in range(fit_parameters.num_of_enabled_parameters()+1):
-            fit_parameters.set_differential(iteration-1)
-            pbar_before = aux["pbar"].n
-            output = routine_functions["comparison_function"](fit_parameters,measurement_samples,aux)
-            pbar_after = aux["pbar"].n
-            if pbar_after == pbar_before:
-                aux["pbar"].update(aux["comparison_function_iterations"])
+        iterations = fit_parameters.num_of_enabled_parameters()+1
+        if parallel:
+            aux_safe = {k: v for k, v in aux.items() if k not in ("pbar", "f_out")}
+            n_cpus = os.cpu_count() or 1
+            results = Parallel(n_jobs=min(n_cpus,iterations), backend="loky")(
+                delayed(construct_M)(iteration,measurement_samples,fit_parameters,
+                                routine_functions["comparison_function"],aux_safe)
+                for iteration in range(iterations)
+            )
+            aux["pbar"].update((fit_parameters.num_of_enabled_parameters()+1)*aux["comparison_function_iterations"])
             if "f_out" in aux:
                 aux["f_out"].write(
                     f"STATUS:Fitting progress: {aux['pbar'].n} of {aux['pbar'].total}\n"
                 )
                 aux["f_out"].flush()
+
+        for iteration in range(iterations):
+            if parallel:
+                output = results[iteration]
+            else:
+                output = construct_M(iteration,measurement_samples,fit_parameters,
+                    routine_functions["comparison_function"],aux) 
             if iteration==0:
+                if parallel:
+                    baseline_vector = output["baseline_vector"]
+                    if not isinstance(measurement_samples, list):
+                        measurement_samples_list = [measurement_samples]
+                        measurement_samples_list_ = [output["measurement_samples"]]
+                    else:
+                        measurement_samples_list = measurement_samples
+                        measurement_samples_list_ = output["measurement_samples"]
+                    
+                    for i, sample in enumerate(measurement_samples_list):
+                        for j, measurement in enumerate(sample.measurements):
+                            measurement.simulated_data = measurement_samples_list_[i].measurements[j].simulated_data
+                            measurement.simulated_key_parameters = measurement_samples_list_[i].measurements[j].simulated_key_parameters
+                            measurement.simulated_key_parameters_baseline = measurement_samples_list_[i].measurements[j].simulated_key_parameters_baseline
                 Y = np.array(output["error_vector"])
                 this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
                 RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements,exclude_tags=None))**2)))
@@ -614,6 +658,8 @@ def fit_routine(measurement_samples,fit_parameters,
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
             else:
+                if parallel:
+                    output["differential_vector"] = list(np.array(output["differential_vector"]) - np.array(baseline_vector))
                 M.append(output["differential_vector"])
             if epoch==num_of_epochs-1:
                 if has_outer_loop:
@@ -652,6 +698,8 @@ def fit_routine(measurement_samples,fit_parameters,
             except Exception as e:
                 pass
         fit_parameters.set_differential(-1)
+        for measurement in measurements:
+            measurement.simulated_key_parameters_baseline = {}
         routine_functions["update_function"](M, Y, fit_parameters, aux)
         if "post_update_function" in routine_functions:
             routine_functions["post_update_function"](fit_parameters)
