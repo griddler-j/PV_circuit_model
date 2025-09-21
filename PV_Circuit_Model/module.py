@@ -32,21 +32,24 @@ class Module(CircuitGroup):
             cap_current = self.cap_current
         super().build_IV(max_num_points=max_num_points,
                          cap_current=cap_current)
-        
-def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False):
+
+# colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
+def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma):
     all_shapes = []
     all_names = []
     all_Vints = []
     all_EL_Vints = []
+    all_powers = []
     xlim_ = [modules[0].location[0]-modules[0].extent[0]/2*1.1, modules[0].location[0]+modules[0].extent[0]/2*1.1]
     ylim_ = [modules[0].location[1]-modules[0].extent[1]/2*1.1, modules[0].location[1]+modules[0].extent[1]/2*1.1]
     fig, ax = plt.subplots()
     for module in modules:
-        shapes, names, Vints, EL_Vints = module.draw_cells(display=False)
+        shapes, names, Vints, EL_Vints, Is = module.draw_cells(display=False)
         all_shapes.extend(shapes)
         all_names.extend(names)
         all_Vints.extend(Vints)
         all_EL_Vints.extend(EL_Vints)
+        all_powers.extend(list(-np.array(Vints)*np.array(Is)))
         xlim_[0] = min(xlim_[0], module.location[0]-module.extent[0]/2*1.1)
         xlim_[1] = max(xlim_[1], module.location[0]+module.extent[0]/2*1.1)
         ylim_[0] = min(ylim_[0], module.location[1]-module.extent[1]/2*1.1)
@@ -56,30 +59,55 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
 
     has_Vint = False
     has_EL_Vint = False
+    has_power = False
     has_aux = False
     if len(all_EL_Vints)==len(all_shapes) and colour_what=="EL_Vint":
         has_EL_Vint = True
+        if min_value is not None:
+            all_EL_Vints = list(np.maximum(np.asarray(all_EL_Vints),min_value))
+        if max_value is not None:
+            all_EL_Vints = list(np.minimum(np.asarray(all_EL_Vints),max_value))
         norm = mcolors.Normalize(vmin=min(all_EL_Vints), vmax=max(all_EL_Vints))
-        cmap = cm.viridis  # You can use other colormaps like 'plasma', 'coolwarm', etc.
+        cmap = colormap  
     elif len(all_Vints)==len(all_shapes) and colour_what=="Vint": # every cell has a Vint
         has_Vint = True
+        if min_value is not None:
+            all_Vints = list(np.maximum(np.asarray(all_Vints),min_value))
+        if max_value is not None:
+            all_Vints = list(np.minimum(np.asarray(all_Vints),max_value))
         norm = mcolors.Normalize(vmin=min(all_Vints), vmax=max(all_Vints))
-        cmap = cm.viridis  # You can use other colormaps like 'plasma', 'coolwarm', etc.
+        cmap = colormap  
+    elif len(all_powers)==len(all_shapes) and colour_what=="power": # every cell has a Vint
+        has_power = True
+        if min_value is not None:
+            all_powers = list(np.maximum(np.asarray(all_powers),min_value))
+        if max_value is not None:
+            all_powers = list(np.minimum(np.asarray(all_powers),max_value))
+        norm = mcolors.Normalize(vmin=min(all_powers), vmax=max(all_powers))
+        cmap = colormap  # You can use other colormaps like 'plasma', 'coolwarm', etc.
     elif len(colour_what)>0 and hasattr(modules[0],"aux") and colour_what in modules[0].aux:
         has_aux = True
         all_aux = []
         for module in modules:
             all_aux.extend(module.aux[colour_what])
+        if min_value is not None:
+            all_aux = list(np.maximum(np.asarray(all_aux),min_value))
+        if max_value is not None:
+            all_aux = list(np.minimum(np.asarray(all_aux),max_value))
         norm = mcolors.Normalize(vmin=min(all_aux), vmax=max(all_aux))
-        cmap = cm.viridis
+        cmap = colormap
     elif len(colour_what)>0 and hasattr(modules[0].cells[0],"aux") and colour_what in modules[0].cells[0].aux:
         has_aux = True
         all_aux = []
         for module in modules:
             for cell in module.cells:
                 all_aux.append(cell.aux[colour_what])
+        if min_value is not None:
+            all_aux = list(np.maximum(np.asarray(all_aux),min_value))
+        if max_value is not None:
+            all_aux = list(np.minimum(np.asarray(all_aux),max_value))
         norm = mcolors.Normalize(vmin=min(all_aux), vmax=max(all_aux))
-        cmap = cm.viridis
+        cmap = colormap
 
     for i, shape in enumerate(all_shapes):
         color = 'skyblue'
@@ -87,9 +115,11 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
             color = cmap(norm(all_EL_Vints[i]))
         elif has_Vint:
             color = cmap(norm(all_Vints[i]))
+        elif has_power:
+            color = cmap(norm(all_powers[i]))
         elif has_aux:
             color = cmap(norm(all_aux[i]))
-        polygon = patches.Polygon(shape, closed=True, facecolor=color, edgecolor='black')
+        polygon = patches.Polygon(shape, closed=True, facecolor=color, edgecolor='gray',linewidth=0.5)
         x = 0.5*(np.max(shape[:,0])+np.min(shape[:,0]))
         y = 0.5*(np.max(shape[:,1])+np.min(shape[:,1]))
         if show_names:
@@ -101,7 +131,25 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
     ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     for spine in ax.spines.values():
         spine.set_visible(False)
-    fig.tight_layout()
+
+    if colour_bar and norm is not None:
+        sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array([])
+
+        # place the bar just outside the right edge of the axes
+        cax = inset_axes(
+            ax, width="1%", height="90%", loc="center left",
+            bbox_to_anchor=(1.02, 0.0, 1.0, 1.0),  # x offset just to the right
+            bbox_transform=ax.transAxes, borderpad=0
+        )
+        cbar = fig.colorbar(sm, cax=cax)
+        fmt = ScalarFormatter(useMathText=True)
+        fmt.set_powerlimits((-2, 3))
+        cbar.ax.yaxis.set_major_formatter(fmt)
+        cbar.set_label(colour_what)
+    else:
+        fig.tight_layout()
+
     plt.show()
     
 def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
@@ -146,7 +194,7 @@ def reset_half_string_resistors(self:CircuitGroup, halfstring_resistor=None):
 CircuitGroup.reset_half_string_resistors = reset_half_string_resistors
 
 def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
-    shapes, names, _, _ = self.draw_cells(display=False)
+    shapes, names, _, _, _ = self.draw_cells(display=False)
     xs = []
     ys = []
     indices = []

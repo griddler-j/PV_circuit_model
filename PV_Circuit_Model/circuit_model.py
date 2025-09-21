@@ -666,30 +666,31 @@ def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn
     bounds = np.array([0,0]).astype(float)
     max_x_extent = 0.0
     for element in elements:
-        x_extent = element.extent[0]
-        max_x_extent = max(max_x_extent,x_extent)
-        y_extent = element.extent[1]
-        element.location = pos.copy()
-        element.rotation = rotation
-        row += 1
-        if col == cols-1:
-            bounds[0] = max(bounds[0],pos[0] + max_x_extent)
-        if row == rows:
-            bounds[1] = max(bounds[1],pos[1] + y_extent)
-        if row < rows:
-            if rotation==0:
-                pos[1] += y_extent + y_gap
+        if hasattr(element,"extent"):
+            x_extent = element.extent[0]
+            max_x_extent = max(max_x_extent,x_extent)
+            y_extent = element.extent[1]
+            element.location = pos.copy()
+            element.rotation = rotation
+            row += 1
+            if col == cols-1:
+                bounds[0] = max(bounds[0],pos[0] + max_x_extent)
+            if row == rows:
+                bounds[1] = max(bounds[1],pos[1] + y_extent)
+            if row < rows:
+                if rotation==0:
+                    pos[1] += y_extent + y_gap
+                else:
+                    pos[1] -= (y_extent + y_gap)
             else:
-                pos[1] -= (y_extent + y_gap)
-        else:
-            row = 0
-            col += 1
-            pos[0] += max_x_extent + x_gap
-            max_x_extent = 0.0
-            if turn:
-                rotation = 180 - rotation
-            else:
-                pos[1] = 0
+                row = 0
+                col += 1
+                pos[0] += max_x_extent + x_gap
+                max_x_extent = 0.0
+                if turn:
+                    rotation = 180 - rotation
+                else:
+                    pos[1] = 0
 
 def circuit_deepcopy(circuit_group):
     circuit_group2 = copy.deepcopy(circuit_group)

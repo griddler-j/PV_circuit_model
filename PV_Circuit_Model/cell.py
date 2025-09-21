@@ -355,38 +355,48 @@ class Module(CircuitGroup):
         super().build_IV(max_num_points=max_num_points,
                          cap_current=self.cap_current)
     
-def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",title="Cells Layout"):
+# colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
+def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",title="Cells Layout",colormap=cm.plasma):
     shapes = []
     names = []
     Vints = []
     EL_Vints = []
+    Is = []
     if hasattr(self,"shape"): # a solar cell
         shapes.append(self.shape.copy())
         names.append(self.name)
         if self.operating_point is not None and len(self.operating_point)==3:
             Vints.append(self.operating_point[2])
+            Is.append(self.operating_point[1])
         if self.aux is not None and "EL_Vint" in self.aux:
             EL_Vints.append(self.aux["EL_Vint"])
     else:
         for element in self.subgroups:
             if hasattr(element,"extent") and element.extent is not None:
-                shapes_, names_, Vints_, EL_Vints_ = element.draw_cells(display=False)
+                shapes_, names_, Vints_, EL_Vints_, Is_ = element.draw_cells(display=False)
                 shapes.extend(shapes_)
                 names.extend(names_)
                 Vints.extend(Vints_)
                 EL_Vints.extend(EL_Vints_)
+                Is.extend(Is_)
 
     has_Vint = False
     has_EL_Vint = False
+    has_power = False
     norm = None
     if len(EL_Vints)==len(shapes) and colour_what=="EL_Vint": # every cell has a EL_Vint
         has_EL_Vint = True
         norm = mcolors.Normalize(vmin=min(EL_Vints), vmax=max(EL_Vints))
-        cmap = cm.viridis
+        cmap = colormap
     elif len(Vints)==len(shapes) and colour_what=="Vint": # every cell has a Vint
         has_Vint = True
         norm = mcolors.Normalize(vmin=min(Vints), vmax=max(Vints))
-        cmap = cm.viridis 
+        cmap = colormap
+    elif len(Is)==len(shapes) and colour_what=="power": # every cell has a power
+        has_power = True
+        powers = np.array(Vints)*np.array(Is)
+        norm = mcolors.Normalize(vmin=np.min(powers), vmax=np.max(powers))
+        cmap = colormap
             
     for i, shape in enumerate(shapes):
         cos = np.cos(np.pi/180*self.rotation)
@@ -405,11 +415,13 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
     if display:
         fig, ax = plt.subplots()
         for i, shape in enumerate(shapes):
-            color = 'skyblue'
+            color = 'gray'
             if has_EL_Vint:
                 color = cmap(norm(EL_Vints[i]))
             elif has_Vint:
                 color = cmap(norm(Vints[i]))
+            elif has_power:
+                color = cmap(norm(powers[i]))
             polygon = patches.Polygon(shape, closed=True, facecolor=color, edgecolor='black')
             x = 0.5*(np.max(shape[:,0])+np.min(shape[:,0]))
             y = 0.5*(np.max(shape[:,1])+np.min(shape[:,1]))
@@ -454,7 +466,7 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
             cbar.set_label(colour_what)
 
         plt.show()
-    return shapes, names, Vints, EL_Vints
+    return shapes, names, Vints, EL_Vints, Is
 CircuitGroup.draw_cells = draw_cells
 
 def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, half_cut=True):

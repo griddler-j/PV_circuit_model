@@ -389,11 +389,11 @@ class Suns_Voc_measurement(Measurement):
     def plot_func(self,data,color="black",ax=None,title=None,kwargs=None):
         num_row = data.shape[0]
         num_subcells = int((num_row-1)/2)
-        y_label = "log10(Suns)"
-        ys = np.max(data[1:num_subcells+1,:],axis=0)
+        y_label = "log10(Current(A))"
+        ys = np.max(data[num_subcells+1:,:],axis=0)
         if np.isnan(ys[0]):
-            y_label = "log10(Current(A))"
-            ys = np.max(data[num_subcells+1:,:],axis=0)
+            y_label = "log10(Suns)"
+            ys = np.max(data[1:num_subcells+1,:],axis=0)
         ys = np.log10(ys)
         Measurement.plot_func(data[0,:],ys,color=color,
                               xlabel="Voc (V)",ylabel=y_label,title=title,

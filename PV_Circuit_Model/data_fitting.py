@@ -331,6 +331,8 @@ class Fit_Dashboard():
                             ax.scatter(x_axis_data,sim_data,s=3,**kwargs)
                             ax.set_xlabel(cond_key, fontsize=6)
                             ax.set_ylabel(key_parameter, fontsize=6)
+                            ax.set_ylim(min(np.min(exp_data),np.min(sim_data),np.mean(exp_data)*(1-1e-3),np.mean(sim_data)*(1-1e-3)), 
+                                        max(np.max(exp_data),np.max(sim_data),np.mean(exp_data)*(1+1e-3),np.mean(sim_data)*(1+1e-3)))
                     if title is not None:
                         ax.set_title(title, fontsize=6)
         # self.fig.tight_layout()
@@ -366,10 +368,16 @@ class Fit_Dashboard():
         self.plt_plot()
 
 class Interactive_Fit_Dashboard(Fit_Dashboard):
-    def __init__(self,measurement_samples,fit_parameters,nrows=None,ncols=None,ref_fit_dashboard=None):
+    def __init__(self,measurement_samples,fit_parameters,nrows=None,ncols=None,ref_fit_dashboard=None,**kwargs):
+        self.apply_function = None
+        if "apply_function" in kwargs:
+            self.apply_function = kwargs["apply_function"]
+        self.aux = None
         if ref_fit_dashboard is not None:
             nrows = ref_fit_dashboard.nrows
             ncols = ref_fit_dashboard.ncols
+            if hasattr(ref_fit_dashboard,"aux"):
+                self.aux = ref_fit_dashboard.aux
         self.nrows = nrows
         self.ncols = ncols
         self.RMS_errors = None
@@ -378,15 +386,28 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.measurements = collate_device_measurements(measurement_samples)
         self.parameter_names = fit_parameters.get("name",enabled_only=False)
         self.default_values = fit_parameters.get("value",enabled_only=False)
+        self.measurement_samples = measurement_samples
         fit_parameters.limit_order_of_mag(2)
         fit_parameters.set_differential(-1)
         self.min = fit_parameters.get("min",enabled_only=False)
         self.max = fit_parameters.get("max",enabled_only=False)
+        is_log = fit_parameters.get("is_log",enabled_only=False)
+        for i in range(len(is_log)):
+            if not is_log[i]:
+                self.min[i] = fit_parameters.get("abs_min",enabled_only=False)[i]
+                self.max[i] = fit_parameters.get("abs_max",enabled_only=False)[i]
+                if np.isinf(self.min[i]):
+                    self.min[i] = -2*abs(self.default_values[i])
+                if np.isinf(self.max[i]):
+                    self.max[i] = 2*abs(self.default_values[i])
         self.fit_parameters = fit_parameters
 
     def sync_slider_to_entry(self, i):
         val = self.sliders[i].get()
-        self.display_values[i].config(text=f"{val:.2f}")
+        if max(abs(self.min[i]),abs(self.max[i])) >= 0.1:
+            self.display_values[i].config(text=f"{val:.2f}")
+        else:
+            self.display_values[i].config(text=f"{val:.2e}")
         self.plot()
 
     def reset_slider(self,i):
@@ -403,9 +424,12 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         for slider in self.sliders:
             update_values.append(slider.get())
         self.fit_parameters.set("value",update_values,enabled_only=False)
-        self.fit_parameters.apply_to_ref(aux_info=None)
-        for measurement in self.measurements:
-            measurement.simulate()
+        self.fit_parameters.apply_to_ref(aux_info=self.aux)
+        if self.apply_function is not None:
+            self.apply_function(self.fit_parameters, self.measurement_samples, self.aux)
+        else:
+            for measurement in self.measurements:
+                measurement.simulate()
         self.prep_plot()
         self.canvas.draw()
 
@@ -435,15 +459,24 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
             frame = tk.Frame(self.control_root)
             frame.pack(pady=5, padx=10, fill='x')
             ttk.Label(frame, text=name).pack(side='left', padx=5)
-            ttk.Label(frame, text=f"{self.min[i]:.2f}").pack(side='left', padx=5)
+            if max(abs(self.min[i]),abs(self.max[i])) >= 0.1:
+                ttk.Label(frame, text=f"{self.min[i]:.2f}").pack(side='left', padx=5)
+            else:
+                ttk.Label(frame, text=f"{self.min[i]:.2e}").pack(side='left', padx=5)
             self.sliders.append(ttk.Scale(frame, from_=self.min[i], to=self.max[i], orient='horizontal'))
             self.sliders[-1].set(self.default_values[i])
             self.sliders[-1].pack(side='left', expand=True, fill='x')
             self.sliders[-1].bind("<ButtonRelease-1>", lambda e, i=i: self.sync_slider_to_entry(i))
-            ttk.Label(frame, text=f"{self.max[i]:.2f}").pack(side='left', padx=5)
+            if max(abs(self.min[i]),abs(self.max[i])) >= 0.1:
+                ttk.Label(frame, text=f"{self.max[i]:.2f}").pack(side='left', padx=5)
+            else:
+                ttk.Label(frame, text=f"{self.max[i]:.2e}").pack(side='left', padx=5)
             self.reset_buttons.append(ttk.Button(frame, text="Reset", command=lambda i=i: self.reset_slider(i)))
             self.reset_buttons[-1].pack(side='left', padx=5)
-            self.display_values.append(ttk.Label(frame, text=f"{self.default_values[i]:.2f}"))
+            if max(abs(self.min[i]),abs(self.max[i])) >= 0.1:
+                self.display_values.append(ttk.Label(frame, text=f"{self.default_values[i]:.2f}"))
+            else:
+                self.display_values.append(ttk.Label(frame, text=f"{self.default_values[i]:.2e}"))
             self.display_values[-1].pack(side="right", padx=5)
 
         self.plot()
@@ -664,6 +697,9 @@ def fit_routine(measurement_samples,fit_parameters,
             if epoch==num_of_epochs-1:
                 if has_outer_loop:
                     return record[-1]["output"]
+                routine_functions["comparison_function"](fit_parameters,measurement_samples,aux)
+                if fit_dashboard is not None and num_of_epochs>0:
+                    fit_dashboard.plot()
                 index = np.argmin(np.array(this_RMS_errors))
                 fit_parameters = record[index]["fit_parameters"]
                 output = record[index]["output"]

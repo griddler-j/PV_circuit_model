@@ -17,7 +17,7 @@ json_directory = r"examples/tandem measurement json files/"
 sample_info = {"area":244.26,"bottom_cell_thickness":180e-4}
 
 measurements = get_measurements(json_directory)
-ref_cell_model, interactive_fit_dashboard = analyze_tandem_cell_measurements(measurements,sample_info=sample_info)
+ref_cell_model, interactive_fit_dashboard = analyze_solar_cell_measurements(measurements,sample_info=sample_info,is_tandem=True)
 
 # %% [markdown]
 # # Draw best fit circuit representation

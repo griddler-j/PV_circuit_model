@@ -1,7 +1,7 @@
 import socket, sys, shlex, signal, json
 
 from PV_Circuit_Model.data_fitting_tandem_cell import (
-    get_measurements, analyze_tandem_cell_measurements, generate_differentials
+    get_measurements, analyze_solar_cell_measurements, generate_differentials
 )
 
 SHOULD_EXIT = False
@@ -13,11 +13,9 @@ def _sigint(_sig, _frm):
 
 signal.signal(signal.SIGINT, _sigint)  # handle Ctrl+C
 
-def analyze_tandem_cell_measurements_wrapper(measurements_folder,sample_info,f_out):
+def analyze_solar_cell_measurements_wrapper(measurements_folder,sample_info,f_out):
     measurements = get_measurements(measurements_folder)
-    sample_info = {"area":274.10,"bottom_cell_thickness":160e-4}
-    print(sample_info)
-    tandem_cell, _ = analyze_tandem_cell_measurements(measurements,sample_info=sample_info,use_fit_dashboard=False,f_out=f_out)
+    tandem_cell, _ = analyze_solar_cell_measurements(measurements,sample_info=sample_info,use_fit_dashboard=True,f_out=f_out)
     # need to f_out all this stuff
     f_out.write(f"OUTPUT:[{tandem_cell.cells[0].J01()},{tandem_cell.cells[0].J02()},{tandem_cell.cells[0].specific_shunt_cond()},{tandem_cell.cells[1].J01()},{tandem_cell.cells[1].J02()},{tandem_cell.cells[1].PC_J01()},{tandem_cell.cells[1].specific_shunt_cond()},{tandem_cell.specific_Rs()}]\n")
     print(f"OUTPUT:[{tandem_cell.cells[0].J01()},{tandem_cell.cells[0].J02()},{tandem_cell.cells[0].specific_shunt_cond()},{tandem_cell.cells[1].J01()},{tandem_cell.cells[1].J02()},{tandem_cell.cells[1].PC_J01()},{tandem_cell.cells[1].specific_shunt_cond()},{tandem_cell.specific_Rs()}]\n")
@@ -53,8 +51,8 @@ def handle_block(lines,variables,f_out):
             match command:
                 case "QUIT":
                     return "BYE"
-                case "MAKESTARTINGGUESS": # e.g. MAKESTARTINGGUESS measurements_folder wafer_area bottom_cell_thickness enble_Auger
-                    if len(words)==7:
+                case "MAKESTARTINGGUESS": # e.g. MAKETANDEMSTARTINGGUESS measurements_folder wafer_area bottom_cell_thickness enble_Auger top_cell_JL bottom_cell_JL
+                    if len(words)>=6:
                         measurements_folder = words[1]
                         try:
                             wafer_area = float(words[2])
@@ -65,20 +63,21 @@ def handle_block(lines,variables,f_out):
                         except ValueError:
                             bottom_cell_thickness = None
                         try:
-                            enble_Auger = words[4]
+                            enable_Auger = words[4]
                         except ValueError:
-                            enble_Auger = None
+                            enable_Auger = None
                         try:
-                            top_cell_JL = float(words[5])
-                        except ValueError:
-                            top_cell_JL = None
-                        try:
-                            bottom_cell_JL = float(words[6])
+                            bottom_cell_JL = float(words[5])
                         except ValueError:
                             bottom_cell_JL = None
+                        if len(words)>6:
+                            try:
+                                top_cell_JL = float(words[6])
+                            except ValueError:
+                                top_cell_JL = None
                         if wafer_area is not None and bottom_cell_thickness is not None:
-                            sample_info = {"area":wafer_area,"bottom_cell_thickness":bottom_cell_thickness}
-                            variables["measurements"], variables["tandem_cell"] = analyze_tandem_cell_measurements_wrapper(measurements_folder,sample_info,f_out)
+                            sample_info = {"area":wafer_area,"bottom_cell_thickness":bottom_cell_thickness,"enable_Auger":enable_Auger}
+                            variables["measurements"], variables["tandem_cell"] = analyze_solar_cell_measurements_wrapper(measurements_folder,sample_info,f_out)
                             if top_cell_JL is not None and bottom_cell_JL is not None:
                                 variables["tandem_cell"].set_JL([bottom_cell_JL,top_cell_JL])
                                 Pmax, Vmp, Imp = variables["tandem_cell"].get_Pmax(return_op_point=True)

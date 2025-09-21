@@ -55,7 +55,7 @@ module.show()
 #%%
 module.set_Suns(0.0) 
 module.set_operating_point(I=10)
-_ = module.draw_cells(title="Cells Vint with inhomogenity",colour_bar=True)
+module.draw_cells(title="Cells Vint with inhomogenity",colour_bar=True) 
 
 # %% [markdown]
 # ## Introduce high series resistance to cell #1 inside the module 
