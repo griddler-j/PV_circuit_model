@@ -220,16 +220,6 @@ ref_cell_model, interactive_fit_dashboard = analyze_solar_cell_measurements(meas
 #%%
 ref_cell_model.draw(title="Tandem Cell with Best Fit Parameters",display_value=True)
 
-# %% [markdown]
-# # Interactive Dashboard
-
-# Pop up an interactive dashboard where you can use sliders to change the cell model
-# parameter values and then see how well the resultant simulated measurement data match up
-# with the experimental data
-
-#%%
-interactive_fit_dashboard.run()
-
 
 
 
