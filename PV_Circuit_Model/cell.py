@@ -286,7 +286,7 @@ class Cell(CircuitGroup):
             return np.inf
         return self.series_resistor.cond
     def Rs_cond(self):
-        return self.specific_Rs_cond()*self.area
+        return self.specific_Rs_cond()/self.area
     def specific_Rs(self):
         return 1/self.specific_Rs_cond()
     def Rs(self):
@@ -309,7 +309,7 @@ class Cell(CircuitGroup):
             Rsh_cond += res.cond
         return Rsh_cond
     def shunt_cond(self):
-        return self.specific_shunt_cond()*self.area
+        return self.specific_shunt_cond()/self.area
     def specific_shunt_res(self):
         return 1/self.specific_shunt_cond()
     def shunt_res(self):

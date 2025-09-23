@@ -1,4 +1,4 @@
-import socket, sys, shlex, signal, json
+import socket, sys, shlex, signal, json, select
 
 from PV_Circuit_Model.data_fitting_tandem_cell import (
     get_measurements, analyze_solar_cell_measurements, generate_differentials
@@ -15,15 +15,19 @@ signal.signal(signal.SIGINT, _sigint)  # handle Ctrl+C
 
 def analyze_solar_cell_measurements_wrapper(measurements_folder,sample_info,f_out):
     measurements = get_measurements(measurements_folder)
-    tandem_cell, _ = analyze_solar_cell_measurements(measurements,sample_info=sample_info,use_fit_dashboard=True,f_out=f_out)
+    cell_model, _ = analyze_solar_cell_measurements(measurements,sample_info=sample_info,use_fit_dashboard=True,f_out=f_out,is_tandem=sample_info["is_tandem"])
     # need to f_out all this stuff
-    f_out.write(f"OUTPUT:[{tandem_cell.cells[0].J01()},{tandem_cell.cells[0].J02()},{tandem_cell.cells[0].specific_shunt_cond()},{tandem_cell.cells[1].J01()},{tandem_cell.cells[1].J02()},{tandem_cell.cells[1].PC_J01()},{tandem_cell.cells[1].specific_shunt_cond()},{tandem_cell.specific_Rs()}]\n")
-    print(f"OUTPUT:[{tandem_cell.cells[0].J01()},{tandem_cell.cells[0].J02()},{tandem_cell.cells[0].specific_shunt_cond()},{tandem_cell.cells[1].J01()},{tandem_cell.cells[1].J02()},{tandem_cell.cells[1].PC_J01()},{tandem_cell.cells[1].specific_shunt_cond()},{tandem_cell.specific_Rs()}]\n")
+    if sample_info["is_tandem"]:
+        output = f"OUTPUT:[{cell_model.cells[0].J01()},{cell_model.cells[0].J02()},{cell_model.cells[0].specific_shunt_cond()},{cell_model.cells[1].J01()},{cell_model.cells[1].J02()},{cell_model.cells[1].PC_J01()},{cell_model.cells[1].specific_shunt_cond()},{cell_model.specific_Rs()}]\n"
+    else:
+        output = f"OUTPUT:[{cell_model.J01()},{cell_model.J02()},{cell_model.specific_shunt_cond()},{cell_model.specific_Rs()}]\n"
+    f_out.write(output)
+    print(output)
     f_out.flush()
-    return measurements, tandem_cell
+    return measurements, cell_model
 
-def generate_differentials_wrapper(measurements,tandem_cell,f_out):
-    M, Y, fit_parameters, aux = generate_differentials(measurements,tandem_cell)
+def generate_differentials_wrapper(measurements,cell_model,f_out):
+    M, Y, fit_parameters, aux = generate_differentials(measurements,cell_model)
     f_out.write(f"OUTPUT:{json.dumps(M.tolist())}\n")
     f_out.write(f"OUTPUT:{json.dumps(Y.tolist())}\n")
     fit_parameter_aspects = ["limit_order_of_mag","this_min","this_max","abs_min","abs_max","min","max","value","nominal_value","d_value","is_log"]
@@ -47,6 +51,8 @@ def handle_block(lines,variables,f_out):
         for s in lines:
             s = s.strip()
             words = shlex.split(s)
+            if len(words)==0:
+                continue
             command = words[0]
             match command:
                 case "QUIT":
@@ -77,35 +83,48 @@ def handle_block(lines,variables,f_out):
                                 top_cell_JL = None
                         if wafer_area is not None and bottom_cell_thickness is not None:
                             sample_info = {"area":wafer_area,"bottom_cell_thickness":bottom_cell_thickness,"enable_Auger":enable_Auger}
-                            variables["measurements"], variables["tandem_cell"] = analyze_solar_cell_measurements_wrapper(measurements_folder,sample_info,f_out)
                             if top_cell_JL is not None and bottom_cell_JL is not None:
-                                variables["tandem_cell"].set_JL([bottom_cell_JL,top_cell_JL])
-                                Pmax, Vmp, Imp = variables["tandem_cell"].get_Pmax(return_op_point=True)
-                                f_out.write(f"OUTPUT:{Vmp}\n") # send a set point for Griddler to calculate Rs
+                                sample_info["is_tandem"] = True
+                            else:
+                                sample_info["is_tandem"] = False
+                            variables["measurements"], variables["cell_model"] = analyze_solar_cell_measurements_wrapper(measurements_folder,sample_info,f_out)
+                            if top_cell_JL is not None and bottom_cell_JL is not None:
+                                variables["cell_model"].set_JL([bottom_cell_JL,top_cell_JL])
+                            else:
+                                variables["cell_model"].set_JL(bottom_cell_JL)
+                            _, Vmp, _ = variables["cell_model"].get_Pmax(return_op_point=True)
+                            f_out.write(f"OUTPUT:{Vmp}\n") # send a set point for Griddler to calculate Rs
 
                 case "SIMULATEANDCOMPARE":
-                    if "tandem_cell" in variables:
+                    if "cell_model" in variables:
                         success = True
                         if len(words)==9:
                             function_calls = [
-                                variables["tandem_cell"].cells[0].set_J01,
-                                variables["tandem_cell"].cells[0].set_J02,
-                                variables["tandem_cell"].cells[0].set_specific_shunt_cond,
-                                variables["tandem_cell"].cells[1].set_J01,
-                                variables["tandem_cell"].cells[1].set_J02,
-                                variables["tandem_cell"].cells[1].set_PC_J01,
-                                variables["tandem_cell"].cells[1].set_specific_shunt_cond,
-                                variables["tandem_cell"].set_specific_Rs_cond
+                                variables["cell_model"].cells[0].set_J01,
+                                variables["cell_model"].cells[0].set_J02,
+                                variables["cell_model"].cells[0].set_specific_shunt_cond,
+                                variables["cell_model"].cells[1].set_J01,
+                                variables["cell_model"].cells[1].set_J02,
+                                variables["cell_model"].cells[1].set_PC_J01,
+                                variables["cell_model"].cells[1].set_specific_shunt_cond,
+                                variables["cell_model"].set_specific_Rs_cond
                             ]
-                            for i in range(8):
-                                try:
-                                    number = float(words[i+1])
-                                    function_calls[i](number)
-                                except ValueError:
-                                    success = False
-                                    break
+                        else:
+                            function_calls = [
+                                variables["cell_model"].set_J01,
+                                variables["cell_model"].set_J02,
+                                variables["cell_model"].set_specific_shunt_cond,
+                                variables["cell_model"].set_specific_Rs_cond
+                            ]
+                        for i in range(len(function_calls)):
+                            try:
+                                number = float(words[i+1])
+                                function_calls[i](number)
+                            except ValueError:
+                                success = False
+                                break
                         if success:
-                            generate_differentials_wrapper(variables["measurements"],variables["tandem_cell"],f_out)
+                            generate_differentials_wrapper(variables["measurements"],variables["cell_model"],f_out)
                 case _:
                     f_out.write(f"Unknown command: {command}\n")
                     f_out.flush()
@@ -130,6 +149,40 @@ def read_block(f_in):
         if line == "END":
             return lines
         lines.append(line)
+
+def read_block_sock(conn):
+    """Read until a line equal to END is seen or the peer closes.
+       Returns a list[str] of lines (sans newlines), or None on clean close."""
+    buf = b""
+    while True:
+        r, _, _ = select.select([conn], [], [], 1.0)
+        if not r:
+            if SHOULD_EXIT:
+                return None
+            continue
+
+        chunk = conn.recv(4096)
+        if not chunk:
+            # EOF: return any partial lines we already got
+            if buf:
+                print("EOF with partial buffer:", repr(buf))
+                text = buf.decode("utf-8", errors="replace")
+                lines = [ln for ln in text.splitlines() if ln.strip().upper() != "END"]
+                return lines
+            print("EOF with no data")
+            return None
+
+        print("RX BYTES:", repr(chunk))  # <-- proves data is arriving
+        buf += chunk
+
+        # Did we receive END?
+        if b"\r\nEND\r\n" in buf or b"\nEND\n" in buf or b"\rEND\r" in buf or b"\nEND\r\n" in buf:
+            text = buf.decode("utf-8", errors="replace")
+            lines = []
+            for ln in text.splitlines():
+                if ln.strip().upper() == "END":
+                    return lines
+                lines.append(ln)
 
 def main():
     host, port = "127.0.0.1", 5007
@@ -158,21 +211,23 @@ def main():
                 except socket.timeout:
                     continue
 
-                # --- serve exactly one block, then close conn ---
                 with conn:
-                    # universal newlines handles CRLF from MATLAB
-                    f_in  = conn.makefile("r", encoding="utf-8", newline=None)
-                    f_out = conn.makefile("w", encoding="utf-8", newline="\n")
+                    print("ACCEPTED:", addr)
+                    conn.settimeout(None)  # select() handles timing; keep it blocking for recv
+                    conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
                     while not SHOULD_EXIT:
-                        block = read_block(f_in)   # blocks until END or client closes
-                        if block:
-                            result = handle_block(block, variables, f_out)
-                            if result == "BYE":
-                                f_out.write("FINISHED\n"); f_out.flush()
-                                return
-                            f_out.write(result + "\n"); f_out.flush()
-                    # connection closes here -> back to accept() for the next client
+                        block = read_block_sock(conn)
+                        if block is None:
+                            break  # client closed
+                        print("BLOCK:", block)
+                        # If you still want text writing via makefile, you can keep f_out:
+                        f_out = conn.makefile("w", encoding="utf-8", newline="\n")
+                        result = handle_block(block, variables, f_out)
+                        if result == "BYE":
+                            f_out.write("FINISHED\n"); f_out.flush()
+                            return
+                        f_out.write(result + "\n"); f_out.flush()
         except KeyboardInterrupt:
             pass
     print("Server stopped.")

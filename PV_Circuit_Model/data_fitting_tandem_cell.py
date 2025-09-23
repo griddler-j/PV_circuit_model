@@ -300,4 +300,7 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
     return fit_parameters.ref_sample, interactive_fit_dashboard
 
 def generate_differentials(measurements,cell):
-    return analyze_solar_cell_measurements(measurements,num_of_rounds=0,starting_guess=cell)
+    is_tandem = False
+    if isinstance(cell,MultiJunctionCell):
+        is_tandem = True
+    return analyze_solar_cell_measurements(measurements,num_of_rounds=0,starting_guess=cell,is_tandem=is_tandem)
