@@ -135,7 +135,6 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
     if starting_guess is not None:
         cell = circuit_deepcopy(starting_guess)
     elif is_tandem:
-        cell = quick_tandem_cell()
         bottom_cell = None
         top_cell = None
         for measurement in measurements:
@@ -177,6 +176,8 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
                     break
         if bottom_cell is not None and top_cell is not None:
             cell = MultiJunctionCell([bottom_cell,top_cell])
+        else:
+            cell = quick_tandem_cell()
     else:
         for measurement in measurements:
             if isinstance(measurement,Dark_IV_measurement):

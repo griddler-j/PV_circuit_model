@@ -53,7 +53,7 @@ class Intrinsic_Si_diode(ForwardDiode):
     def __str__(self):
         return "Si Intrinsic Diode"
     def get_value_text(self):
-        word = f"intrinsic"
+        word = f"intrinsic:\nt={self.base_thickness:.2e}\n{self.base_type} type\n{self.base_doping:.2e} cm-3"
         return word
     def set_I0(self,I0):
         pass # does nothing
