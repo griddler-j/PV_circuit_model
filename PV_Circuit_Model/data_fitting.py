@@ -630,7 +630,7 @@ def construct_M(iteration,measurement_samples,fit_parameters,
 # could be mulitple samples
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
-                aux={},num_of_epochs=10,enable_pbar=True,parallel=True):
+                aux={},num_of_epochs=10,enable_pbar=True,parallel=False):
     if "initial_guess" in routine_functions:
         routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []

@@ -394,45 +394,52 @@ class CircuitGroup():
         shift_IV_only = False 
         total_IL = 0.0       
         if self.connection=="series":
-            # add voltage
-            Is = []
-            for element in self.subgroups:
-                Is.extend(list(element.IV_table[1,:]))
-            Is = np.sort(np.array(Is))
-            if max_num_points is None:
-                Is = np.unique(Is)
-            else:
-                tol = (Is[-1]-Is[0])/(max_num_points*1000)
-                quantized = np.round(Is / tol)
-                _, idx = np.unique(quantized, return_index=True)
-                Is = Is[idx]
-            Vs = np.zeros_like(Is)
-            Vints = np.zeros_like(Is)
-            # do reverse order to allow for photon coupling
-            pc_IVs = []
-            for element in reversed(self.subgroups):
-                IV_table = element.IV_table
-                if len(pc_IVs)>0:
-                    prev_subcell_V = interp_(Is,prev_IV[1,:],prev_IV[0,:])
-                    added_I = np.zeros_like(prev_subcell_V)
-                    for pc_IV in pc_IVs:
-                        added_I -= interp_(prev_subcell_V, pc_IV[0,:], pc_IV[1,:])
-                    V = interp_(Is-added_I,IV_table[1,:],IV_table[0,:])
+            extra_Is = []
+            for iteration in [0,1]: # goes to 1 only if there is PC diode
+                # add voltage
+                Is = []
+                for element in self.subgroups:
+                    Is.extend(list(element.IV_table[1,:]))
+                if iteration==1:
+                    Is.extend(extra_Is)
+                Is = np.sort(np.array(Is))
+                if max_num_points is None:
+                    Is = np.unique(Is)
                 else:
-                    V = interp_(Is,IV_table[1,:],IV_table[0,:])
-                Vs += V
-                if hasattr(self,"shape") and isinstance(element,CircuitGroup):
-                    Vints += V
+                    tol = (Is[-1]-Is[0])/(max_num_points*1000)
+                    quantized = np.round(Is / tol)
+                    _, idx = np.unique(quantized, return_index=True)
+                    Is = Is[idx]
+                Vs = np.zeros_like(Is)
+                Vints = np.zeros_like(Is)
+                # do reverse order to allow for photon coupling
                 pc_IVs = []
-                prev_IV = []
-                if hasattr(element,"photon_coupling_diodes"):
-                    prev_IV = element.IV_table
-                    for pc in element.photon_coupling_diodes:
-                        pc_IVs.append(pc.IV_table.copy())
-                        pc_IVs[-1][1,:] *= element.area
-                if element.IV_table.shape[0]==3 and np.max(element.IV_table[2,:])>0:
-                    Vint = interp_(Is,IV_table[2,:],IV_table[0,:])
-                    Vints += Vint
+                for element in reversed(self.subgroups):
+                    IV_table = element.IV_table
+                    if len(pc_IVs)>0:
+                        prev_subcell_V = interp_(Is,prev_IV[1,:],prev_IV[0,:])
+                        added_I = np.zeros_like(prev_subcell_V)
+                        for pc_IV in pc_IVs:
+                            added_I -= interp_(prev_subcell_V, pc_IV[0,:], pc_IV[1,:])
+                        V = interp_(Is-added_I,IV_table[1,:],IV_table[0,:])
+                        extra_Is.extend(Is+added_I)
+                    else:
+                        V = interp_(Is,IV_table[1,:],IV_table[0,:])
+                    Vs += V
+                    if hasattr(self,"shape") and isinstance(element,CircuitGroup):
+                        Vints += V
+                    pc_IVs = []
+                    prev_IV = []
+                    if hasattr(element,"photon_coupling_diodes"):
+                        prev_IV = element.IV_table
+                        for pc in element.photon_coupling_diodes:
+                            pc_IVs.append(pc.IV_table.copy())
+                            pc_IVs[-1][1,:] *= element.area
+                    if element.IV_table.shape[0]==3 and np.max(element.IV_table[2,:])>0:
+                        Vint = interp_(Is,IV_table[2,:],IV_table[0,:])
+                        Vints += Vint
+                if len(extra_Is)==0:
+                    break
         else:
             # add current
             for element in self.subgroups:
