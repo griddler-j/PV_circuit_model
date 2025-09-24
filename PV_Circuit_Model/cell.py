@@ -39,7 +39,7 @@ class Intrinsic_Si_diode(ForwardDiode):
         [3.00E+19,	0.0811658],
         [1.00E+20,	0.113245]])
     # area is 1 is OK because the cell subgroup has normalized area of 1
-    def __init__(self,base_thickness=160e-4,base_type="n",base_doping=1e15,area=1.0,temperature=25,tag=None):
+    def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,tag=None):
         CircuitElement.__init__(self, tag)
         self.base_thickness = base_thickness
         self.base_type = base_type
@@ -128,7 +128,7 @@ class Intrinsic_Si_diode(ForwardDiode):
 
 class Cell(CircuitGroup):
     def __init__(self,components,connection="series",area=None,location=None,
-                 rotation=0,shape=None,thickness=None,name=None,temperature=25,Suns=1.0):
+                 rotation=0,shape=None,name=None,temperature=25,Suns=1.0):
         x_extent = 0.0
         y_extent = 0.0
         if shape is not None:
@@ -142,7 +142,6 @@ class Cell(CircuitGroup):
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
-        self.thickness = thickness
         self.get_branches()
         self.photon_coupling_diodes = self.findElementType(PhotonCouplingDiode)
 
@@ -504,22 +503,29 @@ def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, h
 
 # note: always made at 25C 1 Sun
 def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.0, 
-                    shape=None, thickness=180e-4, breakdown_V=-10, J0_rev=100e-15,
-                    J01_photon_coupling=0.0, Si_intrinsic_limit=True):
+                    shape=None, breakdown_V=-10, J0_rev=100e-15,
+                    J01_photon_coupling=0.0, Si_intrinsic_limit=True, **kwargs):
     elements = [CurrentSource(IL=Jsc, temp_coeff = intrinsic_Si.Jsc_fractional_temp_coeff*Jsc),
                 ForwardDiode(I0=J01,n=1),
                 ForwardDiode(I0=J02,n=2)]
     if J01_photon_coupling > 0:
         elements.append(PhotonCouplingDiode(I0=J01_photon_coupling,n=1))
     if Si_intrinsic_limit:
-        elements.append(Intrinsic_Si_diode(base_thickness=thickness))
+        kwargs_to_pass = {}
+        if "thickness" in kwargs:
+            kwargs_to_pass["base_thickness"] = kwargs["thickness"]
+        if "base_type" in kwargs:
+            kwargs_to_pass["base_type"] = kwargs["base_type"]
+        if "base_doping" in kwargs:
+            kwargs_to_pass["base_doping"] = kwargs["base_doping"]
+        elements.append(Intrinsic_Si_diode(**kwargs_to_pass))
     elements.extend([ReverseDiode(I0=J0_rev, n=1, V_shift = -breakdown_V),
                 Resistor(cond=1/Rshunt)])
     if Rs == 0.0:
-        cell = Cell(elements,"parallel",area=area,thickness=thickness,location=np.array([0.0,0.0]).astype(float),shape=shape,name="cell")
+        cell = Cell(elements,"parallel",area=area,location=np.array([0.0,0.0]).astype(float),shape=shape,name="cell")
     else:
         group = CircuitGroup(elements,"parallel")
-        cell = Cell([group,Resistor(cond=1/Rs)],"series",area=area,thickness=thickness,location=np.array([0.0,0.0]).astype(float),shape=shape,name="cell")
+        cell = Cell([group,Resistor(cond=1/Rs)],"series",area=area,location=np.array([0.0,0.0]).astype(float),shape=shape,name="cell")
     return cell
 
 

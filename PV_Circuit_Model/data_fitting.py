@@ -101,7 +101,7 @@ class Fit_Parameters():
     def enable_parameter(self,name=None):
         for element in self.fit_parameters:
             if name is None or element.name==name:
-                element.enabled = False
+                element.enabled = True
     def disable_parameter(self,name=None):
         for element in self.fit_parameters:
             if name is None or element.name==name:
@@ -361,11 +361,28 @@ class Fit_Dashboard():
             plt.pause(0.001)
         if self.save_file_name is not None:
             word = self.save_file_name + "_fit_round_"+str(len(self.RMS_errors)-1)+".jpg"
-            plt.savefig(word, format='jpg', dpi=300)
+            self.fig.savefig(word, format='jpg', dpi=300)
         plt.pause(0.1)
     def plot(self):
         self.prep_plot()
         self.plt_plot()
+    def close(self):
+        # stop trying to draw/update
+        try:
+            self.fig.canvas.draw_idle()
+            self.fig.canvas.flush_events()
+        except Exception:
+            pass
+        try:
+            # close just this figure (not all)
+            import matplotlib.pyplot as plt
+            plt.close(self.fig)
+        except Exception:
+            pass
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
 
 class Interactive_Fit_Dashboard(Fit_Dashboard):
     def __init__(self,measurement_samples,fit_parameters,nrows=None,ncols=None,ref_fit_dashboard=None,**kwargs):
@@ -481,7 +498,6 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
 
         self.plot()
         self.control_root.mainloop()
-        
 
 def linear_regression(M, Y, fit_parameters, aux={}): 
     alpha = 1e-5 
@@ -614,7 +630,7 @@ def construct_M(iteration,measurement_samples,fit_parameters,
 # could be mulitple samples
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
-                aux={},num_of_epochs=10,enable_pbar=True,parallel=False):
+                aux={},num_of_epochs=10,enable_pbar=True,parallel=True):
     if "initial_guess" in routine_functions:
         routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
@@ -687,7 +703,9 @@ def fit_routine(measurement_samples,fit_parameters,
                 Y = np.array(output["error_vector"])
                 this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
                 RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements,exclude_tags=None))**2)))
-                record.append({"fit_parameters": copy.deepcopy(fit_parameters),"output": output})
+                fit_parameters_clone = copy.deepcopy(fit_parameters)
+                fit_parameters_clone.ref_sample = fit_parameters.ref_sample
+                record.append({"fit_parameters": fit_parameters_clone,"output": output})
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
             else:
@@ -696,24 +714,29 @@ def fit_routine(measurement_samples,fit_parameters,
                 M.append(output["differential_vector"])
             if epoch==num_of_epochs-1:
                 if has_outer_loop:
+                    if fit_dashboard is not None:
+                        fit_dashboard.close()
                     return record[-1]["output"]
-                routine_functions["comparison_function"](fit_parameters,measurement_samples,aux)
+                index = np.argmin(np.array(this_RMS_errors))
+                fit_parameters_clone = record[index]["fit_parameters"]
+                RMS_errors[-1] = this_RMS_errors[index]
+                output = record[index]["output"]
+                fit_parameters_clone.set_differential(-1)
+                routine_functions["comparison_function"](fit_parameters_clone,measurement_samples,aux)
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
-                index = np.argmin(np.array(this_RMS_errors))
-                fit_parameters = record[index]["fit_parameters"]
-                output = record[index]["output"]
+                fit_parameters.set("value", fit_parameters_clone.get("value"))
                 fit_parameters.set_differential(-1)
-                if index < len(this_RMS_errors):
-                    routine_functions["comparison_function"](fit_parameters,measurement_samples,aux)
-                    if fit_dashboard is not None and num_of_epochs>0:
-                        fit_dashboard.plot()
                 if "pbar" in aux:
                     aux["pbar"].close()
+                if fit_dashboard is not None:
+                    fit_dashboard.close()
                 return output
         M = np.array(M)
         M = M.T
         if num_of_epochs==0: # if num_of_epochs=0, just calculate M, Y but do not try to update
+            if fit_dashboard is not None:
+                fit_dashboard.close()
             return (M, Y, fit_parameters, aux)
         if epoch==num_of_epochs-2 and not has_outer_loop:
             try:
@@ -739,3 +762,4 @@ def fit_routine(measurement_samples,fit_parameters,
         routine_functions["update_function"](M, Y, fit_parameters, aux)
         if "post_update_function" in routine_functions:
             routine_functions["post_update_function"](fit_parameters)
+    

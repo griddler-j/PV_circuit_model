@@ -145,14 +145,14 @@ def Rshunt_extraction(IV_curve,base_point=0):
     return Rshunt
 
 def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
-                          temperature=25,Sun=1.0,thickness=180e-4,Si_intrinsic_limit=True):
+                          temperature=25,Sun=1.0,Si_intrinsic_limit=True,**kwargs):
     if Pmax is None:
         Pmax = Jsc*Voc*FF          
     VT = get_VT(temperature)
     max_J01 = Jsc/np.exp(Voc/VT)
     for inner_k in range(100):
         trial_cell = make_solar_cell(Jsc, max_J01, 0.0, Rshunt, 
-                                     Rs, thickness=thickness,Si_intrinsic_limit=Si_intrinsic_limit)
+                                     Rs, Si_intrinsic_limit=Si_intrinsic_limit, **kwargs)
         trial_cell.set_temperature(temperature,rebuild_IV=False)
         trial_cell.set_Suns(Sun)
         Voc_ = trial_cell.get_Voc()
@@ -162,7 +162,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
     max_J02 = Jsc/np.exp(Voc/(2*VT))
     for inner_k in range(100):
         trial_cell = make_solar_cell(Jsc, 0.0, max_J02, Rshunt, Rs, 
-                                     thickness=thickness,Si_intrinsic_limit=Si_intrinsic_limit)
+                                     Si_intrinsic_limit=Si_intrinsic_limit,**kwargs)
         trial_cell.set_temperature(temperature,rebuild_IV=False)
         trial_cell.set_Suns(Sun)
         Voc_ = trial_cell.get_Voc()
@@ -195,8 +195,8 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
                 trial_J02 = interp_(Voc, inner_record_[:,1], inner_record_[:,0])
                 trial_J02 = max(trial_J02, 0.0)
                 trial_J02 = min(trial_J02, max_J02)
-            trial_cell = make_solar_cell(Jsc, trial_J01, trial_J02, Rshunt, Rs,thickness=thickness,
-                                         Si_intrinsic_limit=Si_intrinsic_limit)
+            trial_cell = make_solar_cell(Jsc, trial_J01, trial_J02, Rshunt, Rs,
+                                         Si_intrinsic_limit=Si_intrinsic_limit,**kwargs)
             trial_cell.set_temperature(temperature,rebuild_IV=False)
             trial_cell.set_Suns(Sun)
             Voc_ = trial_cell.get_Voc()
@@ -266,10 +266,10 @@ def show(self):
 CircuitGroup.show = show
 CircuitElement.show = show
 
-def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, thickness=160e-4, wafer_format="M10",half_cut=True):
-    shape, area = wafer_shape(format=wafer_format)
-    J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,thickness=thickness)
-    return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, thickness)
+def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True, **kwargs):
+    shape, area = wafer_shape(format=wafer_format,half_cut=half_cut)
+    J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,**kwargs)
+    return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, **kwargs)
 
 def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None):
     force_n1 = False
@@ -345,6 +345,6 @@ def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=
         Si_intrinsic_limit = True
         if i > 0:
             Si_intrinsic_limit = False
-        J01, J02 = estimate_cell_J01_J02(Jscs[i],Vocs[i],FF=FFs[i],Rs=Rss[i],Rshunt=Rshunts[i],thickness=thicknesses[i],Si_intrinsic_limit=Si_intrinsic_limit)
-        cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], area, shape, thicknesses[i]))
+        J01, J02 = estimate_cell_J01_J02(Jscs[i],Vocs[i],FF=FFs[i],Rs=Rss[i],Rshunt=Rshunts[i],Si_intrinsic_limit=Si_intrinsic_limit,thickness=thicknesses[i])
+        cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], area, shape, thickness=thicknesses[i]))
     return MultiJunctionCell(cells)

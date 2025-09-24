@@ -3,7 +3,7 @@ from PV_Circuit_Model.circuit_model import *
 from PV_Circuit_Model.cell import *
 
 class MultiJunctionCell(CircuitGroup):
-    def __init__(self,subcells,Rs=0.1,connection="series",location=None,
+    def __init__(self,subcells,Rs=0.1,location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
         self.area = subcells[0].area
         self.cells = subcells
@@ -14,7 +14,7 @@ class MultiJunctionCell(CircuitGroup):
             components = subcells + [series_resistor]
         else:
             self.series_resistor = None
-        super().__init__(components, connection,location=location,rotation=rotation,
+        super().__init__(components, connection="series",location=location,rotation=rotation,
                          name=name,extent=subcells[0].extent)
         self.temperature = temperature
         self.set_temperature(temperature)

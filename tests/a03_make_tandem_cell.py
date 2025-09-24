@@ -14,7 +14,7 @@ def main(display=True):
 
     J01, J02 = estimate_cell_J01_J02(Jsc=Jsc_top_cell,Voc=Voc_top_cell,Si_intrinsic_limit=False)
     top_cell = make_solar_cell(Jsc_top_cell, J01, J02, 
-                           thickness=200e-9, area=bottom_cell.area, 
+                           area=bottom_cell.area, 
                            Si_intrinsic_limit=False,J01_photon_coupling=J01_PC)
     
     tandem_cell = MultiJunctionCell([bottom_cell,top_cell])

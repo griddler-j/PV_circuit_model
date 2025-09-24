@@ -119,11 +119,15 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
         is_tandem = False
 
     test_cell_area = 1.0
-    bottom_cell_thickness = 160e-4
     if "area" in sample_info:
         test_cell_area = sample_info["area"]
+    kwargs_to_pass = {}
     if "bottom_cell_thickness" in sample_info:
-        bottom_cell_thickness = sample_info["bottom_cell_thickness"]
+        kwargs_to_pass["thickness"] = sample_info["bottom_cell_thickness"]
+    if "base_type" in sample_info:
+        kwargs_to_pass["base_type"] = sample_info["base_type"]
+    if "base_doping" in sample_info:
+        kwargs_to_pass["base_doping"] = sample_info["base_doping"]
     enable_Auger = True
     if "enable_Auger" in sample_info:
         enable_Auger = sample_info["enable_Auger"]
@@ -145,8 +149,8 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
                 if top_cell_Isc < bottom_cell_Isc*1e-3: # this is red spectrum Suns-Voc
                     bottom_cell_Voc = measurement.measurement_data[0,arg_max]
                     Jsc = bottom_cell_Isc/test_cell_area
-                    J01, J02 = estimate_cell_J01_J02(Jsc=Jsc,Voc=bottom_cell_Voc,thickness=bottom_cell_thickness,Si_intrinsic_limit=enable_Auger)
-                    bottom_cell = make_solar_cell(Jsc, J01, J02, thickness=bottom_cell_thickness, area=test_cell_area)
+                    J01, J02 = estimate_cell_J01_J02(Jsc=Jsc,Voc=bottom_cell_Voc,Si_intrinsic_limit=enable_Auger,**kwargs_to_pass)
+                    bottom_cell = make_solar_cell(Jsc, J01, J02, area=test_cell_area,**kwargs_to_pass)
                     bottom_cell.set_Suns(1.0)
                     break
         for measurement in measurements:
@@ -235,9 +239,9 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
             Jsc_ = light_IV_1Sun.key_parameters["Isc"]/test_cell_area
             Pmax_ = light_IV_1Sun.key_parameters["Pmax"]
             J01, J02 = estimate_cell_J01_J02(Jsc=Jsc_,Voc=Voc_,Pmax=Pmax_,Rs=Rs_,Rshunt=Rshunt_,
-                    temperature=25,Sun=1.0,thickness=180e-4,Si_intrinsic_limit=enable_Auger)
+                    temperature=25,Sun=1.0,Si_intrinsic_limit=enable_Auger,**kwargs_to_pass)
 
-        cell = make_solar_cell(Jsc_, J01, J02, Rshunt_, Rs_, test_cell_area, shape=None, thickness=bottom_cell_thickness)
+        cell = make_solar_cell(Jsc_, J01, J02, Rshunt_, Rs_, test_cell_area, shape=None, **kwargs_to_pass)
 
     cell.assign_measurements(measurements)
 
@@ -287,6 +291,7 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization
                 },
                 fit_dashboard=fit_dashboard,
                 aux=aux,num_of_epochs=num_of_rounds)
+
     if num_of_rounds==0:
         return result
     fit_parameters.apply_to_ref(aux)
