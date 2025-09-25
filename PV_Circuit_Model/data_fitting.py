@@ -687,6 +687,9 @@ def fit_routine(measurement_samples,fit_parameters,
                     routine_functions["comparison_function"],aux) 
             if iteration==0:
                 if parallel:
+                    if "fit_parameters" in output:
+                        fit_parameters_clone = output["fit_parameters"]
+                        fit_parameters.set("value", fit_parameters_clone.get("value", enabled_only=False), enabled_only=False)
                     baseline_vector = output["baseline_vector"]
                     if not isinstance(measurement_samples, list):
                         measurement_samples_list = [measurement_samples]
@@ -719,13 +722,14 @@ def fit_routine(measurement_samples,fit_parameters,
                     return record[-1]["output"]
                 index = np.argmin(np.array(this_RMS_errors))
                 fit_parameters_clone = record[index]["fit_parameters"]
-                RMS_errors[-1] = this_RMS_errors[index]
+                RMS_errors[-1] = RMS_errors[index+len(RMS_errors)-len(this_RMS_errors)]
+                this_RMS_errors[-1] = this_RMS_errors[index]
                 output = record[index]["output"]
                 fit_parameters_clone.set_differential(-1)
                 routine_functions["comparison_function"](fit_parameters_clone,measurement_samples,aux)
                 if fit_dashboard is not None and num_of_epochs>0:
                     fit_dashboard.plot()
-                fit_parameters.set("value", fit_parameters_clone.get("value"))
+                fit_parameters.set("value", fit_parameters_clone.get("value", enabled_only=False), enabled_only=False)
                 fit_parameters.set_differential(-1)
                 if "pbar" in aux:
                     aux["pbar"].close()

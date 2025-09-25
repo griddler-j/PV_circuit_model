@@ -158,7 +158,6 @@ class Cell(CircuitGroup):
 
     # a weak copy, only the parameters
     def copy(self,cell2):
-        self.thickness = cell2.thickness
         self.temperature = cell2.temperature
         self.Suns = cell2.Suns
         if self.series_resistor is not None:
