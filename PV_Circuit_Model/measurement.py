@@ -7,12 +7,13 @@ from PV_Circuit_Model.utilities import *
 import numbers
 import os
 import json
+from datetime import datetime
 
 class Measurement():
     keys = []
     data_rows = []
     # measurement can be on its own, or belonging to a device
-    def __init__(self,measurement_condition=None,measurement_data=None,json_filepath=None,device=None,key_parameters=None):
+    def __init__(self,measurement_condition=None,measurement_data=None,json_filepath=None,device=None,key_parameters=None,measurement_time:datetime=None):
         # either must input the measurement_condition + measurement_data, or
         # read these from a json file
         assert((measurement_condition is not None and (measurement_data is not None or key_parameters is not None)) or json_filepath is not None)
@@ -31,6 +32,7 @@ class Measurement():
         self.simulated_key_parameters_baseline = {}
         self.unit_errors = {}
         self.parent_device=device
+        self.measurement_time = measurement_time
         if key_parameters is not None:
             self.key_parameters = key_parameters
         else:

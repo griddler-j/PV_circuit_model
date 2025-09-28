@@ -690,6 +690,7 @@ def fit_routine(measurement_samples,fit_parameters,
                     if "fit_parameters" in output:
                         fit_parameters_clone = output["fit_parameters"]
                         fit_parameters.set("value", fit_parameters_clone.get("value", enabled_only=False), enabled_only=False)
+                        fit_parameters.set("nominal_value", fit_parameters_clone.get("nominal_value", enabled_only=False), enabled_only=False)
                     baseline_vector = output["baseline_vector"]
                     if not isinstance(measurement_samples, list):
                         measurement_samples_list = [measurement_samples]
