@@ -8,6 +8,7 @@ import numbers
 import os
 import json
 from datetime import datetime
+from tqdm import tqdm
 
 class Measurement():
     keys = []
@@ -260,13 +261,19 @@ def collate_device_measurements(devices,measurement_class=None,include_tags=None
                     measurement_list.append(measurement)
     return measurement_list
 
-def simulate_device_measurements(devices,measurement_class=None,include_tags=None,exclude_tags=None):
+def simulate_device_measurements(devices,measurement_class=None,include_tags=None,exclude_tags=None,show_progress=False):
+    job_list = []
     for device in devices:
         measurements = device.measurements
         for measurement in measurements:
             if measurement_class is None or isinstance(measurement,measurement_class):
                 if (include_tags==None or (measurement.tag is not None and measurement.tag in include_tags)) and (exclude_tags==None or (measurement.tag is None or measurement.tag not in exclude_tags)):
-                    measurement.simulate(device)
+                    job_list.append((measurement,device))
+    tqdm_ = (tqdm if show_progress else (lambda x, *a, **k: x))
+    for job in tqdm_(job_list,desc="Simulating 1 Sun I-V"):
+        measurement = job[0]
+        device = job[1]
+        measurement.simulate(device)
 
 # row 0 = voltage, row 1 = current
 class IV_measurement(Measurement):

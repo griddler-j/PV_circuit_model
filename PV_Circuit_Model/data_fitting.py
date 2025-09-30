@@ -11,6 +11,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import types
 from types import SimpleNamespace
 from joblib import Parallel, delayed
+from pathlib import Path
 
 import sys
 
@@ -360,6 +361,10 @@ class Fit_Dashboard():
             # give the GUI event loop a breath
             plt.pause(0.001)
         if self.save_file_name is not None:
+            base = Path(self.save_file_name)
+            # directory containing the file
+            folder = base.parent
+            folder.mkdir(parents=True, exist_ok=True)
             word = self.save_file_name + "_fit_round_"+str(len(self.RMS_errors)-1)+".jpg"
             self.fig.savefig(word, format='jpg', dpi=300)
         plt.pause(0.1)

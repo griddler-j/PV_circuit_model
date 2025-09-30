@@ -34,7 +34,7 @@ class Module(CircuitGroup):
                          cap_current=cap_current)
 
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
-def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma):
+def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):
     all_shapes = []
     all_names = []
     all_Vints = []
@@ -150,6 +150,8 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
     else:
         fig.tight_layout()
 
+    if title is not None:
+        plt.title(title)
     plt.show()
     
 def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
