@@ -15,14 +15,14 @@ signal.signal(signal.SIGINT, _sigint)  # handle Ctrl+C
 
 def analyze_solar_cell_measurements_wrapper(measurements_folder,sample_info,f_out):
     measurements = get_measurements(measurements_folder)
-    cell_model, _ = analyze_solar_cell_measurements(measurements,sample_info=sample_info,use_fit_dashboard=True,f_out=f_out,is_tandem=sample_info["is_tandem"])
+    cell_model, _ = analyze_solar_cell_measurements(measurements,sample_info=sample_info,use_fit_dashboard=True,f_out=f_out,is_tandem=sample_info["is_tandem"],silent_mode=False)
+    print(cell_model)
     # need to f_out all this stuff
     if sample_info["is_tandem"]:
         output = f"OUTPUT:[{cell_model.cells[0].J01()},{cell_model.cells[0].J02()},{cell_model.cells[0].specific_shunt_cond()},{cell_model.cells[1].J01()},{cell_model.cells[1].J02()},{cell_model.cells[1].PC_J01()},{cell_model.cells[1].specific_shunt_cond()},{cell_model.specific_Rs()}]\n"
     else:
         output = f"OUTPUT:[{cell_model.J01()},{cell_model.J02()},{cell_model.specific_shunt_cond()},{cell_model.specific_Rs()}]\n"
     f_out.write(output)
-    print(output)
     f_out.flush()
     return measurements, cell_model
 

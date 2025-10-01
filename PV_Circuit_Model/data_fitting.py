@@ -632,7 +632,7 @@ def construct_M(iteration,measurement_samples,fit_parameters,
 # measurement_samples = collection of devices (Cell, Module, etc)
 # each with its measurements stored inside .measurements attribute
 # could be one sample only
-# could be mulitple samples
+# could be multiple samples
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
                 aux={},num_of_epochs=10,enable_pbar=True,parallel=False):
@@ -648,7 +648,9 @@ def fit_routine(measurement_samples,fit_parameters,
             fit_dashboard.measurements = measurements
         else:
             RMS_errors = fit_dashboard.RMS_errors  
-        
+    silent_mode = False
+    if "silent_mode" in aux:
+        silent_mode = aux["silent_mode"]
     if "comparison_function_iterations" not in aux:
         aux["comparison_function_iterations"] = 1
     total=((num_of_epochs-1)*(fit_parameters.num_of_enabled_parameters()+1)+1)*aux["comparison_function_iterations"]
@@ -715,7 +717,7 @@ def fit_routine(measurement_samples,fit_parameters,
                 fit_parameters_clone = copy.deepcopy(fit_parameters)
                 fit_parameters_clone.ref_sample = fit_parameters.ref_sample
                 record.append({"fit_parameters": fit_parameters_clone,"output": output})
-                if fit_dashboard is not None and num_of_epochs>0:
+                if fit_dashboard is not None and num_of_epochs>0 and not silent_mode:
                     fit_dashboard.plot()
             else:
                 if parallel:
@@ -733,7 +735,7 @@ def fit_routine(measurement_samples,fit_parameters,
                 output = record[index]["output"]
                 fit_parameters_clone.set_differential(-1)
                 routine_functions["comparison_function"](fit_parameters_clone,measurement_samples,aux)
-                if fit_dashboard is not None and num_of_epochs>0:
+                if fit_dashboard is not None and num_of_epochs>0 and not silent_mode:
                     fit_dashboard.plot()
                 fit_parameters.set("value", fit_parameters_clone.get("value", enabled_only=False), enabled_only=False)
                 fit_parameters.set_differential(-1)
