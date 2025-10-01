@@ -131,7 +131,7 @@ def Rshunt_extraction(IV_curve,base_point=0):
     base_point = max(base_point,np.min(IV_curve[0,:]))
     indices = np.where((IV_curve[0,:]>=base_point) & (IV_curve[0,:]<=base_point+0.1))[0]
     indices = list(indices)
-    if len(indices)<2:
+    if len(indices)<2 or abs(IV_curve[0,indices[-1]]-IV_curve[0,indices[0]])<0.01:
         indices1 = np.where(IV_curve[0,:]<=base_point)[0]
         indices = [indices1[-1]] + indices
         indices2 = np.where(IV_curve[0,:]>=base_point+0.1)[0]
