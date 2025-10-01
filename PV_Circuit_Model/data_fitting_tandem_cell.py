@@ -108,10 +108,10 @@ class Tandem_Cell_Fit_Parameters(Fit_Parameters):
                     elif diode.n==2:
                         diode.aux["error"] = errors[4]
     
-def analyze_solar_cell_measurements(measurements,num_of_rounds=40,regularization_method=0,prefix=None,sample_info={},
+def analyze_solar_cell_measurements(measurements,num_of_rounds=20,regularization_method=0,prefix=None,sample_info={},
                                      starting_guess=None,use_fit_dashboard=True,**kwargs):
     global pbar, axs
-    aux = {"regularization_method": regularization_method,"limit_order_of_mag": 1}
+    aux = {"regularization_method": regularization_method,"limit_order_of_mag": 3.5}
     aux.update(kwargs)
 
     is_tandem = True
