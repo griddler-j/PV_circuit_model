@@ -154,13 +154,18 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
         plt.title(title)
     plt.show()
     
-def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
-                         halfstring_resistor = 0.02, I0_rev = 1000e-15):
+def make_module(cells, num_strings=3, num_cells_per_halfstring=24, 
+                         halfstring_resistor = 0.02, I0_rev = 1000e-15, butterfly=False):
     count = 0
     cell_strings = []
+    num_half_strings = 1
+    if butterfly:
+        num_half_strings = 2
+    else:
+        halfstring_resistor /= 2
     for _ in range(num_strings):
         cell_halfstrings = []
-        for _ in range(2):
+        for _ in range(num_half_strings):
             cells_ = cells[count:count+num_cells_per_halfstring]
             count += num_cells_per_halfstring
             tile_elements(cells_, 
@@ -169,8 +174,9 @@ def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24,
             halfstring = CircuitGroup(cells_ + [Resistor(cond=1/halfstring_resistor)],
                                         "series",name="cell_halfstring")
             cell_halfstrings.append(halfstring)
-        cell_halfstrings[1].y_mirror = -1
-        cell_halfstrings[1].location[1] -= cell_halfstrings[1].extent[1] + 1
+        if butterfly:
+            cell_halfstrings[1].y_mirror = -1
+            cell_halfstrings[1].location[1] -= cell_halfstrings[1].extent[1] + 1
 
         bypass_diode = ReverseDiode(I0=I0_rev, n=1, V_shift = 0)
         bypass_diode.max_I = 0.2*cells[0].area
@@ -181,6 +187,11 @@ def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24,
     module = Module(cell_strings,"series",cap_current=cells[0].IL()*3)
     module.aux["halfstring_resistor"] = halfstring_resistor
     return module
+
+def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
+                         halfstring_resistor = 0.02, I0_rev = 1000e-15):
+    return make_module(cells, num_strings, num_cells_per_halfstring, 
+                         halfstring_resistor, I0_rev, butterfly=True)
 
 def reset_half_string_resistors(self:CircuitGroup, halfstring_resistor=None):
     if halfstring_resistor is None:

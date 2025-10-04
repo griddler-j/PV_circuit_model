@@ -290,6 +290,11 @@ class Cell(CircuitGroup):
     def Rs(self):
         return 1/self.Rs_cond()
     
+    def set_rev_breakdown_V(self,V):
+        reverse_diode = self.diode_branch.findElementType(ReverseDiode)[0]
+        reverse_diode.V_shift = V
+        reverse_diode.null_IV()
+
     def set_specific_Rs_cond(self,cond):
         if self.series_resistor is not None:
             self.series_resistor.set_cond(cond)
@@ -354,7 +359,7 @@ class Module(CircuitGroup):
                          cap_current=self.cap_current)
     
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
-def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",title="Cells Layout",colormap=cm.plasma):
+def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",min_value=None,max_value=None,title="Cells Layout",colormap=cm.plasma):
     shapes = []
     names = []
     Vints = []
@@ -381,20 +386,42 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
     has_Vint = False
     has_EL_Vint = False
     has_power = False
+    has_aux = False
     norm = None
+    vmin = None
+    vmax = None
     if len(EL_Vints)==len(shapes) and colour_what=="EL_Vint": # every cell has a EL_Vint
         has_EL_Vint = True
-        norm = mcolors.Normalize(vmin=min(EL_Vints), vmax=max(EL_Vints))
-        cmap = colormap
+        vmin = min(EL_Vints)
+        vmax=max(EL_Vints)
     elif len(Vints)==len(shapes) and colour_what=="Vint": # every cell has a Vint
         has_Vint = True
-        norm = mcolors.Normalize(vmin=min(Vints), vmax=max(Vints))
-        cmap = colormap
+        vmin=min(Vints)
+        vmax=max(Vints)
     elif len(Is)==len(shapes) and colour_what=="power": # every cell has a power
         has_power = True
         powers = np.array(Vints)*np.array(Is)
-        norm = mcolors.Normalize(vmin=np.min(powers), vmax=np.max(powers))
-        cmap = colormap
+        vmin=np.min(powers)
+        vmax=np.max(powers)
+    elif len(colour_what)>0 and hasattr(self,"aux") and colour_what in self.aux:
+        has_aux = True
+        all_aux = self.aux[colour_what]
+        vmin=min(all_aux)
+        vmax=max(all_aux)
+    elif len(colour_what)>0 and hasattr(self,"cells") and hasattr(self.cells[0],"aux") and colour_what in self.cells[0].aux:
+        has_aux = True
+        all_aux = []
+        for cell in self.cells:
+            all_aux.append(cell.aux[colour_what])
+        vmin=min(all_aux)
+        vmax=max(all_aux)
+    if min_value is not None:
+        vmin = max(min_value, vmin)
+    if max_value is not None:
+        vmax = min(max_value, vmax)
+    if vmin is not None:
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    cmap = colormap
             
     for i, shape in enumerate(shapes):
         cos = np.cos(np.pi/180*self.rotation)
@@ -420,6 +447,8 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
                 color = cmap(norm(Vints[i]))
             elif has_power:
                 color = cmap(norm(powers[i]))
+            elif has_aux:
+                color = cmap(norm(all_aux[i]))
             polygon = patches.Polygon(shape, closed=True, facecolor=color, edgecolor='black')
             x = 0.5*(np.max(shape[:,0])+np.min(shape[:,0]))
             y = 0.5*(np.max(shape[:,1])+np.min(shape[:,1]))
