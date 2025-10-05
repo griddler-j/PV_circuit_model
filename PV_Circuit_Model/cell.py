@@ -403,12 +403,12 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
         powers = np.array(Vints)*np.array(Is)
         vmin=np.min(powers)
         vmax=np.max(powers)
-    elif len(colour_what)>0 and hasattr(self,"aux") and colour_what in self.aux:
+    elif colour_what is not None and len(colour_what)>0 and hasattr(self,"aux") and colour_what in self.aux:
         has_aux = True
         all_aux = self.aux[colour_what]
         vmin=min(all_aux)
         vmax=max(all_aux)
-    elif len(colour_what)>0 and hasattr(self,"cells") and hasattr(self.cells[0],"aux") and colour_what in self.cells[0].aux:
+    elif colour_what is not None and len(colour_what)>0 and hasattr(self,"cells") and hasattr(self.cells[0],"aux") and colour_what in self.cells[0].aux:
         has_aux = True
         all_aux = []
         for cell in self.cells:
