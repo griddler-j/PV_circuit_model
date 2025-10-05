@@ -111,8 +111,12 @@ class Tandem_Cell_Fit_Parameters(Fit_Parameters):
 def analyze_solar_cell_measurements(measurements,num_of_rounds=20,regularization_method=0,prefix=None,sample_info={},
                                      starting_guess=None,use_fit_dashboard=True,**kwargs):
     global pbar, axs
-    aux = {"regularization_method": regularization_method,"limit_order_of_mag": 3.5}
+    aux = {"regularization_method": regularization_method,"limit_order_of_mag": 2.5}
     aux.update(kwargs)
+
+    parallel = False
+    if "parallel" in kwargs and kwargs["parallel"]:
+        parallel = True
 
     is_tandem = True
     if "is_tandem" in kwargs and kwargs["is_tandem"]==False:
@@ -160,7 +164,7 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=20,regularization
                 arg_max = np.argmax(Iscs[1,:])
                 bottom_cell_Isc = Iscs[0,arg_max]
                 top_cell_Isc = Iscs[1,arg_max]
-                if top_cell_Isc > bottom_cell_Isc*1e-2: # this is white spectrum Suns-Voc
+                if top_cell_Isc > bottom_cell_Isc*1e-2 and bottom_cell_Isc > top_cell_Isc*1e-2: # this is white spectrum Suns-Voc
                     tandem_cell_Voc = measurement.measurement_data[0,arg_max]
                     bottom_cell.set_IL(bottom_cell_Isc)
                     bottom_cell.build_IV()
@@ -291,7 +295,7 @@ def analyze_solar_cell_measurements(measurements,num_of_rounds=20,regularization
                     "comparison_function":compare_experiments_to_simulations,
                 },
                 fit_dashboard=fit_dashboard,
-                aux=aux,num_of_epochs=num_of_rounds)
+                aux=aux,num_of_epochs=num_of_rounds, parallel=parallel)
 
     if num_of_rounds==0:
         return result

@@ -346,6 +346,9 @@ class Dark_IV_measurement(IV_measurement):
             self.measurement_condition = {"base_point":np.min(IV_curve[0,:])}
             super().__init__(Suns=Suns,IV_curve=IV_curve,temperature=temperature,
                             measurement_cond_kwargs=measurement_cond_kwargs,IL=IL,JL=JL)
+        shunt_cond = 10**self.key_parameters["log_shunt_cond"]
+        if self.unit_errors["I_bias"] < shunt_cond/100:
+            self.set_unit_error("I_bias",value=shunt_cond/100)
     @staticmethod
     def derive_key_parameters(data,key_parameters,conditions):
         Rshunt = Rshunt_extraction(data,base_point=conditions["base_point"])
