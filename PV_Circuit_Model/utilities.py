@@ -85,13 +85,13 @@ def draw_symbol(draw_func, ax=None,  x=0, y=0, color="black", text=None, **kwarg
     if draw_immediately:
         plt.show()
 
-def draw_diode_symbol(ax, x=0, y=0, color="black", up_or_down="down", is_LED=False, rotation=0):
+def draw_diode_symbol(ax, x=0, y=0, color="black", up_or_down="down", is_LED=False, rotation=0, linewidth=1.5):
     origin = (x, y)
     dir = 1 if up_or_down == "down" else -1
 
     # Diode circle for LED
     if is_LED:
-        circle = patches.Circle(origin, 0.17, edgecolor=color, facecolor='white', linewidth=1.5, fill=False)
+        circle = patches.Circle(origin, 0.17, edgecolor=color, facecolor='white', linewidth=linewidth, fill=False)
         ax.add_patch(circle)
 
     # Diode triangle arrowhead
@@ -102,7 +102,7 @@ def draw_diode_symbol(ax, x=0, y=0, color="black", up_or_down="down", is_LED=Fal
 
     # Diode bar
     bar_pts = rotate_points([(x - 0.075, y - 0.08 * dir), (x + 0.075, y - 0.08 * dir)], origin, rotation)
-    ax.add_line(plt.Line2D([bar_pts[0][0], bar_pts[1][0]], [bar_pts[0][1], bar_pts[1][1]], color=color, linewidth=2))
+    ax.add_line(plt.Line2D([bar_pts[0][0], bar_pts[1][0]], [bar_pts[0][1], bar_pts[1][1]], color=color, linewidth=linewidth*2/1.5))
 
     # LED rays
     if is_LED:
@@ -116,8 +116,8 @@ def draw_diode_symbol(ax, x=0, y=0, color="black", up_or_down="down", is_LED=Fal
     # Terminals
     term_top = rotate_points([(x, y + 0.08), (x, y + 0.4)], origin, rotation)
     term_bot = rotate_points([(x, y - 0.08), (x, y - 0.4)], origin, rotation)
-    ax.add_line(plt.Line2D([term_top[0][0], term_top[1][0]], [term_top[0][1], term_top[1][1]], color=color, linewidth=1.5))
-    ax.add_line(plt.Line2D([term_bot[0][0], term_bot[1][0]], [term_bot[0][1], term_bot[1][1]], color=color, linewidth=1.5))
+    ax.add_line(plt.Line2D([term_top[0][0], term_top[1][0]], [term_top[0][1], term_top[1][1]], color=color, linewidth=linewidth))
+    ax.add_line(plt.Line2D([term_bot[0][0], term_bot[1][0]], [term_bot[0][1], term_bot[1][1]], color=color, linewidth=linewidth))
 
 def draw_forward_diode_symbol(ax, x=0, y=0, color="black", rotation=0):
     draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="down", is_LED=False, rotation=rotation)
@@ -128,11 +128,11 @@ def draw_reverse_diode_symbol(ax, x=0, y=0, color="black", rotation=0):
 def draw_LED_diode_symbol(ax, x=0, y=0, color="black", rotation=0):
     draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="down", is_LED=True, rotation=rotation)
 
-def draw_CC_symbol(ax, x=0, y=0, color="black", rotation=0):
+def draw_CC_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
     origin = (x, y)
 
     # Draw rotated circle
-    circle = patches.Circle((x, y), 0.17, edgecolor=color, facecolor="white", linewidth=2)
+    circle = patches.Circle((x, y), 0.17, edgecolor=color, facecolor="white", linewidth=2/1.5*linewidth)
     ax.add_patch(circle)
 
     # Arrow inside circle (from lower to upper)
@@ -144,10 +144,10 @@ def draw_CC_symbol(ax, x=0, y=0, color="black", rotation=0):
     # Vertical terminals (above and below the circle)
     line1 = rotate_points([(x, y + 0.18), (x, y + 0.4)], origin, rotation)
     line2 = rotate_points([(x, y - 0.18), (x, y - 0.4)], origin, rotation)
-    ax.add_line(plt.Line2D([line1[0][0], line1[1][0]], [line1[0][1], line1[1][1]], color=color, linewidth=1.5))
-    ax.add_line(plt.Line2D([line2[0][0], line2[1][0]], [line2[0][1], line2[1][1]], color=color, linewidth=1.5))
+    ax.add_line(plt.Line2D([line1[0][0], line1[1][0]], [line1[0][1], line1[1][1]], color=color, linewidth=linewidth))
+    ax.add_line(plt.Line2D([line2[0][0], line2[1][0]], [line2[0][1], line2[1][1]], color=color, linewidth=linewidth))
 
-def draw_resistor_symbol(ax, x=0, y=0, color="black", rotation=0):
+def draw_resistor_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
     dx = 0.075
     dy = 0.02
     ystart = y + 0.15
@@ -170,9 +170,9 @@ def draw_resistor_symbol(ax, x=0, y=0, color="black", rotation=0):
 
     for (x0, y0), (x1, y1) in segments:
         [(x0r, y0r), (x1r, y1r)] = rotate_points([(x0, y0), (x1, y1)], origin, rotation)
-        ax.add_line(plt.Line2D([x0r, x1r], [y0r, y1r], color=color, linewidth=1.5))
+        ax.add_line(plt.Line2D([x0r, x1r], [y0r, y1r], color=color, linewidth=linewidth))
 
-def draw_earth_symbol(ax, x=0, y=0, color="black", rotation=0):
+def draw_earth_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
     origin = (x, y)
     segments = []
     # Vertical line
@@ -185,10 +185,10 @@ def draw_earth_symbol(ax, x=0, y=0, color="black", rotation=0):
         segments.append([(x1, y_level), (x2, y_level)])
     for (x0, y0), (x1, y1) in segments:
         [(x0r, y0r), (x1r, y1r)] = rotate_points([(x0, y0), (x1, y1)], origin, rotation)
-        ax.add_line(plt.Line2D([x0r, x1r], [y0r, y1r], color=color, linewidth=2))
+        ax.add_line(plt.Line2D([x0r, x1r], [y0r, y1r], color=color, linewidth=linewidth*2/1.5))
 
-def draw_pos_terminal_symbol(ax, x=0, y=0, color="black"):
-    circle = patches.Circle((x, y), 0.04, edgecolor=color,facecolor="white",linewidth=2, fill=True)
+def draw_pos_terminal_symbol(ax, x=0, y=0, color="black", linewidth=1.5):
+    circle = patches.Circle((x, y), 0.04, edgecolor=color,facecolor="white",linewidth=linewidth*2/1.5, fill=True)
     ax.add_patch(circle)
 
 class RandomNumberGenerator():

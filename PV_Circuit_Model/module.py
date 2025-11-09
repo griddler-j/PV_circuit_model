@@ -171,7 +171,10 @@ def make_module(cells, num_strings=3, num_cells_per_halfstring=24,
             tile_elements(cells_, 
                         rows=num_cells_per_halfstring // 2, cols=2, 
                         x_gap = 0.1, y_gap = 0.1, turn=True)
-            halfstring = CircuitGroup(cells_ + [Resistor(cond=1/halfstring_resistor)],
+            components = cells_
+            if halfstring_resistor > 0:
+                components += [Resistor(cond=1/halfstring_resistor)]
+            halfstring = CircuitGroup(components,
                                         "series",name="cell_halfstring")
             cell_halfstrings.append(halfstring)
         if butterfly:
@@ -235,3 +238,10 @@ def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
             count += 1
     return cell_col_row, map, inverse_map
 CircuitGroup.get_cell_col_row = get_cell_col_row
+
+def set_Suns(circuit_group, suns, rebuild_IV=True):
+    modules = circuit_group.findElementType(Module)
+    for module in modules:
+        module.set_Suns(suns, rebuild_IV=rebuild_IV)
+    if rebuild_IV:
+        circuit_group.build_IV()

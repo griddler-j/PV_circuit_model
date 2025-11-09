@@ -8,12 +8,10 @@ import numbers
 import tkinter as tk
 from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import types
 from types import SimpleNamespace
 from joblib import Parallel, delayed
 from pathlib import Path
 
-import sys
 
 def _in_notebook() -> bool:
     try:
@@ -294,7 +292,8 @@ class Fit_Dashboard():
                         if meets_all_conditions:
                             ax.set_visible(True)
                             measurement.plot_func(measurement.measurement_data,color="gray",ax=ax,title=title,kwargs=None)
-                            measurement.plot_func(measurement.simulated_data,ax=ax,title=title,kwargs=self.plot_what[i]["plot_style_parameters"])
+                            if hasattr(measurement,"simulated_data"):
+                                measurement.plot_func(measurement.simulated_data,ax=ax,title=title,kwargs=self.plot_what[i]["plot_style_parameters"])
                             if title is not None:
                                 ax.set_title(title, fontsize=6)
             else:
@@ -329,11 +328,18 @@ class Fit_Dashboard():
                             ax.set_ylabel(key_parameter+"(sim)", fontsize=6)
                         case "overlap_key_parameter":
                             ax.scatter(x_axis_data,exp_data,color="gray",s=3)
-                            ax.scatter(x_axis_data,sim_data,s=3,**kwargs)
+                            size1 = x_axis_data.size if hasattr(x_axis_data, 'size') else len(x_axis_data)
+                            size2 = sim_data.size if hasattr(sim_data, 'size') else len(sim_data)
+                            if size1==size2:
+                                ax.scatter(x_axis_data,sim_data,s=3,**kwargs)
                             ax.set_xlabel(cond_key, fontsize=6)
                             ax.set_ylabel(key_parameter, fontsize=6)
-                            ax.set_ylim(min(np.min(exp_data),np.min(sim_data),np.mean(exp_data)*(1-1e-3),np.mean(sim_data)*(1-1e-3)), 
-                                        max(np.max(exp_data),np.max(sim_data),np.mean(exp_data)*(1+1e-3),np.mean(sim_data)*(1+1e-3)))
+                            if size1==size2:
+                                ax.set_ylim(min(np.min(exp_data)-(np.max(exp_data)-np.min(exp_data))*0.05,np.min(sim_data)-(np.max(sim_data)-np.min(sim_data))*0.05,np.mean(exp_data)*(1-1e-3),np.mean(sim_data)*(1-1e-3)), 
+                                            max(np.max(exp_data)+(np.max(exp_data)-np.min(exp_data))*0.05,np.max(sim_data)+(np.max(sim_data)-np.min(sim_data))*0.05,np.mean(exp_data)*(1+1e-3),np.mean(sim_data)*(1+1e-3)))
+                            else:
+                                ax.set_ylim(min(np.min(exp_data)-(np.max(exp_data)-np.min(exp_data))*0.05,np.mean(exp_data)*(1-1e-3)),
+                                            max(np.max(exp_data)+(np.max(exp_data)-np.min(exp_data))*0.05,np.mean(exp_data)*(1+1e-3)))
                     if title is not None:
                         ax.set_title(title, fontsize=6)
         # self.fig.tight_layout()

@@ -11,7 +11,7 @@ from PV_Circuit_Model.multi_junction_cell import *
 # ## Create a bottom cell
 
 #%%
-bottom_cell = quick_solar_cell()
+bottom_cell = quick_solar_cell(Rs=0)
 bottom_cell.set_JL(19.0e-3)
 
 # %% [markdown]

@@ -72,10 +72,12 @@ def handle_block(lines,variables,f_out):
                             enable_Auger = words[4]
                         except ValueError:
                             enable_Auger = None
+                        bottom_cell_JL = None
                         try:
                             bottom_cell_JL = float(words[5])
                         except ValueError:
                             bottom_cell_JL = None
+                        top_cell_JL = None
                         if len(words)>6:
                             try:
                                 top_cell_JL = float(words[6])
