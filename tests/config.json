@@ -1,0 +1,9 @@
+{
+    "mode": "test",
+    "test_attributes": {"common": [
+        {"name":"get_Voc"}, 
+        {"name":"get_Jsc"},
+        {"name":"get_FF"}, 
+        {"name":"get_Eff"}
+    ]}
+}
