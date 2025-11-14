@@ -7,6 +7,8 @@ from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.cell_analysis import *
 
+np.random.seed(0)
+
 # %% [markdown]
 # ## Create a butterfly PV module
 

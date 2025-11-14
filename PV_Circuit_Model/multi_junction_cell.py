@@ -7,6 +7,7 @@ class MultiJunctionCell(CircuitGroup):
                  rotation=0,name=None,temperature=25,Suns=1.0):
         self.area = subcells[0].area
         self.cells = subcells
+        self.is_multi_junction_cell = True
         if Rs > 0:
             series_resistor = Resistor(cond=self.area/Rs)
             series_resistor.aux["area"] = self.area

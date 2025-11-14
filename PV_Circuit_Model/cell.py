@@ -137,6 +137,7 @@ class Cell(CircuitGroup):
         super().__init__(components, connection,location=location,rotation=rotation,
                          name=name,extent=np.array([x_extent,y_extent]).astype(float))
         self.area = area
+        self.is_cell = True
         self.shape = shape
         self.build_IV()
         self.temperature = temperature

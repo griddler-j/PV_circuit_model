@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from PV_Circuit_Model.utilities import *
+from PV_Circuit_Model.iterative_solver import assign_nodes, iterative_solve
 import copy
 from tqdm import tqdm
 
@@ -25,7 +26,7 @@ class CircuitElement:
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
-    def set_operating_point(self,V=None,I=None,refine_IV=False):
+    def set_operating_point(self,V=None,I=None,refine_IV=False,top_level=True):
         if V is not None:
             I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
         elif I is not None:
@@ -39,6 +40,12 @@ class CircuitElement:
             Vs = self.get_V_range()
             V_range = np.sort(np.concatenate([Vs, np.linspace(V - 0.001, V + 0.001, 100)]))
             self.build_IV(V=V_range)
+            if top_level:
+                if V is not None:
+                    I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+                elif I is not None:
+                    V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+                self.operating_point = [V,I]
             if self.parent is not None:
                 self.parent.null_IV(keep_dark=False)
     def get_value_text(self):
@@ -295,12 +302,14 @@ class CircuitGroup():
         self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
         self.operating_point = None #V,I
         self.aux = {}
+        self.is_circuit_group = True
 
     def add_element(self,element):
         self.subgroups.append(element)
         element.parent = self
     
     def null_IV(self, keep_dark=False):
+        self.refined_IV = False
         if self.IV_table is not None or self.dark_IV_table is not None:
             self.IV_table = None
             if hasattr(self,"IV_parameters"):
@@ -326,23 +335,44 @@ class CircuitGroup():
             if isinstance(element,CircuitGroup):
                 element.reassign_parents()
 
-    def set_operating_point(self,V=None,I=None,refine_IV=False):
+    def set_operating_point(self,V=None,I=None,refine_IV=False,top_level=True, refine_op_point=True):
+        refine_op_point_ = top_level and not refine_IV and refine_op_point
+        refine_IV_ = refine_IV
+        if hasattr(self,"refined_IV") and self.refined_IV:
+            refine_IV_ = False
         if self.IV_table is None:
             self.build_IV()
         if V is not None:
-            I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+            I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+            V_ = V
         elif I is not None:
-            V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+            V_ = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+            I_ = I
         for element in self.subgroups:
             if self.connection == "series": # then all elements have same current
-                target_I = I
+                target_I = I_
                 # solar cell needs to scale IV table by area
                 if hasattr(self,"shape") and self.area is not None:
                     target_I /= self.area
-                element.set_operating_point(V=None,I=target_I,refine_IV=refine_IV)
+                element.set_operating_point(V=None,I=target_I,refine_IV=refine_IV_,top_level=False)
             else: # then all elements have same voltage
-                element.set_operating_point(V=V,I=None,refine_IV=refine_IV)
-        self.operating_point = [V,I]
+                element.set_operating_point(V=V_,I=None,refine_IV=refine_IV_,top_level=False)
+        if refine_IV_ and top_level:
+            self.refined_IV = True
+            self.build_IV()
+            if V is not None:
+                I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+                V_ = V
+            elif I is not None:
+                V_ = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+                I_ = I
+        if refine_op_point_:
+            assign_nodes(self)
+            op_point = iterative_solve(self,V=V,I=I,method="Newton")
+            V_ = op_point[0]
+            I_ = op_point[1]
+            
+        self.operating_point = [V_,I_]
         # cells also store Vint
         if hasattr(self,"shape"):
             self.operating_point.append(self.diode_branch.operating_point[0])
@@ -368,6 +398,8 @@ class CircuitGroup():
 
     def findElementType(self,type,serialize=False,path=[]):
         list_ = []
+        if isinstance(type,str):
+            type = eval(type)
         for i, element in enumerate(self.subgroups):
             if isinstance(element,type):
                 list_.append(element)

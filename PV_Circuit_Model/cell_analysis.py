@@ -9,6 +9,8 @@ def get_Voc(argument):
     if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Voc" in argument.IV_parameters:
         return argument.IV_parameters["Voc"]
     if isinstance(argument,CircuitGroup):
+        if argument.IV_table is None:
+            argument.build_IV()
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
@@ -24,6 +26,8 @@ def get_Isc(argument):
     if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Isc" in argument.IV_parameters:
         return argument.IV_parameters["Isc"]
     if isinstance(argument,CircuitGroup):
+        if argument.IV_table is None:
+            argument.build_IV()
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
@@ -51,6 +55,8 @@ def get_Pmax(argument, return_op_point=False):
             if return_op_point:
                 return Pmax, Vmp, Imp
             return Pmax
+        if argument.IV_table is None:
+            argument.build_IV()
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
@@ -103,6 +109,8 @@ def get_FF(argument):
     if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "FF" in argument.IV_parameters:
         return argument.IV_parameters["FF"]
     if isinstance(argument,CircuitGroup):
+        if argument.IV_table is None:
+            argument.build_IV()
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
