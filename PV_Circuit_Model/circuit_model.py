@@ -310,10 +310,10 @@ class CircuitGroup():
     
     def null_IV(self, keep_dark=False):
         self.refined_IV = False
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
         if self.IV_table is not None or self.dark_IV_table is not None:
             self.IV_table = None
-            if hasattr(self,"IV_parameters"):
-                del self.IV_parameters
             if keep_dark==False:
                 self.dark_IV_table = None
             if self.parent is not None:
@@ -368,7 +368,7 @@ class CircuitGroup():
                 I_ = I
         if refine_op_point_:
             assign_nodes(self)
-            op_point = iterative_solve(self,V=V,I=I,method="Newton")
+            op_point = iterative_solve(self,V=V,I=I)
             V_ = op_point[0]
             I_ = op_point[1]
             
