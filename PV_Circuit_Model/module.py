@@ -34,7 +34,7 @@ class Module(CircuitGroup):
                          cap_current=cap_current)
 
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
-def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):
+def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,fontsize=9,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):
     all_shapes = []
     all_names = []
     all_Vints = []
@@ -55,7 +55,7 @@ def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_name
         ylim_[0] = min(ylim_[0], module.location[1]-module.extent[1]/2*1.1)
         ylim_[1] = max(ylim_[1], module.location[1]+module.extent[1]/2*1.1)
         if show_module_names and module.name is not None:
-            ax.text(module.location[0], module.location[1]+module.extent[1]/2*1.05, module.name, fontsize=9, color='black', ha="center", va="center")
+            ax.text(module.location[0], module.location[1]+module.extent[1]/2*1.05, module.name, fontsize=fontsize, color='black', ha="center", va="center")
 
     has_Vint = False
     has_EL_Vint = False

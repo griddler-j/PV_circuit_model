@@ -106,23 +106,15 @@ def get_Eff(argument):
 CircuitGroup.get_Eff = get_Eff
 
 def get_FF(argument):
-    if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "FF" in argument.IV_parameters:
-        return argument.IV_parameters["FF"]
-    if isinstance(argument,CircuitGroup):
-        if argument.IV_table is None:
-            argument.build_IV()
-        IV_curve = argument.IV_table
-    else:
-        IV_curve = argument
-    Voc = get_Voc(IV_curve)
-    Isc = get_Isc(IV_curve)
-    Pmax, _, _ = get_Pmax(IV_curve)
+    Voc = get_Voc(argument)
+    Isc = get_Isc(argument)
+    Pmax = get_Pmax(argument)
     FF = Pmax/(Isc*Voc)
     if isinstance(argument,CircuitGroup):
         if not hasattr(argument,"IV_parameters"):
             argument.IV_parameters = {}
         argument.IV_parameters["FF"] = FF
-    return Pmax/(Isc*Voc)
+    return FF
 CircuitGroup.get_FF = get_FF
 
 def Rs_extraction_two_light_IVs(IV_curves):

@@ -692,7 +692,7 @@ def get_circuit_diagram_extent(elements,connection):
         total_extent[1] += 0.2 # the connectors
     return total_extent
 
-def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=True):
+def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=True, col_wise_ordering=True):
     assert((rows is not None) or (cols is not None))
     if rows is None:
         rows = int(np.ceil(float(len(elements))/float(cols)))
@@ -702,34 +702,49 @@ def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn
     col = 0
     rotation = 0
     pos = np.array([0,0]).astype(float)
-    bounds = np.array([0,0]).astype(float)
     max_x_extent = 0.0
+    max_y_extent = 0.0
     for element in elements:
         if hasattr(element,"extent"):
             x_extent = element.extent[0]
             max_x_extent = max(max_x_extent,x_extent)
             y_extent = element.extent[1]
+            max_y_extent = max(max_y_extent,y_extent)
             element.location = pos.copy()
             element.rotation = rotation
-            row += 1
-            if col == cols-1:
-                bounds[0] = max(bounds[0],pos[0] + max_x_extent)
-            if row == rows:
-                bounds[1] = max(bounds[1],pos[1] + y_extent)
-            if row < rows:
-                if rotation==0:
-                    pos[1] += y_extent + y_gap
+            if col_wise_ordering:
+                row += 1
+                if row < rows:
+                    if rotation==0:
+                        pos[1] += y_extent + y_gap
+                    else:
+                        pos[1] -= (y_extent + y_gap)
                 else:
-                    pos[1] -= (y_extent + y_gap)
+                    row = 0
+                    col += 1
+                    pos[0] += max_x_extent + x_gap
+                    max_x_extent = 0.0
+                    if turn:
+                        rotation = 180 - rotation
+                    else:
+                        pos[1] = 0
             else:
-                row = 0
                 col += 1
-                pos[0] += max_x_extent + x_gap
-                max_x_extent = 0.0
-                if turn:
-                    rotation = 180 - rotation
+                if col < cols:
+                    if rotation==0:
+                        pos[0] += x_extent + x_gap
+                    else:
+                        pos[0] -= (x_extent + x_gap)
                 else:
-                    pos[1] = 0
+                    col = 0
+                    row += 1
+                    pos[1] += max_y_extent + y_gap
+                    max_y_extent = 0.0
+                    if turn:
+                        rotation = 180 - rotation
+                    else:
+                        pos[0] = 0
+            
 
 def circuit_deepcopy(circuit_group):
     circuit_group2 = copy.deepcopy(circuit_group)
