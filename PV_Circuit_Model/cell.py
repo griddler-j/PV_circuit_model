@@ -64,6 +64,7 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.temperature = source.temperature
     def changeTemperature(self,temperature,rebuild_IV=True):
         self.temperature = temperature
+        self.null_IV()
         if rebuild_IV:
             self.build_IV()
     def calc_I(self,V,get_dI_dV=False):
