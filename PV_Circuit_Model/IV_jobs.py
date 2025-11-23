@@ -1,5 +1,12 @@
 import numpy as np
 import ctypes
+import os
+
+# Load the shared library (example for Linux/macOS; adjust extension/path for Windows)
+if os.name == "nt":
+    lib = ctypes.CDLL("ivkernel.dll")
+else:
+    lib = ctypes.CDLL("./libivkernel.so")
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
@@ -65,7 +72,14 @@ class IV_Job_Heap:
                         pc_IV = element.photon_coupling_diodes[0].IV_table.copy()
                         pc_IV[1,:] *= element.area
                         job["children_pc_IVs"][-1] = pc_IV
-        return []
+        return self.job_list[:self.job_done_index]
+    def run_jobs(self):
+        while self.job_done_index > 0:
+            jobs = self.get_runnable_jobs()
+            for job in jobs:
+                run_job_in_cpp(job)
+                self.job_done_index -= 1
+
 
     def __str__(self):
         return str(self.job_list)
@@ -79,9 +93,6 @@ type_numbers = {"CurrentSource": 0,
                 "ReverseDiode": 3,
                 "Intrinsic_Si_diode": 4,
                 }
-
-# Load the shared library (example for Linux/macOS; adjust extension/path for Windows)
-lib = ctypes.CDLL("./libivkernel.so")
 
 combine_iv_job = lib.combine_iv_job
 combine_iv_job.argtypes = [
@@ -127,14 +138,16 @@ def run_job_in_cpp(job):
         max_I = 0.2
         if hasattr(circuit_component,"max_I"):
             max_I = circuit_component.max_I
-        elif circuit_component_type_number==2 or circuit_component_type_number==3: # Forward or Reversed Diodes
+        if circuit_component_type_number==2 or circuit_component_type_number==3: # Forward or Reversed Diodes
             circuit_element_parameters = np.array([circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I])
         elif circuit_component_type_number==4: # Intrinsic_Si_diode
             base_type_number = 0.0 # p
             if circuit_component.base_type=="n":
                 base_type_number = 1.0
             circuit_element_parameters = np.array([circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number])
-
+        else:
+            circuit_element_parameters = np.array([0,0,0,0]) # just a dummy for the CircuitGroup
+            
     circuit_element_parameters = np.ascontiguousarray(circuit_element_parameters.astype(np.float64))
     circuit_element_parameters_ptr = circuit_element_parameters.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
@@ -146,7 +159,8 @@ def run_job_in_cpp(job):
             # skip the cpp  call, just return shifted IV
             IV_table = job["dark_IV_table"].copy()
             IV_table[1,:] += total_IL*area
-            return IV_table
+            circuit_component.IV_table = IV_table
+            return
 
     children_IVs = job["children_IVs"]
     children_types = job["children_types"]
@@ -167,7 +181,7 @@ def run_job_in_cpp(job):
         type_numbers_ = []
         for children_type in children_types:
             type_name = children_type.__name__
-            type_number = 4 # CircuitGroup
+            type_number = 5 # CircuitGroup
             if type_name in type_numbers: # is CircuitElement
                 type_number = type_numbers[type_name]
             type_numbers_.append(type_number)
@@ -267,5 +281,5 @@ def run_job_in_cpp(job):
     V = out_V[:used].copy()
     I = out_I[:used].copy()
 
-    return np.vstack([V, I])
+    circuit_component.IV_table = np.vstack([V, I])
 

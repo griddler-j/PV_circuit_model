@@ -4,6 +4,7 @@ from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.iterative_solver import assign_nodes, iterative_solve
 import copy
 from tqdm import tqdm
+from PV_Circuit_Model.IV_jobs import *
 
 pbar = None
 x_spacing = 1.5
@@ -413,6 +414,11 @@ class CircuitGroup(CircuitComponent):
     def build_IV(self, max_num_points=None, cap_current=None):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
+
+        job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
+        job_heap.run_jobs()
+        return
+
         # if solar cell, then express in current density
         Vints = None
         if hasattr(self,"shape") and self.area is not None and cap_current is not None:

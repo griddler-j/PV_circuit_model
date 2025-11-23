@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 #include <cstddef>
+#include <cstring>
 
 extern "C" {
 
@@ -195,7 +196,8 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
     // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
-    double V_shift = circuit_element_parameters[3];
+    double V_shift = 0;
+    if (!intrinsic_Si_calc) V_shift = circuit_element_parameters[3];
     double max_I = circuit_element_parameters[4];
 
     double max_num_points_ = (double)max_num_points;
@@ -215,7 +217,7 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
                 int base_type_number = static_cast<int>(circuit_element_parameters[6]);
                 double base_doping = circuit_element_parameters[0];
                 double base_thickness = circuit_element_parameters[3];
-                calc_intrinsic_Si_I(V.data(),1,ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
+                calc_intrinsic_Si_I(V.data(),V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
                 if (I[0] >= max_I && I[0] <= max_I*1.1) break;
                 Voc += VT*std::log(max_I/I[0]);
             }
@@ -306,9 +308,9 @@ void build_reverse_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
-    for (int i = outN-1; i >= 0; --i) {
-        out_V[i] = -V[i];
-        out_I[i] = -I[i];
+    for (int i = 0; i < outN; ++i) {
+        out_V[i] = -V[outN-i-1];
+        out_I[i] = -I[outN-i-1];
     }
     *out_len = outN;
 }
@@ -328,7 +330,7 @@ void build_Si_intrinsic_diode_iv(
     double base_doping = circuit_element_parameters[0];
     double base_thickness = circuit_element_parameters[3];
     double VT = circuit_element_parameters[2];
-    calc_intrinsic_Si_I(V.data(),1,ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
+    calc_intrinsic_Si_I(V.data(),(int)V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
 
     // Write to output buffer
     int outN = (int)V.size();
@@ -391,18 +393,23 @@ void combine_iv_job(
 
     double cap_current_by_area = cap_current / area;
 
-    if (connection == -1) { // CircuitElement
+    if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
         switch (circuit_component_type_number) {
             case 0: // CurrentSource
                 build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len);
+                break;
             case 1: // Resistor
                 build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len);
+                break;
             case 2: // ForwardDiode
                 build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                break;
             case 3: // ReverseDiode
                 build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                break;
             case 4: // Intrinsic Si Diode
                 build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                break;
         }
         return;
     }
@@ -420,7 +427,8 @@ void combine_iv_job(
             } else {
                 double tol = (Is.back()-Is.front())/(max_num_points*1000);
                 thin_grid_by_quantization(Is, tol);
-            }       
+            }     
+            Vs.assign(Is.size(), 0.0);     
             std::vector<double> this_V(Is.size());
             // do reverse order to allow for photon coupling
             bool inserted_extra_Is = false;
@@ -430,12 +438,14 @@ void combine_iv_job(
                 if (len > 0) {
                     const double* IV_table_V = children_Vs + offset;  // pointer to first V
                     const double* IV_table_I = children_Is + offset;  // pointer to first I
-                    if (i<n_children-1 && children_pc_lengths[i+1]>0) {  // need to add the current transferred by the subcell above via pc
+                    if (i<n_children-1 && children_pc_lengths[i+1]>0 && children_lengths[i+1]>0) {  // need to add the current transferred by the subcell above via pc
                         int pc_offset = children_pc_offsets[i+1];
                         int pc_len = children_pc_lengths[i+1];
                         const double* pc_IV_table_V = children_pc_Vs + pc_offset;  // pointer to first V
                         const double* pc_IV_table_I = children_pc_Is + pc_offset;  // pointer to first I
                         std::vector<double> added_I(Is.size());
+                        // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
+                        // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
                         interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
                         std::vector<double> xq(Is.size());
                         std::transform(Is.begin(), Is.end(),added_I.begin(),xq.begin(),std::minus<double>());
@@ -478,6 +488,7 @@ void combine_iv_job(
             double tol = (Vs.back()-Vs.front())/(max_num_points*1000);
             thin_grid_by_quantization(Vs, tol);
         }
+        Is.assign(Vs.size(), 0.0);
         for (int i = 0; i < n_children; ++i) {  
             int offset = children_offsets[i];
             int len = children_lengths[i];
@@ -488,10 +499,10 @@ void combine_iv_job(
             }
         }    
         for (int k = 0; k < (int)Is.size(); ++k) Is[k] = Is[k] + total_IL;
-        if (cap_current > 0) {
+        if (cap_current_by_area > 0) {
             size_t write = 0;
             for (size_t read = 0; read < Is.size(); ++read) {
-                if (std::abs(Is[read]) < cap_current) {
+                if (std::abs(Is[read]) < cap_current_by_area) {
                     Vs[write] = Vs[read];
                     Is[write] = Is[read];
                     ++write;
