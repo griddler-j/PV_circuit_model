@@ -17,8 +17,25 @@ def get_VT(temperature):
 
 def get_ni(temperature):
     return 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
+    
+class CircuitComponent:
+    def __init__(self,tag=None):
+        self.IV_table = None
+        self.operating_point = None #V,I
+        self.circuit_diagram_extent = [0, 0.8]
+        self.parent = None
+        self.aux = {}
+    def null_IV(self, keep_dark=False):
+        self.refined_IV = False
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
+        self.IV_table = None
+        if keep_dark==False and hasattr(self,"dark_IV_table"):
+            self.dark_IV_table = None
+        if self.parent is not None:
+            self.parent.null_IV(keep_dark=keep_dark)
 
-class CircuitElement:
+class CircuitElement(CircuitComponent):
     def __init__(self,tag=None):
         self.IV_table = None
         self.tag = tag
@@ -60,12 +77,6 @@ class CircuitElement:
         if "pos_node" in self.aux:
             ax.text(x,y-0.5,str(self.aux["neg_node"]), va='center', fontsize=6)
             ax.text(x,y+0.5,str(self.aux["pos_node"]), va='center', fontsize=6)
-    def null_IV(self, keep_dark=False):
-        self.IV_table = None
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
-        if self.parent is not None:
-            self.parent.null_IV(keep_dark=keep_dark)
     def calc_I(self,V):
         pass
     def calc_dI_dV(self,V):
@@ -277,7 +288,7 @@ class ReverseDiode(Diode):
     def get_draw_func(self):
         return draw_reverse_diode_symbol
 
-class CircuitGroup():
+class CircuitGroup(CircuitComponent):
     def __init__(self,subgroups,connection="series",name=None,location=None,
                  rotation=0,x_mirror=1,y_mirror=1,extent=None):
         self.connection = connection
@@ -307,17 +318,6 @@ class CircuitGroup():
     def add_element(self,element):
         self.subgroups.append(element)
         element.parent = self
-    
-    def null_IV(self, keep_dark=False):
-        self.refined_IV = False
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
-        if self.IV_table is not None or self.dark_IV_table is not None:
-            self.IV_table = None
-            if keep_dark==False:
-                self.dark_IV_table = None
-            if self.parent is not None:
-                self.parent.null_IV(keep_dark=keep_dark)
 
     def null_all_IV(self):
         self.IV_table = None

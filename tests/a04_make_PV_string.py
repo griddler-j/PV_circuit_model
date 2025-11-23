@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 def main(display=True):
     np.random.seed(0)
-    N = 13
+    N = 26
     ref_module = quick_butterfly_module()
     modules = []
     for _ in tqdm(range(N)):
