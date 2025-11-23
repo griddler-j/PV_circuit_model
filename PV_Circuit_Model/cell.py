@@ -50,6 +50,8 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.n = 0.0
         self.V_shift = 0.0
         self.area = area
+        self.VT = get_VT(self.temperature)
+        self.ni = get_ni(self.temperature)
     def __str__(self):
         return "Si Intrinsic Diode"
     def get_value_text(self):
@@ -64,6 +66,8 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.temperature = source.temperature
     def changeTemperature(self,temperature,rebuild_IV=True):
         self.temperature = temperature
+        self.VT = get_VT(self.temperature)
+        self.ni = get_ni(self.temperature)
         self.null_IV()
         if rebuild_IV:
             self.build_IV()
