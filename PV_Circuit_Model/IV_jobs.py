@@ -133,7 +133,7 @@ def run_job_in_cpp(job):
             base_type_number = 0.0 # p
             if circuit_component.base_type=="n":
                 base_type_number = 1.0
-            circuit_element_parameters = np.array([circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, base_type_number])
+            circuit_element_parameters = np.array([circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number])
 
     circuit_element_parameters = np.ascontiguousarray(circuit_element_parameters.astype(np.float64))
     circuit_element_parameters_ptr = circuit_element_parameters.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -235,7 +235,7 @@ def run_job_in_cpp(job):
     
 
     # --- output buffers ---
-    abs_max_num_points = max(abs_max_num_points, 100)
+    abs_max_num_points = max(abs_max_num_points, 500)
     abs_max_num_points = max(abs_max_num_points, max_num_points)
     abs_max_num_points = int(abs_max_num_points)
     out_V = np.empty(abs_max_num_points, dtype=np.float64)

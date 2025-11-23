@@ -100,9 +100,6 @@ void calc_intrinsic_Si_I(
     double  VT,
     double base_doping,
     int base_type_number,   // 0-p, 1-n
-    const double* bgn_x,      // bandgap_narrowing_RT[:,0]
-    const double* bgn_y,      // bandgap_narrowing_RT[:,1]
-    int n_bgn,
     double base_thickness,
     double area,               // area is actually always 1
     double* out_I             // output: I(V) or dI/dV, length n_V
@@ -141,6 +138,30 @@ void calc_intrinsic_Si_I(
         delta_n[i] = 0.5 * (-N_doping + std::sqrt(N_doping*N_doping + 4.0*ni*ni*expv));
     }
 
+    static const double bgn_x[] = {
+        1e10, 1e14, 3e14, 1e15, 3e15, 1e16, 3e16,
+        1e17, 3e17, 1e18, 3e18, 1e19, 3e19, 1e20
+    };
+
+    static const double bgn_y[] = {
+        1.41e-03,
+        0.00145608,
+        0.00155279,
+        0.00187385,
+        0.00258644,
+        0.00414601,
+        0.00664397,
+        0.0112257,
+        0.018247,
+        0.0295337,
+        0.0421825,
+        0.0597645,
+        0.0811658,
+        0.113245
+    };
+
+    int n_bgn = 14;
+
     // Vector interpolation:
     interp_monotonic_inc(
         bgn_x,
@@ -171,7 +192,7 @@ void calc_intrinsic_Si_I(
 }
 
 std::vector<double> get_V_range(const double* circuit_element_parameters,int max_num_points,bool intrinsic_Si_calc) {
-    // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, base_type_number
+    // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
@@ -187,12 +208,17 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
         if (base_thickness > 0) {
             Voc = 0.7;
             for (int i=0; i<10; ++i) {
-                
+                std::vector<double> V(1);
+                V[0] = Voc;
+                std::vector<double> I(1);
+                double ni = circuit_element_parameters[5];
+                int base_type_number = static_cast<int>(circuit_element_parameters[6]);
+                double base_doping = circuit_element_parameters[0];
+                double base_thickness = circuit_element_parameters[3];
+                calc_intrinsic_Si_I(V.data(),1,ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
+                if (I[0] >= max_I && I[0] <= max_I*1.1) break;
+                Voc += VT*std::log(max_I/I[0]);
             }
-                I = self.calc_I(Voc)
-                if I >= max_I and I <= max_I*1.1:
-                    break
-                Voc += VT*np.log(max_I/I)
         }
     }
     else {
@@ -236,7 +262,7 @@ void build_forward_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false);
 
     // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
@@ -269,7 +295,7 @@ void build_reverse_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false);
 
     // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
@@ -283,6 +309,32 @@ void build_reverse_diode_iv(
     for (int i = outN-1; i >= 0; --i) {
         out_V[i] = -V[i];
         out_I[i] = -I[i];
+    }
+    *out_len = outN;
+}
+
+void build_Si_intrinsic_diode_iv(
+    const double* circuit_element_parameters,
+    int max_num_points,
+    double* out_V,
+    double* out_I,
+    int* out_len
+) {
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true);
+    std::vector<double> I(V.size());
+
+    double ni = circuit_element_parameters[5];
+    int base_type_number = static_cast<int>(circuit_element_parameters[6]);
+    double base_doping = circuit_element_parameters[0];
+    double base_thickness = circuit_element_parameters[3];
+    double VT = circuit_element_parameters[2];
+    calc_intrinsic_Si_I(V.data(),1,ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
+
+    // Write to output buffer
+    int outN = (int)V.size();
+    for (int i = 0; i < outN; ++i) {
+        out_V[i] = V[i];
+        out_I[i] = I[i];
     }
     *out_len = outN;
 }
@@ -352,6 +404,7 @@ void combine_iv_job(
             case 4: // Intrinsic Si Diode
                 build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
         }
+        return;
     }
     // --- Series connection branch (connection == 0) ---
     else if (connection == 0) {
