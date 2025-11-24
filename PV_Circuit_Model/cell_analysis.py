@@ -215,12 +215,13 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
     op_point = None
     if self.operating_point is not None:
         op_point = self.operating_point
-    max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
-    Voc = self.get_Voc()
-    Isc = self.get_Isc()
-    FF = self.get_FF()
     if op_point is not None:
         self.operating_point = op_point
+    if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
+        max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
+        Voc = self.get_Voc()
+        Isc = self.get_Isc()
+        FF = self.get_FF()
     if fourth_quadrant and isinstance(self,CircuitGroup):
         plt.plot(self.IV_table[0,:],-self.IV_table[1,:])
         if self.operating_point is not None:
@@ -235,7 +236,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
             if len(self.operating_point)==3:
                 plt.plot(self.operating_point[2],self.operating_point[1],marker='o')
-    if show_IV_parameters and fourth_quadrant:
+    if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
         y_space = 0.07
         plt.plot(Voc,0,marker='o',color="blue")
         plt.plot(0,Isc,marker='o',color="blue")
@@ -258,13 +259,11 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
     plt.xlabel("Voltage (V)")
     plt.ylabel("Current (A)")
     plt.gcf().canvas.manager.set_window_title(title)
-CircuitGroup.plot = plot
-CircuitElement.plot = plot
+CircuitComponent.plot = plot
 
 def show(self):
     plt.show()
-CircuitGroup.show = show
-CircuitElement.show = show
+CircuitComponent.show = show
 
 def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True, **kwargs):
     shape, area = wafer_shape(format=wafer_format,half_cut=half_cut)

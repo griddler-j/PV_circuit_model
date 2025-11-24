@@ -5,6 +5,8 @@
 #include <limits>
 #include <cstddef>
 #include <cstring>
+#include <iostream>
+#include <cstdio>
 
 extern "C" {
 
@@ -363,6 +365,7 @@ static void thin_grid_by_quantization(std::vector<double>& xs, double tol)
     xs.swap(out);
 }
 
+__declspec(dllexport)
 void combine_iv_job(
     int connection,
     int circuit_component_type_number,
@@ -388,6 +391,11 @@ void combine_iv_job(
     double* out_I,
     int* out_len
 ) {
+
+    // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
+    //         n_children, connection);
+    // std::fflush(stdout); 
+
     std::vector<double> Vs(children_Vs_size);
     std::vector<double> Is(children_Vs_size);
 
@@ -416,10 +424,10 @@ void combine_iv_job(
     // --- Series connection branch (connection == 0) ---
     else if (connection == 0) {
         // add voltage
-        std::memcpy(Is.data(), children_Is, children_Vs_size * sizeof(double));
+        Is.assign(children_Is, children_Is + children_Vs_size);
         std::vector<double> extra_Is;
         for (int iteration = 0; iteration < 2; ++iteration) {
-            if (iteration == 1) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());       
+            if (iteration == 1 && !extra_Is.empty()) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());       
             std::sort(Is.begin(), Is.end());
             if (max_num_points == -1) {
                 auto new_end = std::unique(Is.begin(), Is.end());
@@ -431,7 +439,6 @@ void combine_iv_job(
             Vs.assign(Is.size(), 0.0);     
             std::vector<double> this_V(Is.size());
             // do reverse order to allow for photon coupling
-            bool inserted_extra_Is = false;
             for (int i = n_children-1; i >= 0; --i) {
                 int offset = children_offsets[i];
                 int len = children_lengths[i];
@@ -447,20 +454,20 @@ void combine_iv_job(
                         // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                         // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
                         interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
+                        for (int j=0; j < added_I.size(); j++) added_I[j] *= -1;
                         std::vector<double> xq(Is.size());
                         std::transform(Is.begin(), Is.end(),added_I.begin(),xq.begin(),std::minus<double>());
                         interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false); 
                         std::vector<double> new_points(Is.size());
                         std::transform(Is.begin(), Is.end(),added_I.begin(),new_points.begin(),std::plus<double>());
                         extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
-                        inserted_extra_Is = true;
                     } else {
                         interp_monotonic_inc(IV_table_I, IV_table_V, len, Is.data(), (int)Is.size(), this_V.data(), false); 
                     }
                     std::transform(Vs.begin(), Vs.end(),this_V.begin(),Vs.begin(),std::plus<double>());
                 }
             }
-            if (inserted_extra_Is) break;
+            if (extra_Is.empty()) break;
         }
     }
     // --- parallel connection branch (connection == 1) ---
@@ -635,7 +642,17 @@ void combine_iv_job(
         }
     } 
 
+    if (area != 1) {
+        for (int i=0; i<Is.size(); i++) Is[i] *= area;
+    }
+
     int n_out = (int)Vs.size();
+
+    if (n_out > abs_max_num_points) {
+        std::printf("cpp: combine_iv_job error: n_out = %d, abs_max_num_points = %d\n",
+            n_out, abs_max_num_points);
+        std::fflush(stdout); 
+    }
     if (abs_max_num_points > 0 && n_out > abs_max_num_points) {
         n_out = abs_max_num_points;
     }

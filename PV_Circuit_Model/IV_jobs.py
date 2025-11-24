@@ -4,7 +4,7 @@ import os
 
 # Load the shared library (example for Linux/macOS; adjust extension/path for Windows)
 if os.name == "nt":
-    lib = ctypes.CDLL("ivkernel.dll")
+    lib = ctypes.CDLL("PV_Circuit_Model/ivkernel.dll")
 else:
     lib = ctypes.CDLL("./libivkernel.so")
 
@@ -42,6 +42,11 @@ class IV_Job_Heap:
                 return self.job_list[i+1:self.job_done_index]
             # prep
             circuit_component = job["circuit_component"]
+            type_name = type(circuit_component).__name__
+            circuit_component_type_number = 5 # CircuitGroup
+            if type_name in type_numbers: # is CircuitElement
+                circuit_component_type_number = type_numbers[type_name]
+
             job["connection"] = None
             job["dark_IV_table"] = None
             job["area"] = 1
@@ -60,7 +65,7 @@ class IV_Job_Heap:
             if hasattr(circuit_component,"subgroups"):
                 for element in circuit_component.subgroups:
                     job["children_types"].append(type(element))
-                    if hasattr(element,"IL"):
+                    if circuit_component_type_number==0: # current source
                         element.set_IL(element.IL)
                         job["total_IL"] -= element.IL
                         job["children_IVs"].append(np.zeros((2, 0)))
@@ -68,7 +73,7 @@ class IV_Job_Heap:
                         job["children_IVs"].append(element.IV_table.copy())
 
                     job["children_pc_IVs"].append(np.zeros((2, 0)))
-                    if hasattr(element,"photon_coupling_diodes"):
+                    if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
                         pc_IV = element.photon_coupling_diodes[0].IV_table.copy()
                         pc_IV[1,:] *= element.area
                         job["children_pc_IVs"][-1] = pc_IV
@@ -76,10 +81,10 @@ class IV_Job_Heap:
     def run_jobs(self):
         while self.job_done_index > 0:
             jobs = self.get_runnable_jobs()
-            for job in jobs:
+            for i, job in enumerate(jobs):
                 run_job_in_cpp(job)
+                job["done"] = True
                 self.job_done_index -= 1
-
 
     def __str__(self):
         return str(self.job_list)
@@ -130,6 +135,7 @@ def run_job_in_cpp(job):
     if type_name in type_numbers: # is CircuitElement
         circuit_component_type_number = type_numbers[type_name]
 
+    max_I = None
     if circuit_component_type_number==0: # current source
         circuit_element_parameters = np.array([circuit_component.IL])
     elif circuit_component_type_number==1: # Resistor
@@ -180,10 +186,10 @@ def run_job_in_cpp(job):
     if n_children>0:
         type_numbers_ = []
         for children_type in children_types:
-            type_name = children_type.__name__
+            type_name_ = children_type.__name__
             type_number = 5 # CircuitGroup
-            if type_name in type_numbers: # is CircuitElement
-                type_number = type_numbers[type_name]
+            if type_name_ in type_numbers: # is CircuitElement
+                type_number = type_numbers[type_name_]
             type_numbers_.append(type_number)
         children_type_numbers = np.array(type_numbers_, dtype=np.int32)
         children_type_numbers = np.ascontiguousarray(children_type_numbers)  
@@ -231,7 +237,7 @@ def run_job_in_cpp(job):
         children_pc_Is_ptr = children_pc_Is.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         children_pc_offsets_ptr = children_pc_offsets.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
         children_pc_lengths_ptr = children_pc_lengths.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-        abs_max_num_points += children_pc_Vs.size
+        abs_max_num_points += children_Vs.size
         children_pc_Vs_size = children_pc_Vs.size
 
 
@@ -249,7 +255,10 @@ def run_job_in_cpp(job):
     
 
     # --- output buffers ---
-    abs_max_num_points = max(abs_max_num_points, 500)
+    max_num_points_ = 105
+    if max_I is not None:
+        max_num_points_ = np.ceil(100/0.2*max_I) + 5
+    abs_max_num_points = max(abs_max_num_points, max_num_points_)
     abs_max_num_points = max(abs_max_num_points, max_num_points)
     abs_max_num_points = int(abs_max_num_points)
     out_V = np.empty(abs_max_num_points, dtype=np.float64)
@@ -278,8 +287,14 @@ def run_job_in_cpp(job):
     )
 
     used = out_len.value
+    assert(used <= abs_max_num_points)
     V = out_V[:used].copy()
     I = out_I[:used].copy()
 
     circuit_component.IV_table = np.vstack([V, I])
+
+    if children_type_numbers is not None and np.max(np.array(children_type_numbers))<5: # meaning all_circuit_element_children:
+        circuit_component.dark_IV_table = circuit_component.IV_table.copy()
+        circuit_component.dark_IV_table[1,:] -= total_IL*area
+
 
