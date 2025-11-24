@@ -55,8 +55,12 @@ class CircuitElement(CircuitComponent):
             if len(findright_)>2 and self.IV_table[0,findright_[1]]-V < 0.001/100*5 and len(findleft_)>2 and V-self.IV_table[0,findleft_[-2]] < 0.001/100*5:
                 return # already refined IV before, good
             Vs = self.get_V_range()
-            V_range = np.sort(np.concatenate([Vs, np.linspace(V - 0.001, V + 0.001, 100)]))
+            if isinstance(self,ReverseDiode):
+                V_range = np.sort(np.concatenate([Vs, np.linspace(-V - 0.001, -V + 0.001, 100)]))
+            else:
+                V_range = np.sort(np.concatenate([Vs, np.linspace(V - 0.001, V + 0.001, 100)]))
             self.build_IV(V=V_range)
+            
             if top_level:
                 if V is not None:
                     I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
