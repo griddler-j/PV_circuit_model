@@ -145,9 +145,9 @@ class CurrentSource(CircuitElement):
             self.build_IV()
 
     def build_IV(self, V=np.array([-0.1,0.1]), *args, **kwargs):
-        job_heap = IV_Job_Heap(self)
-        job_heap.run_jobs()
-        return
+        # job_heap = IV_Job_Heap(self)
+        # job_heap.run_jobs()
+        # return
         self.IV_table = np.array([V, self.calc_I(V)])
 
     def __str__(self):
@@ -170,9 +170,9 @@ class Resistor(CircuitElement):
         else:
             return self.cond*np.ones_like(V)
     def build_IV(self, V=np.array([-0.1,-0.05,0,0.05,0.1]), *args, **kwargs):
-        job_heap = IV_Job_Heap(self)
-        job_heap.run_jobs()
-        return
+        # job_heap = IV_Job_Heap(self)
+        # job_heap.run_jobs()
+        # return
         self.IV_table = np.array([V, self.calc_I(V)])
     def set_cond(self,cond):
         self.cond = cond
@@ -248,9 +248,9 @@ class Diode(CircuitElement):
         I = self.calc_I(V)
         return I/(self.n*self.VT)
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        job_heap = IV_Job_Heap(self)
-        job_heap.run_jobs()
-        return
+        # job_heap = IV_Job_Heap(self)
+        # job_heap.run_jobs()
+        # return
         if V is None:
             V = self.get_V_range(max_num_points)
         self.IV_table = np.array([V,self.calc_I(V)])
@@ -260,9 +260,9 @@ class ForwardDiode(Diode):
         super().__init__(I0, n, V_shift=0,tag=tag)
         self.max_I = 0.2
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        job_heap = IV_Job_Heap(self)
-        job_heap.run_jobs()
-        return
+        # job_heap = IV_Job_Heap(self)
+        # job_heap.run_jobs()
+        # return
         super().build_IV(V,max_num_points)
     def __str__(self):
         return "Forward Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
@@ -290,9 +290,9 @@ class ReverseDiode(Diode):
         I = self.calc_I(V)
         return -I/(self.n*self.VT)
     def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        job_heap = IV_Job_Heap(self)
-        job_heap.run_jobs()
-        return
+        # job_heap = IV_Job_Heap(self)
+        # job_heap.run_jobs()
+        # return
         if V is None:
             V = self.get_V_range(max_num_points)
         # I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
@@ -433,9 +433,9 @@ class CircuitGroup(CircuitComponent):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
 
-        job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
-        job_heap.run_jobs()
-        return
+        # job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
+        # job_heap.run_jobs()
+        # return
 
         # if solar cell, then express in current density
         Vints = None

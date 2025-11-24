@@ -7,6 +7,8 @@
 #include <cstring>
 #include <iostream>
 #include <cstdio>
+#include <omp.h> 
+#include <chrono>
 
 extern "C" {
 
@@ -365,8 +367,7 @@ static void thin_grid_by_quantization(std::vector<double>& xs, double tol)
     xs.swap(out);
 }
 
-__declspec(dllexport)
-void combine_iv_job(
+static void combine_iv_job_impl(
     int connection,
     int circuit_component_type_number,
     int n_children,
@@ -662,5 +663,123 @@ void combine_iv_job(
     return;
 
 } 
+
+struct JobDesc {
+    int connection;
+    int circuit_component_type_number;
+    int n_children;
+    const int* children_type_numbers;
+    const double* children_Vs;
+    const double* children_Is;
+    const int* children_offsets;
+    const int* children_lengths;
+    int children_Vs_size;
+    const double* children_pc_Vs;
+    const double* children_pc_Is;
+    const int* children_pc_offsets;
+    const int* children_pc_lengths;
+    int children_pc_Vs_size;
+    double total_IL;
+    double cap_current;
+    int max_num_points;
+    double area;
+    int abs_max_num_points;
+    const double* circuit_element_parameters;
+    double* out_V;
+    double* out_I;
+    int* out_len;
+};
+
+__declspec(dllexport)
+double combine_iv_job(int connection,
+    int circuit_component_type_number,
+    int n_children,
+    const int* children_type_numbers,
+    const double* children_Vs,
+    const double* children_Is,
+    const int* children_offsets,
+    const int* children_lengths,
+    int children_Vs_size,
+    const double* children_pc_Vs,
+    const double* children_pc_Is,
+    const int* children_pc_offsets,
+    const int* children_pc_lengths,
+    int children_pc_Vs_size,
+    double total_IL,
+    double cap_current,
+    int max_num_points,
+    double area,
+    int abs_max_num_points,
+    const double* circuit_element_parameters,
+    double* out_V,
+    double* out_I,
+    int* out_len) {
+    auto t0 = std::chrono::high_resolution_clock::now();
+    combine_iv_job_impl(
+            connection,
+            circuit_component_type_number,
+            n_children,
+            children_type_numbers,
+            children_Vs,
+            children_Is,
+            children_offsets,
+            children_lengths,
+            children_Vs_size,
+            children_pc_Vs,
+            children_pc_Is,
+            children_pc_offsets,
+            children_pc_lengths,
+            children_pc_Vs_size,
+            total_IL,
+            cap_current,
+            max_num_points,
+            area,
+            abs_max_num_points,
+            circuit_element_parameters,
+            out_V,
+            out_I,
+            out_len
+        );
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    return ms;
+}
+
+__declspec(dllexport)
+double combine_iv_job_batch(const JobDesc* jobs, int n_jobs) {
+    auto t0 = std::chrono::high_resolution_clock::now();
+    #pragma omp parallel for
+    for (int j = 0; j < n_jobs; ++j) {
+        const JobDesc& jb = jobs[j];
+        combine_iv_job_impl(
+            jb.connection,
+            jb.circuit_component_type_number,
+            jb.n_children,
+            jb.children_type_numbers,
+            jb.children_Vs,
+            jb.children_Is,
+            jb.children_offsets,
+            jb.children_lengths,
+            jb.children_Vs_size,
+            jb.children_pc_Vs,
+            jb.children_pc_Is,
+            jb.children_pc_offsets,
+            jb.children_pc_lengths,
+            jb.children_pc_Vs_size,
+            jb.total_IL,
+            jb.cap_current,
+            jb.max_num_points,
+            jb.area,
+            jb.abs_max_num_points,
+            jb.circuit_element_parameters,
+            jb.out_V,
+            jb.out_I,
+            jb.out_len
+        );
+    }
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    return ms;
+}
 
 }// extern "C"

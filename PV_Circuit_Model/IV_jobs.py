@@ -1,6 +1,7 @@
 import numpy as np
 import ctypes
 import os
+import time
 
 # Load the shared library (example for Linux/macOS; adjust extension/path for Windows)
 if os.name == "nt":
@@ -35,57 +36,105 @@ class IV_Job_Heap:
             for i, element in enumerate(circuit_component.subgroups):
                 if element.IV_table is None:
                     self.build(element, this_job_id=new_job_ids[i])
+    def prep_job(self,job):
+        circuit_component = job["circuit_component"]
+        type_name = type(circuit_component).__name__
+        circuit_component_type_number = 5 # CircuitGroup
+        if type_name in type_numbers: # is CircuitElement
+            circuit_component_type_number = type_numbers[type_name]
+
+        job["connection"] = None
+        job["dark_IV_table"] = None
+        job["area"] = 1
+        if hasattr(circuit_component,"connection"):
+            job["connection"] = circuit_component.connection
+        if hasattr(circuit_component,"dark_IV_table") and circuit_component.dark_IV_table is not None:
+            job["dark_IV_table"] = circuit_component.dark_IV_table
+        if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
+            job["area"] = circuit_component.area
+        job["total_IL"] = 0.0
+        job["children_IVs"] = []
+        job["children_pc_IVs"] = []
+        job["children_types"] = []
+        job["max_num_points"] = self.max_num_points
+        job["cap_current"] = self.cap_current
+        all_children_are_CircuitElement = False
+        if hasattr(circuit_component,"subgroups"):
+            all_children_are_CircuitElement = True
+            for element in circuit_component.subgroups:
+                type_name = type(element).__name__
+                if type_name not in type_numbers: # not CircuitElement
+                    all_children_are_CircuitElement = False
+
+                job["children_types"].append(type(element))
+                if circuit_component_type_number==0: # current source
+                    element.set_IL(element.IL)
+                    job["total_IL"] -= element.IL
+                    job["children_IVs"].append(np.zeros((2, 0)))
+                else:
+                    job["children_IVs"].append(element.IV_table.copy())
+
+                job["children_pc_IVs"].append(np.zeros((2, 0)))
+                if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
+                    pc_IV = element.photon_coupling_diodes[0].IV_table.copy()
+                    pc_IV[1,:] *= element.area
+                    job["children_pc_IVs"][-1] = pc_IV
+        job["all_children_are_CircuitElement"] = all_children_are_CircuitElement
     def get_runnable_jobs(self):
         for i in range(self.job_done_index-1,-1,-1):
             job = self.job_list[i]
             if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<self.job_done_index:
                 return self.job_list[i+1:self.job_done_index]
-            # prep
-            circuit_component = job["circuit_component"]
-            type_name = type(circuit_component).__name__
-            circuit_component_type_number = 5 # CircuitGroup
-            if type_name in type_numbers: # is CircuitElement
-                circuit_component_type_number = type_numbers[type_name]
-
-            job["connection"] = None
-            job["dark_IV_table"] = None
-            job["area"] = 1
-            if hasattr(circuit_component,"connection"):
-                job["connection"] = circuit_component.connection
-            if hasattr(circuit_component,"dark_IV_table") and circuit_component.dark_IV_table is not None:
-                job["dark_IV_table"] = circuit_component.dark_IV_table
-            if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
-                job["area"] = circuit_component.area
-            job["total_IL"] = 0.0
-            job["children_IVs"] = []
-            job["children_pc_IVs"] = []
-            job["children_types"] = []
-            job["max_num_points"] = self.max_num_points
-            job["cap_current"] = self.cap_current
-            if hasattr(circuit_component,"subgroups"):
-                for element in circuit_component.subgroups:
-                    job["children_types"].append(type(element))
-                    if circuit_component_type_number==0: # current source
-                        element.set_IL(element.IL)
-                        job["total_IL"] -= element.IL
-                        job["children_IVs"].append(np.zeros((2, 0)))
-                    else:
-                        job["children_IVs"].append(element.IV_table.copy())
-
-                    job["children_pc_IVs"].append(np.zeros((2, 0)))
-                    if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
-                        pc_IV = element.photon_coupling_diodes[0].IV_table.copy()
-                        pc_IV[1,:] *= element.area
-                        job["children_pc_IVs"][-1] = pc_IV
+            self.prep_job(job)
         return self.job_list[:self.job_done_index]
     def run_jobs(self):
+        t1 = time.time()
+        total_ms_ = 0
+        total_ms_2 = 0
         while self.job_done_index > 0:
             jobs = self.get_runnable_jobs()
-            for i, job in enumerate(jobs):
-                run_job_in_cpp(job)
-                job["done"] = True
-                self.job_done_index -= 1
 
+            if len(jobs) >= 1000:
+                job_descs = []
+                for i, job in enumerate(jobs):
+                    job_descs.append(make_job_desc(job))
+                job_descs_ = [jd for jd in job_descs if jd is not None]
+                IVs, total_ms, total_ms2 = run_jobs_in_cpp(job_descs_)
+                total_ms_ += total_ms
+                total_ms_2 += total_ms2
+                counter = 0
+                for i, job in enumerate(jobs):
+                    circuit_component = job["circuit_component"]
+                    if job_descs[i] is not None:
+                        circuit_component.IV_table = IVs[counter]
+                        counter += 1
+                    if job["all_children_are_CircuitElement"]:
+                        circuit_component.dark_IV_table = circuit_component.IV_table.copy()
+                        circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
+                    job["done"] = True
+                    self.job_done_index -= 1
+
+            else:
+
+        # duration = time.time()-t1
+        # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms2/1000}s including marshalling")
+
+                for i, job in enumerate(jobs):
+                    result = make_job_desc(job,run_immediately=True)
+                    circuit_component = job["circuit_component"]
+                    if result is not None:
+                        IV, total_ms, total_ms2 = result[0], result[1], result[2]
+                        total_ms_ += total_ms
+                        total_ms_2 += total_ms2
+                        circuit_component.IV_table = IV
+                    if job["all_children_are_CircuitElement"]:
+                        circuit_component.dark_IV_table = circuit_component.IV_table.copy()
+                        circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
+                    job["done"] = True
+                    self.job_done_index -= 1
+
+        # duration = time.time()-t1
+        # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms2/1000}s including marshalling")
     def __str__(self):
         return str(self.job_list)
 
@@ -99,36 +148,65 @@ type_numbers = {"CurrentSource": 0,
                 "Intrinsic_Si_diode": 4,
                 }
 
-combine_iv_job = lib.combine_iv_job
-combine_iv_job.argtypes = [
-    ctypes.c_int,                         # connection
-    ctypes.c_int,                         # circuit_component_type_number
-    ctypes.c_int,                         # n_children
-    ctypes.POINTER(ctypes.c_int),         #children_type_numbers
-    ctypes.POINTER(ctypes.c_double),      # children_Vs
-    ctypes.POINTER(ctypes.c_double),      # children_Is
-    ctypes.POINTER(ctypes.c_int),      # children_offsets
-    ctypes.POINTER(ctypes.c_int),      # children_lengths
-    ctypes.c_int,                       #(children_Vs_size)
-    ctypes.POINTER(ctypes.c_double),      # children_pc_Vs
-    ctypes.POINTER(ctypes.c_double),      # children_pc_Is
-    ctypes.POINTER(ctypes.c_int),      # children_pc_offsets
-    ctypes.POINTER(ctypes.c_int),      # children_pc_lengths
-    ctypes.c_int,                         #(children_Vs_size)
-    ctypes.c_double,                      # total_IL
-    ctypes.c_double,                      # cap_current
-    ctypes.c_int,                         # max_num_points
-    ctypes.c_double,                      # area
-    ctypes.c_int,                         # abs_max_num_points
-    ctypes.POINTER(ctypes.c_double),      # circuit_element_parameters
-    ctypes.POINTER(ctypes.c_double),         # out_V
-    ctypes.POINTER(ctypes.c_double),         # out_I
-    ctypes.POINTER(ctypes.c_int)            # out_len
+class JobDesc(ctypes.Structure):
+    _fields_ = [
+        ("connection", ctypes.c_int),
+        ("circuit_component_type_number", ctypes.c_int),
+        ("n_children", ctypes.c_int),
+        ("children_type_numbers", ctypes.POINTER(ctypes.c_int)),
+        ("children_Vs", ctypes.POINTER(ctypes.c_double)),
+        ("children_Is", ctypes.POINTER(ctypes.c_double)),
+        ("children_offsets", ctypes.POINTER(ctypes.c_int)),
+        ("children_lengths", ctypes.POINTER(ctypes.c_int)),
+        ("children_Vs_size", ctypes.c_int),
+        ("children_pc_Vs", ctypes.POINTER(ctypes.c_double)),
+        ("children_pc_Is", ctypes.POINTER(ctypes.c_double)),
+        ("children_pc_offsets", ctypes.POINTER(ctypes.c_int)),
+        ("children_pc_lengths", ctypes.POINTER(ctypes.c_int)),
+        ("children_pc_Vs_size", ctypes.c_int),
+        ("total_IL", ctypes.c_double),
+        ("cap_current", ctypes.c_double),
+        ("max_num_points", ctypes.c_int),
+        ("area", ctypes.c_double),
+        ("abs_max_num_points", ctypes.c_int),
+        ("circuit_element_parameters", ctypes.POINTER(ctypes.c_double)),
+        ("out_V", ctypes.POINTER(ctypes.c_double)),
+        ("out_I", ctypes.POINTER(ctypes.c_double)),
+        ("out_len", ctypes.POINTER(ctypes.c_int)),
+    ]
+
+lib.combine_iv_job.argtypes = [ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.c_int,
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_int,
+        ctypes.c_double,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_int)]
+lib.combine_iv_job.restype = ctypes.c_double 
+
+lib.combine_iv_job_batch.argtypes = [
+    ctypes.POINTER(JobDesc),  # jobs array
+    ctypes.c_int              # n_jobs
 ]
+lib.combine_iv_job_batch.restype = ctypes.c_double 
 
-combine_iv_job.restype = None
-
-def run_job_in_cpp(job):
+def make_job_desc(job, run_immediately=False):
     circuit_component = job["circuit_component"]
     type_name = type(circuit_component).__name__
     circuit_component_type_number = 5 # CircuitGroup
@@ -266,35 +344,113 @@ def run_job_in_cpp(job):
     out_len = ctypes.c_int(0)
     out_V_ptr = out_V.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
     out_I_ptr = out_I.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-    out_len_ptr = ctypes.byref(out_len)
+    out_len_ptr = ctypes.pointer(out_len)
 
-    combine_iv_job(
-        ctypes.c_int(connection),
-        ctypes.c_int(circuit_component_type_number),
-        ctypes.c_int(n_children),
-        children_type_numbers_ptr,
-        children_Vs_ptr, children_Is_ptr, children_offsets_ptr, children_lengths_ptr,ctypes.c_int(children_Vs_size),
-        children_pc_Vs_ptr, children_pc_Is_ptr, children_pc_offsets_ptr, children_pc_lengths_ptr,ctypes.c_int(children_pc_Vs_size),
-        ctypes.c_double(total_IL),
-        ctypes.c_double(cap_current),
-        ctypes.c_int(max_num_points),
-        ctypes.c_double(area),
-        ctypes.c_int(abs_max_num_points),
-        circuit_element_parameters_ptr,
-        out_V_ptr,
-        out_I_ptr,
-        out_len_ptr
-    )
+    if run_immediately:
+        t1 = time.time()
+        total_ms = lib.combine_iv_job(ctypes.c_int(connection),
+                        ctypes.c_int(circuit_component_type_number),
+                        ctypes.c_int(n_children),
+                        children_type_numbers_ptr,
+                        children_Vs_ptr,
+                        children_Is_ptr,
+                        children_offsets_ptr,
+                        children_lengths_ptr,
+                        ctypes.c_int(children_Vs_size),
+                        children_pc_Vs_ptr,
+                        children_pc_Is_ptr,
+                        children_pc_offsets_ptr,
+                        children_pc_lengths_ptr,
+                        ctypes.c_int(children_pc_Vs_size),
+                        ctypes.c_double(total_IL),
+                        ctypes.c_double(cap_current),
+                        ctypes.c_int(max_num_points),
+                        ctypes.c_double(area),
+                        ctypes.c_int(abs_max_num_points),
+                        circuit_element_parameters_ptr,
+                        out_V_ptr,
+                        out_I_ptr,
+                        out_len_ptr)
+        
+        used = out_len.value
+        assert(used <= abs_max_num_points)
+        V = out_V[:used]
+        I = out_I[:used]
+        t2 = time.time() - t1
+        return np.vstack([V, I]), total_ms, t2*1000
 
-    used = out_len.value
-    assert(used <= abs_max_num_points)
-    V = out_V[:used].copy()
-    I = out_I[:used].copy()
+    job_desc = JobDesc()
+    job_desc.connection = ctypes.c_int(connection)
+    job_desc.circuit_component_type_number = ctypes.c_int(circuit_component_type_number)
+    job_desc.n_children = ctypes.c_int(n_children)
+    job_desc.children_type_numbers = children_type_numbers_ptr
+    job_desc.children_Vs = children_Vs_ptr
+    job_desc.children_Is = children_Is_ptr
+    job_desc.children_offsets = children_offsets_ptr
+    job_desc.children_lengths = children_lengths_ptr
 
-    circuit_component.IV_table = np.vstack([V, I])
+    job_desc._children_type_numbers = children_type_numbers
+    job_desc._children_Vs = children_Vs
+    job_desc._children_Is = children_Is
+    job_desc._children_offsets = children_offsets
+    job_desc._children_lengths = children_lengths
 
-    if children_type_numbers is not None and np.max(np.array(children_type_numbers))<5: # meaning all_circuit_element_children:
-        circuit_component.dark_IV_table = circuit_component.IV_table.copy()
-        circuit_component.dark_IV_table[1,:] -= total_IL*area
+    job_desc.children_Vs_size = ctypes.c_int(children_Vs_size)
+    job_desc.children_pc_Vs = children_pc_Vs_ptr
+    job_desc.children_pc_Is = children_pc_Is_ptr
+    job_desc.children_pc_offsets = children_pc_offsets_ptr
+    job_desc.children_pc_lengths = children_pc_lengths_ptr
+
+    job_desc._children_pc_Vs = children_pc_Vs
+    job_desc._children_pc_Is = children_pc_Is
+    job_desc._children_pc_offsets = children_pc_offsets
+    job_desc._children_pc_lengths = children_pc_lengths
+
+    job_desc.children_pc_Vs_size = ctypes.c_int(children_pc_Vs_size)
+    job_desc.total_IL = ctypes.c_double(total_IL)
+    job_desc.cap_current = ctypes.c_double(cap_current)
+    job_desc.max_num_points = ctypes.c_int(max_num_points)
+    job_desc.area = ctypes.c_double(area)
+    job_desc.abs_max_num_points = ctypes.c_int(abs_max_num_points)
+    job_desc.circuit_element_parameters = circuit_element_parameters_ptr
+    job_desc._circuit_element_parameters = circuit_element_parameters
+    job_desc.out_V = out_V_ptr
+    job_desc.out_I = out_I_ptr
+    job_desc.out_len = out_len_ptr
+    job_desc._out_V = out_V
+    job_desc._out_I = out_I
+    job_desc._out_len = out_len
+
+    return job_desc
+
+# def run_job_in_cpp(job_desc):
+#     t1 = time.time()
+#     total_ms = lib.combine_iv_job(job_desc)
+#     used = job_desc.out_len.contents.value
+#     assert(used <= job_desc.abs_max_num_points)
+#     V = job_desc._out_V[:used].copy()
+#     I = job_desc._out_I[:used].copy()
+#     t2 = time.time() - t1
+#     return np.vstack([V, I]), total_ms, t2*1000
+
+def run_jobs_in_cpp(job_desc_list):
+    t1 = time.time()
+    JobDescArray = JobDesc * len(job_desc_list)
+    job_desc_array = JobDescArray(*job_desc_list)
+    total_ms = lib.combine_iv_job_batch(job_desc_array, len(job_desc_array))
+    IVs = []
+    for jd in job_desc_list:
+        used = jd._out_len.value
+        assert used <= jd.abs_max_num_points
+        V = jd._out_V[:used].copy()
+        I = jd._out_I[:used].copy()
+        IVs.append(np.vstack([V, I]))
+    t2 = time.time() - t1
+    # print(f"{len(job_desc_list)} jobs took {total_ms} ms")
+    return IVs, total_ms, t2*1000
+
+
+
+
 
 

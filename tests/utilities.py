@@ -4,6 +4,7 @@ import re
 import pickle
 import json
 import numpy as np
+import time
 
 def get_mode():
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +19,7 @@ def get_fields(device, prefix=None):
         dict = {}
         test_attributes = config.get("test_attributes")
         keys = ["common", prefix]
+        t1 = time.time()
         for key in keys:
             if key is not None and key in test_attributes:
                 for attribute in test_attributes[key]:
@@ -33,6 +35,7 @@ def get_fields(device, prefix=None):
                             dict[attribute_name]["value"] = attr()
                         else:
                             dict[attribute_name]["value"] = attr
+        print(f"Finished in {time.time()-t1} seconds")
     return dict
 
 def make_timestamp():
