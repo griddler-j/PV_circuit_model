@@ -433,9 +433,9 @@ class CircuitGroup(CircuitComponent):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
 
-        # job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
-        # job_heap.run_jobs()
-        # return
+        job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
+        job_heap.run_jobs()
+        return
 
         # if solar cell, then express in current density
         Vints = None
