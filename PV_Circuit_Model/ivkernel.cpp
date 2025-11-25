@@ -674,4 +674,51 @@ double combine_iv_job(int connection,
 
 } 
 
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    // #pragma omp parallel
+    // {
+    //     #pragma omp single
+    //     {
+    //         std::cout << "OpenMP threads: " << omp_get_num_threads() << std::endl;
+    //     }
+    // }
+
+    #pragma omp parallel for
+    for (int j = 0; j < n_jobs; ++j) {
+        IVJobDesc& job = jobs[j];
+        double ms = combine_iv_job(
+            job.connection,
+            job.circuit_component_type_number,
+            job.n_children,
+            job.children_type_numbers,
+            job.children_Vs,
+            job.children_Is,
+            job.children_offsets,
+            job.children_lengths,
+            job.children_Vs_size,
+            job.children_pc_Vs,
+            job.children_pc_Is,
+            job.children_pc_offsets,
+            job.children_pc_lengths,
+            job.children_pc_Vs_size,
+            job.total_IL,
+            job.cap_current,
+            job.max_num_points,
+            job.area,
+            job.abs_max_num_points,
+            job.circuit_element_parameters,
+            job.out_V,
+            job.out_I,
+            job.out_len
+        );
+    }
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    return ms;
+
+}
+
 }// extern "C"

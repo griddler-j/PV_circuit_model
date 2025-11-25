@@ -128,8 +128,9 @@ class IV_Job_Heap:
             jobs = self.get_runnable_jobs()
             get_job_time += time.time()-t1b
 
-            if len(jobs) >= 100000:
+            if len(jobs) >= 2:
                 job_descs = []
+                kernel_timer.tic()
                 for i, job in enumerate(jobs):
                     job_descs.append(make_job_desc(job))
                 job_descs_ = [jd for jd in job_descs if jd is not None]
@@ -147,6 +148,7 @@ class IV_Job_Heap:
                         circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
                     job["done"] = True
                     self.job_done_index -= 1
+                kernel_timer.toc()
 
             else:
 
@@ -154,9 +156,8 @@ class IV_Job_Heap:
         # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms2/1000}s including marshalling")
 
                 for i, job in enumerate(jobs):
-                    # job_descs = []
-                    # for _ in range(10):
-                    #     job_descs.append(make_job_desc(job))
+                    kernel_timer.tic()
+                    # job_descs = [make_job_desc(job) for _ in range(10)]
 
                     result = make_job_desc(job,run_immediately=True)
                     circuit_component = job["circuit_component"]
@@ -167,6 +168,7 @@ class IV_Job_Heap:
                         total_ms_ += total_ms
                         total_ms_2 += total_ms2
                         circuit_component.IV_table = IV
+                    kernel_timer.toc()
                     if job["all_children_are_CircuitElement"]:
                         circuit_component.dark_IV_table = circuit_component.IV_table.copy()
                         circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
@@ -280,7 +282,6 @@ def make_job_desc(job, run_immediately=False):
 
     if run_immediately:
         t1 = time.time()
-        kernel_timer.tic()
         V, I, kernel_ms = ivkernel.run_single_job(
             int(connection),
             int(circuit_component_type_number),
@@ -301,7 +302,6 @@ def make_job_desc(job, run_immediately=False):
             circuit_element_parameters.astype(np.float64, copy=False),
             int(abs_max_num_points)  # abs_max_num_points_out
         )
-        kernel_timer.toc()
         kernel_timer.inc(kernel_ms/1000)
         t2 = time.time() - t1
         return np.vstack([V, I]), kernel_ms, t2*1000
@@ -327,7 +327,7 @@ def make_job_desc(job, run_immediately=False):
             int(abs_max_num_points),  # abs_max_num_points_out
         )
 
-def run_jobs_in_cpp(job_descs, max_workers=None):
+def run_jobs_in_cpp(job_descs):
     global kernel_timer
     """
     job_descs: list of argument tuples for ivkernel.run_single_job.
@@ -340,20 +340,13 @@ def run_jobs_in_cpp(job_descs, max_workers=None):
         return [], 0.0, 0.0
 
     t0 = time.time()
-    kernel_timer.tic()
-    results = ivkernel.run_multiple_jobs_in_parallel(job_descs, max_workers=max_workers)
-    kernel_timer.toc()
+    IVs_, kernel_ms = ivkernel.run_multiple_jobs_in_parallel(job_descs)
     wall_ms = (time.time() - t0) * 1000.0
+    IVs = [np.vstack(IV_) for IV_ in IVs_]
 
-    IVs = []
-    total_kernel_ms = 0.0
-    for (V, I, kernel_ms) in results:
-        IVs.append(np.vstack([V, I]))
-        total_kernel_ms = max(total_kernel_ms,kernel_ms)
+    kernel_timer.inc(kernel_ms/1000)
 
-    kernel_timer.inc(total_kernel_ms/1000)
-
-    return IVs, total_kernel_ms, wall_ms
+    return IVs, kernel_ms, wall_ms
 
 
 
