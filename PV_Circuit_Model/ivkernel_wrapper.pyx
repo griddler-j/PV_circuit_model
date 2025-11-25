@@ -4,6 +4,7 @@
 
 import numpy as np
 cimport numpy as np
+from cython cimport nogil
 
 cdef extern from "ivkernel.h":
     double combine_iv_job(
@@ -30,7 +31,7 @@ cdef extern from "ivkernel.h":
         double* out_V,
         double* out_I,
         int* out_len
-    )
+    ) nogil
 
 cdef inline double _now_ms():
     """
@@ -87,41 +88,43 @@ cpdef tuple run_single_job(
     cdef int* c_children_lengths = <int*> children_lengths.data
 
     # photon-coupling
-    c_children_pc_Vs = <double*> children_pc_Vs.data
-    c_children_pc_Is = <double*> children_pc_Is.data
-    c_children_pc_offsets = <int*> children_pc_offsets.data
-    c_children_pc_lengths = <int*> children_pc_lengths.data
+    cdef double* c_children_pc_Vs = <double*> children_pc_Vs.data
+    cdef double* c_children_pc_Is = <double*> children_pc_Is.data
+    cdef int* c_children_pc_offsets = <int*> children_pc_offsets.data
+    cdef int* c_children_pc_lengths = <int*> children_pc_lengths.data
 
     cdef double* c_circuit_element_parameters = &(<np.float64_t*>circuit_element_parameters.data)[0]
     cdef double* c_out_V = &(<np.float64_t*>out_V.data)[0]
     cdef double* c_out_I = &(<np.float64_t*>out_I.data)[0]
     cdef int* c_out_len = &out_len
 
-    cdef double kernel_ms = combine_iv_job(
-        connection,
-        circuit_component_type_number,
-        n_children,
-        c_children_type_numbers,
-        c_children_Vs,
-        c_children_Is,
-        c_children_offsets,
-        c_children_lengths,
-        children_Vs_size,
-        c_children_pc_Vs,
-        c_children_pc_Is,
-        c_children_pc_offsets,
-        c_children_pc_lengths,
-        children_pc_Vs_size,
-        total_IL,
-        cap_current,
-        max_num_points,
-        area,
-        abs_max_num_points,
-        c_circuit_element_parameters,
-        c_out_V,
-        c_out_I,
-        c_out_len
-    )
+    cdef double kernel_ms
+    with nogil:
+        kernel_ms = combine_iv_job(
+            connection,
+            circuit_component_type_number,
+            n_children,
+            c_children_type_numbers,
+            c_children_Vs,
+            c_children_Is,
+            c_children_offsets,
+            c_children_lengths,
+            children_Vs_size,
+            c_children_pc_Vs,
+            c_children_pc_Is,
+            c_children_pc_offsets,
+            c_children_pc_lengths,
+            children_pc_Vs_size,
+            total_IL,
+            cap_current,
+            max_num_points,
+            area,
+            abs_max_num_points,
+            c_circuit_element_parameters,
+            c_out_V,
+            c_out_I,
+            c_out_len
+        )
 
     if out_len < 0 or out_len > abs_max_num_points_out:
         raise ValueError(f"Invalid out_len {out_len} (abs_max_num_points_out={abs_max_num_points_out})")
@@ -130,3 +133,44 @@ cpdef tuple run_single_job(
     V = out_V[:out_len].copy()
     I = out_I[:out_len].copy()
     return V, I, kernel_ms
+
+def run_multiple_jobs_in_parallel(job_args_list, max_workers=None):
+    """
+    Run many IV jobs in parallel using Python threads.
+
+    Parameters
+    ----------
+    job_args_list : iterable
+        Each element is a tuple of positional arguments for `run_single_job`,
+        in exactly the same order as its signature.
+    max_workers : int or None
+        Passed through to ThreadPoolExecutor.
+
+    Returns
+    -------
+    results : list of (V, I, kernel_ms)
+        Same order as `job_args_list`.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    job_args_list = list(job_args_list)
+    n = len(job_args_list)
+    results = [None] * n
+
+    def _worker(idx, args):
+        # run_single_job is the cpdef wrapper above
+        results[idx] = run_single_job(*args)
+
+    if n == 0:
+        return []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = [
+            ex.submit(_worker, i, job_args_list[i])
+            for i in range(n)
+        ]
+        # Propagate exceptions
+        for f in futures:
+            f.result()
+
+    return results

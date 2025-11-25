@@ -94,46 +94,54 @@ class IV_Job_Heap:
             jobs = self.get_runnable_jobs()
             get_job_time += time.time()-t1b
 
-            # if len(jobs) >= 0:
-            #     job_descs = []
-            #     for i, job in enumerate(jobs):
-            #         job_descs.append(make_job_desc(job))
-            #     job_descs_ = [jd for jd in job_descs if jd is not None]
-            #     IVs, total_ms, total_ms2 = run_jobs_in_cpp(job_descs_)
-            #     total_ms_ += total_ms
-            #     total_ms_2 += total_ms2
-            #     counter = 0
-            #     for i, job in enumerate(jobs):
-            #         circuit_component = job["circuit_component"]
-            #         if job_descs[i] is not None:
-            #             circuit_component.IV_table = IVs[counter]
-            #             counter += 1
-            #         if job["all_children_are_CircuitElement"]:
-            #             circuit_component.dark_IV_table = circuit_component.IV_table.copy()
-            #             circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
-            #         job["done"] = True
-            #         self.job_done_index -= 1
+            global kernel_timer
 
-            # else:
+            if len(jobs) >= 5:
+                job_descs = []
+                for i, job in enumerate(jobs):
+                    job_descs.append(make_job_desc(job))
+                job_descs_ = [jd for jd in job_descs if jd is not None]
+                IVs, total_ms, total_ms2 = run_jobs_in_cpp(job_descs_)
+                kernel_timer += total_ms
+                total_ms_ += total_ms
+                total_ms_2 += total_ms2
+                counter = 0
+                for i, job in enumerate(jobs):
+                    circuit_component = job["circuit_component"]
+                    if job_descs[i] is not None:
+                        circuit_component.IV_table = IVs[counter]
+                        counter += 1
+                    if job["all_children_are_CircuitElement"]:
+                        circuit_component.dark_IV_table = circuit_component.IV_table.copy()
+                        circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
+                    job["done"] = True
+                    self.job_done_index -= 1
+
+            else:
 
         # duration = time.time()-t1
         # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms2/1000}s including marshalling")
 
-            for i, job in enumerate(jobs):
-                result = make_job_desc(job,run_immediately=True)
-                circuit_component = job["circuit_component"]
-                if result is not None:
-                    IV, total_ms, total_ms2 = result[0], result[1], result[2]
-                    global kernel_timer
-                    kernel_timer += total_ms
-                    total_ms_ += total_ms
-                    total_ms_2 += total_ms2
-                    circuit_component.IV_table = IV
-                if job["all_children_are_CircuitElement"]:
-                    circuit_component.dark_IV_table = circuit_component.IV_table.copy()
-                    circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
-                job["done"] = True
-                self.job_done_index -= 1
+                for i, job in enumerate(jobs):
+                    # job_descs = []
+                    # for _ in range(10):
+                    #     job_descs.append(make_job_desc(job))
+
+                    result = make_job_desc(job,run_immediately=True)
+                    circuit_component = job["circuit_component"]
+                    if result is not None:
+                        # IVs, total_ms, total_ms2 = run_jobs_in_cpp(job_descs)
+                        # IV = IVs[0]
+                        IV, total_ms, total_ms2 = result[0], result[1], result[2]
+                        kernel_timer += total_ms
+                        total_ms_ += total_ms
+                        total_ms_2 += total_ms2
+                        circuit_component.IV_table = IV
+                    if job["all_children_are_CircuitElement"]:
+                        circuit_component.dark_IV_table = circuit_component.IV_table.copy()
+                        circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
+                    job["done"] = True
+                    self.job_done_index -= 1
 
         duration = time.time()-t1
         # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms_2/1000}s including marshalling, get job time was {get_job_time}s")
@@ -263,6 +271,51 @@ def make_job_desc(job, run_immediately=False):
         )
         t2 = time.time() - t1
         return np.vstack([V, I]), kernel_ms, t2*1000
+    
+    return (
+            int(connection),
+            int(circuit_component_type_number),
+            children_type_numbers.astype(np.int32, copy=False),
+            children_Vs.astype(np.float64, copy=False),
+            children_Is.astype(np.float64, copy=False),
+            children_offsets.astype(np.int32, copy=False),
+            children_lengths.astype(np.int32, copy=False),
+            children_pc_Vs.astype(np.float64, copy=False),
+            children_pc_Is.astype(np.float64, copy=False),
+            children_pc_offsets.astype(np.int32, copy=False),
+            children_pc_lengths.astype(np.int32, copy=False),
+            float(total_IL),
+            float(cap_current) if cap_current is not None else -1.0,
+            int(max_num_points),
+            float(area),
+            int(abs_max_num_points),  # passed into C++ for remeshing cap
+            circuit_element_parameters.astype(np.float64, copy=False),
+            int(abs_max_num_points),  # abs_max_num_points_out
+        )
+
+def run_jobs_in_cpp(job_descs, max_workers=None):
+    """
+    job_descs: list of argument tuples for ivkernel.run_single_job.
+    Returns:
+        IVs: list of 2×N_i IV tables
+        total_kernel_ms: sum of kernel times from C++
+        total_wall_ms: wall-clock time (ms), including marshalling
+    """
+    if not job_descs:
+        return [], 0.0, 0.0
+
+    t0 = time.time()
+    results = ivkernel.run_multiple_jobs_in_parallel(job_descs, max_workers=max_workers)
+    wall_ms = (time.time() - t0) * 1000.0
+
+    IVs = []
+    total_kernel_ms = 0.0
+    for (V, I, kernel_ms) in results:
+        IVs.append(np.vstack([V, I]))
+        total_kernel_ms = max(total_kernel_ms,kernel_ms)
+
+    return IVs, total_kernel_ms, wall_ms
+
 
 
 
