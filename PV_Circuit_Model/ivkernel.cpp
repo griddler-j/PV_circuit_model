@@ -371,22 +371,15 @@ static void thin_grid_by_quantization(std::vector<double>& xs, double tol)
 double combine_iv_job(int connection,
     int circuit_component_type_number,
     int n_children,
-    const int* children_type_numbers,
-    const double* children_Vs,
-    const double* children_Is,
-    const int* children_offsets,
-    const int* children_lengths,
-    int children_Vs_size,
-    const double* children_pc_Vs,
-    const double* children_pc_Is,
-    const int* children_pc_offsets,
-    const int* children_pc_lengths,
-    int children_pc_Vs_size,
+    const IVView* children_IVs,
+    const IVView* children_pc_IVs,
+    IVView dark_IV,
     double total_IL,
     double cap_current,
     int max_num_points,
     double area,
     int abs_max_num_points,
+    bool all_children_are_CircuitElement,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
@@ -394,9 +387,26 @@ double combine_iv_job(int connection,
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
-    //         n_children, connection);
-    // std::fflush(stdout); 
+    std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
+            n_children, connection);
+    std::fflush(stdout); 
+
+    if (dark_IV.length > 0) {
+        std::vector<double> Vs(dark_IV.length);
+        std::vector<double> Is(dark_IV.length);
+        memcpy(Vs.data(), dark_IV.V, dark_IV.length * sizeof(double));
+        for (int i=0; i<dark_IV.length; i++) Is[i] = total_IL*area + dark_IV.I[i];
+        std::memcpy(out_V, Vs.data(), dark_IV.length * sizeof(double));
+        std::memcpy(out_I, Is.data(), dark_IV.length * sizeof(double));
+        *out_len = dark_IV.length;
+        
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        return ms;
+    }
+
+    int children_Vs_size = 0;
+    for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
 
     std::vector<double> Vs(children_Vs_size);
     std::vector<double> Is(children_Vs_size);
@@ -429,7 +439,12 @@ double combine_iv_job(int connection,
     // --- Series connection branch (connection == 0) ---
     else if (connection == 0) {
         // add voltage
-        Is.assign(children_Is, children_Is + children_Vs_size); 
+        int pos = 0;
+        for (int i=0; i < n_children; i++) {
+            int Ni = children_IVs[i].length;
+            memcpy(Is.data() + pos, children_IVs[i].I, Ni * sizeof(double));
+            pos += Ni;
+        }
         std::vector<double> extra_Is;
         for (int iteration = 0; iteration < 2; ++iteration) {
             if (iteration == 1 && !extra_Is.empty()) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());       
@@ -445,21 +460,20 @@ double combine_iv_job(int connection,
             std::vector<double> this_V(Is.size());
             // do reverse order to allow for photon coupling
             for (int i = n_children-1; i >= 0; --i) {
-                int offset = children_offsets[i];
-                int len = children_lengths[i];
+                int len = children_IVs[i].length;
                 if (len > 0) { 
-                    const double* IV_table_V = children_Vs + offset;  // pointer to first V
-                    const double* IV_table_I = children_Is + offset;  // pointer to first I
-                    if (i<n_children-1 && children_pc_lengths[i+1]>0 && children_lengths[i+1]>0) {  // need to add the current transferred by the subcell above via pc 
-                        int pc_offset = children_pc_offsets[i+1];
-                        int pc_len = children_pc_lengths[i+1];
-                        const double* pc_IV_table_V = children_pc_Vs + pc_offset;  // pointer to first V
-                        const double* pc_IV_table_I = children_pc_Is + pc_offset;  // pointer to first I
+                    const double* IV_table_V = children_IVs[i].V;  
+                    const double* IV_table_I = children_IVs[i].I;  
+                    if (i<n_children-1 && children_pc_IVs[i+1].length>0 && children_IVs[i+1].length>0) {  // need to add the current transferred by the subcell above via pc 
+                        const double* pc_IV_table_V = children_pc_IVs[i+1].V;  
+                        const double* pc_IV_table_I = children_pc_IVs[i+1].I; 
+                        double scale =  children_pc_IVs[i+1].scale;
+                        int pc_len = children_pc_IVs[i+1].length;
                         std::vector<double> added_I(Is.size());
                         // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                         // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
                         interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
-                        for (int j=0; j < added_I.size(); j++) added_I[j] *= -1;
+                        for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                         std::vector<double> xq(Is.size());
                         std::transform(Is.begin(), Is.end(),added_I.begin(),xq.begin(),std::minus<double>());
                         interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false); 
@@ -478,17 +492,21 @@ double combine_iv_job(int connection,
     // --- parallel connection branch (connection == 1) ---
     else if (connection == 1) {
         // add current
-        std::memcpy(Vs.data(), children_Vs, children_Vs_size * sizeof(double));
+        int pos = 0;
+        for (int i=0; i < n_children; i++) {
+            int Ni = children_IVs[i].length;
+            memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
+            pos += Ni;
+        }
         std::sort(Vs.begin(), Vs.end());
         double left_limit = -100;
         double right_limit = 100;
         for (int i=0; i < n_children; ++i) {
-            int offset = children_offsets[i];
-            int len = children_lengths[i];
-            const double* IV_table_V = children_Vs + offset;  // pointer to first V
-            if (children_type_numbers[i]==2) { //  forward diode
+            const double* IV_table_V = children_IVs[i].V;
+            int len = children_IVs[i].length;
+            if (children_IVs[i].type_number==2) { //  forward diode
                 right_limit = std::min(right_limit, IV_table_V[len-1]);
-            } else if (children_type_numbers[i]==3) {  // rev diode
+            } else if (children_IVs[i].type_number==3) {  // rev diode
                 left_limit = std::max(left_limit, IV_table_V[0]);
             }
         }
@@ -502,11 +520,10 @@ double combine_iv_job(int connection,
         }
         Is.assign(Vs.size(), 0.0);
         for (int i = 0; i < n_children; ++i) {  
-            int offset = children_offsets[i];
-            int len = children_lengths[i];
+            int len = children_IVs[i].length;
             if (len > 0) {
-                const double* IV_table_V = children_Vs + offset;  // pointer to first V
-                const double* IV_table_I = children_Is + offset;  // pointer to first I
+                const double* IV_table_V = children_IVs[i].V;
+                const double* IV_table_I = children_IVs[i].I;
                 interp_monotonic_inc(IV_table_V, IV_table_I, len, Vs.data(), (int)Vs.size(), Is.data(), true); // keeps adding 
             }
         }    
@@ -685,29 +702,22 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
     //     }
     // }
 
-    #pragma omp parallel for
+    // #pragma omp parallel for
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
         double ms = combine_iv_job(
             job.connection,
             job.circuit_component_type_number,
             job.n_children,
-            job.children_type_numbers,
-            job.children_Vs,
-            job.children_Is,
-            job.children_offsets,
-            job.children_lengths,
-            job.children_Vs_size,
-            job.children_pc_Vs,
-            job.children_pc_Is,
-            job.children_pc_offsets,
-            job.children_pc_lengths,
-            job.children_pc_Vs_size,
+            job.children_IVs,
+            job.children_pc_IVs,
+            job.dark_IV,
             job.total_IL,
             job.cap_current,
             job.max_num_points,
             job.area,
             job.abs_max_num_points,
+            job.all_children_are_CircuitElement,
             job.circuit_element_parameters,
             job.out_V,
             job.out_I,

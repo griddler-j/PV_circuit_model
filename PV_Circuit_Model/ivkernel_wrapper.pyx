@@ -9,26 +9,27 @@ from libc.stdlib cimport malloc, free
 from libc.string cimport memset
 
 cdef extern from "ivkernel.h":
+
+    cdef struct IVView:
+        const double* V      # pointer to V array
+        const double* I      # pointer to I array
+        int length           # Ni
+        double scale
+        int type_number
+
     cdef struct IVJobDesc:
         int connection
         int circuit_component_type_number
         int n_children
-        const int* children_type_numbers
-        const double* children_Vs
-        const double* children_Is
-        const int* children_offsets
-        const int* children_lengths
-        int children_Vs_size
-        const double* children_pc_Vs
-        const double* children_pc_Is
-        const int* children_pc_offsets
-        const int* children_pc_lengths
-        int children_pc_Vs_size
+        const IVView* children_IVs
+        const IVView* children_pc_IVs
+        IVView dark_IV
         double total_IL
         double cap_current
         int max_num_points
         double area
         int abs_max_num_points
+        int all_children_are_CircuitElement   # maps to C++ bool
         const double* circuit_element_parameters
         double* out_V
         double* out_I
@@ -36,283 +37,265 @@ cdef extern from "ivkernel.h":
 
     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) nogil
 
-    double combine_iv_job(
-        int connection,
-        int circuit_component_type_number,
-        int n_children,
-        const int* children_type_numbers,
-        const double* children_Vs,
-        const double* children_Is,
-        const int* children_offsets,
-        const int* children_lengths,
-        int children_Vs_size,
-        const double* children_pc_Vs,
-        const double* children_pc_Is,
-        const int* children_pc_offsets,
-        const int* children_pc_lengths,
-        int children_pc_Vs_size,
-        double total_IL,
-        double cap_current,
-        int max_num_points,
-        double area,
-        int abs_max_num_points,
-        const double* circuit_element_parameters,
-        double* out_V,
-        double* out_I,
-        int* out_len
-    ) 
-
-cdef inline double _now_ms():
-    """
-    Tiny helper to get time in milliseconds using Python's time.perf_counter().
-    Overhead is negligible compared to your kernel.
-    """
-    from time import perf_counter
-    return perf_counter() * 1000.0
-
-cpdef tuple run_single_job(
-    int connection,
-    int circuit_component_type_number,
-    np.ndarray[np.int32_t, ndim=1] children_type_numbers,
-    np.ndarray[np.float64_t, ndim=1] children_Vs,
-    np.ndarray[np.float64_t, ndim=1] children_Is,
-    np.ndarray[np.int32_t, ndim=1] children_offsets,
-    np.ndarray[np.int32_t, ndim=1] children_lengths,
-    np.ndarray[np.float64_t, ndim=1] children_pc_Vs,
-    np.ndarray[np.float64_t, ndim=1] children_pc_Is,
-    np.ndarray[np.int32_t, ndim=1] children_pc_offsets,
-    np.ndarray[np.int32_t, ndim=1] children_pc_lengths,
-    double total_IL,
-    double cap_current,
-    int max_num_points,
-    double area,
-    int abs_max_num_points,
-    np.ndarray[np.float64_t, ndim=1] circuit_element_parameters,
-    int abs_max_num_points_out
-):
-    """
-    Cython wrapper around the flat C++ combine_iv_job call.
-
-    Returns:
-        (V, I, kernel_ms)
-    Where V, I are 1D float64 numpy arrays.
-    """
-    cdef int n_children = children_type_numbers.shape[0]
-    cdef int children_Vs_size = children_Vs.shape[0]
-    cdef int children_pc_Vs_size = children_pc_Vs.shape[0]
-
-    # Output buffers
-    cdef np.ndarray[np.float64_t, ndim=2] out_IV = np.empty((2, abs_max_num_points_out), dtype=np.float64)
-    cdef double[::1] mv_out_V = out_IV[0]
-    cdef double[::1] mv_out_I = out_IV[1]
-    cdef double* c_out_V = &mv_out_V[0]
-    cdef double* c_out_I = &mv_out_I[0]
-    cdef int out_len = 0
-
-
-    # Get raw pointers (match C++ expected types)
-    cdef int* c_children_type_numbers = <int*> children_type_numbers.data
-    cdef double* c_children_Vs = <double*> children_Vs.data
-    cdef double* c_children_Is = <double*> children_Is.data
-    cdef int* c_children_offsets = <int*> children_offsets.data
-    cdef int* c_children_lengths = <int*> children_lengths.data
-
-    # photon-coupling
-    cdef double* c_children_pc_Vs = <double*> children_pc_Vs.data
-    cdef double* c_children_pc_Is = <double*> children_pc_Is.data
-    cdef int* c_children_pc_offsets = <int*> children_pc_offsets.data
-    cdef int* c_children_pc_lengths = <int*> children_pc_lengths.data
-
-    cdef double* c_circuit_element_parameters = &(<np.float64_t*>circuit_element_parameters.data)[0]
-    cdef int* c_out_len = &out_len
-
-    cdef double kernel_ms
-    kernel_ms = combine_iv_job(
-        connection,
-        circuit_component_type_number,
-        n_children,
-        c_children_type_numbers,
-        c_children_Vs,
-        c_children_Is,
-        c_children_offsets,
-        c_children_lengths,
-        children_Vs_size,
-        c_children_pc_Vs,
-        c_children_pc_Is,
-        c_children_pc_offsets,
-        c_children_pc_lengths,
-        children_pc_Vs_size,
-        total_IL,
-        cap_current,
-        max_num_points,
-        area,
-        abs_max_num_points,
-        c_circuit_element_parameters,
-        c_out_V,
-        c_out_I,
-        c_out_len
-    )
-
-    if out_len < 0 or out_len > abs_max_num_points_out:
-        raise ValueError(f"Invalid out_len {out_len} (abs_max_num_points_out={abs_max_num_points_out})")
-
-    # Slice to actual used length
-    IV = out_IV[:,:out_len] # try not copy!   #.copy(order='C')
-    return IV, kernel_ms
-
-def run_multiple_jobs_in_parallel(job_args_list):
-    """
-    job_args_list: list of tuples with args for one job
-    Returns:
-        results: list of (V, I)
-        batch_wall_ms: total wall-clock time reported by C++
-    """
-    cdef Py_ssize_t n_jobs
-    cdef IVJobDesc* jobs
-    cdef np.ndarray[np.int32_t, ndim=1] out_len_array
-    cdef int* c_out_len_all
-    cdef int i, olen
-    cdef np.ndarray[np.float64_t, ndim=1] out_V, out_I
-    cdef double batch_wall_ms
-
-    # memoryviews (declared ONCE, assigned inside loop)
-    cdef np.int32_t[::1] mv_ctn, mv_coffs, mv_clens, mv_pcoffs, mv_pclens, mv_out_len
-    cdef np.float64_t[::1] mv_cVs, mv_cIs, mv_pcVs, mv_pcIs, mv_params, mv_outV, mv_outI
-
-    job_args_list = list(job_args_list)
-    n_jobs = len(job_args_list)
+def run_multiple_jobs(jobs):
+    cdef Py_ssize_t n_jobs = len(jobs)
     if n_jobs == 0:
         return [], 0.0
 
-    jobs = <IVJobDesc*> malloc(n_jobs * sizeof(IVJobDesc))
-    if jobs == NULL:
+    # --- allocate IVJobDesc array ---
+    cdef IVJobDesc* jobs_c = <IVJobDesc*> malloc(n_jobs * sizeof(IVJobDesc))
+    if jobs_c == NULL:
         raise MemoryError()
-    memset(jobs, 0, n_jobs * sizeof(IVJobDesc))
+    memset(jobs_c, 0, n_jobs * sizeof(IVJobDesc))
 
-    out_len_array = np.empty(n_jobs, dtype=np.int32)
-    mv_out_len = out_len_array
-    c_out_len_all = <int*>&mv_out_len[0]
+    # out_len for each job
+    cdef np.ndarray[np.int32_t, ndim=1] out_len_array = np.empty(n_jobs, dtype=np.int32)
+    cdef np.int32_t[::1] mv_out_len = out_len_array
+    cdef int* c_out_len_all = <int*>&mv_out_len[0]
 
+    # keep output IV arrays alive
     out_IV_list = [None] * n_jobs
+
+    # type mapping (same semantics as before)
+    cdef dict type_numbers = {
+        "CurrentSource": 0,
+        "Resistor": 1,
+        "Diode": 2,
+        "ForwardDiode": 2,
+        "PhotonCouplingDiode": 2,
+        "ReverseDiode": 3,
+        "Intrinsic_Si_diode": 4,
+        "CircuitGroup": 5,
+    }
+
+    # ---- count total children / pc-children to allocate IVView buffers ----
+    cdef Py_ssize_t total_children = 0
+    cdef Py_ssize_t i, j
+
+    for i in range(n_jobs):
+        circuit_component = jobs[i]["circuit_component"]
+        if hasattr(circuit_component, "subgroups"):
+            total_children += len(circuit_component.subgroups)
+
+    cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))
+    if children_views == NULL:
+        free(jobs_c)
+        raise MemoryError()
+    memset(children_views, 0, total_children * sizeof(IVView))
+
+    cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))
+    if pc_children_views == NULL:
+        free(jobs_c)
+        free(children_views)
+        raise MemoryError()
+    memset(pc_children_views, 0, total_children * sizeof(IVView))
+
+    # Cython views
+    cdef np.float64_t[:, ::1] mv_child
+    cdef np.float64_t[:, ::1] mv_child_pc
+    cdef np.float64_t[:, ::1] mv_dark
+    cdef np.float64_t[::1] mv_params
+    cdef np.float64_t[::1] mv_outV
+    cdef np.float64_t[::1] mv_outI
+
+    cdef int circuit_component_type_number, type_number
+    cdef int n_children, Ni
+    cdef int abs_max_num_points
+    cdef double total_IL, cap_current, area
+    cdef int max_num_points
+    cdef int all_children_are_CircuitElement
+
+    cdef Py_ssize_t child_base = 0
+    cdef double kernel_ms
+    cdef int olen
 
     try:
         for i in range(n_jobs):
-            (connection,
-             circuit_component_type_number,
-             children_type_numbers,
-             children_Vs,
-             children_Is,
-             children_offsets,
-             children_lengths,
-             children_pc_Vs,
-             children_pc_Is,
-             children_pc_offsets,
-             children_pc_lengths,
-             total_IL,
-             cap_current,
-             max_num_points,
-             area,
-             abs_max_num_points,
-             circuit_element_parameters,
-             abs_max_num_points_out) = job_args_list[i]
+            job = jobs[i]
+            circuit_component = job["circuit_component"]
+            type_name = type(circuit_component).__name__
 
-            # allocate per-job outputs
-            out_IV = np.empty((2, abs_max_num_points_out), dtype=np.float64)
+            # ----- top-level component type number -----
+            circuit_component_type_number = 5  # default CircuitGroup
+            if type_name in type_numbers:
+                circuit_component_type_number = type_numbers[type_name]
+
+            # ----- build circuit_element_parameters (matches your C++ expectations) -----
+            max_I = 0.2
+            if hasattr(circuit_component, "max_I"):
+                max_I = circuit_component.max_I
+
+            if circuit_component_type_number == 0:      # CurrentSource
+                params = np.array([circuit_component.IL], dtype=np.float64)
+            elif circuit_component_type_number == 1:    # Resistor
+                params = np.array([circuit_component.cond], dtype=np.float64)
+            elif circuit_component_type_number in (2, 3):  # diodes
+                params = np.array([
+                    circuit_component.I0,
+                    circuit_component.n,
+                    circuit_component.VT,
+                    circuit_component.V_shift,
+                    max_I,
+                ], dtype=np.float64)
+            elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
+                base_type_number = 0.0  # p
+                try:
+                    if circuit_component.base_type == "n":
+                        base_type_number = 1.0
+                except AttributeError:
+                    pass
+                params = np.array([
+                    circuit_component.base_doping,
+                    circuit_component.base_thickness,
+                    max_I,
+                    circuit_component.ni,
+                    base_type_number,
+                ], dtype=np.float64)
+            else:
+                # CircuitGroup or unknown
+                params = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float64)
+
+            params = np.ascontiguousarray(params, dtype=np.float64)
+            mv_params = params
+
+            # ----- scalar fields -----
+            total_IL = 0.0
+            area = 1.0
+            if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
+                area = circuit_component.area
+            cap_current = -1.0
+            if hasattr(circuit_component,"cap_current"):
+                cap_current = circuit_component.cap_current if circuit_component.cap_current is not None else -1.0
+            max_num_points = -1
+            if hasattr(circuit_component,"max_num_points"):
+                max_num_points = circuit_component.max_num_points if circuit_component.max_num_points is not None else -1
+            abs_max_num_points = 0
+
+            # ----- fill IVJobDesc scalars -----
+            jobs_c[i].connection = -1
+            if hasattr(circuit_component, "connection"):
+                jobs_c[i].connection = 0  # series default
+                if circuit_component.connection == "parallel":
+                    jobs_c[i].connection = 1
+
+            jobs_c[i].circuit_component_type_number = circuit_component_type_number
+            jobs_c[i].cap_current        = cap_current
+            jobs_c[i].max_num_points     = max_num_points
+            jobs_c[i].area               = area
+            jobs_c[i].circuit_element_parameters = &mv_params[0]
+
+            # ----- children_IVs → IVView[] (zero-copy views) -----
+            n_children = 0
+            all_children_are_CircuitElement = 0
+            if hasattr(circuit_component,"subgroups"):
+                n_children = len(circuit_component.subgroups)
+                all_children_are_CircuitElement = 1
+
+            jobs_c[i].n_children = n_children
+            if n_children > 0:
+                jobs_c[i].children_IVs = children_views + child_base
+            else:
+                jobs_c[i].children_IVs = <IVView*> 0
+
+            for j in range(n_children):
+                type_number = 5
+                cname = type(circuit_component.subgroups[j]).__name__
+                if cname in type_numbers:
+                    type_number = type_numbers[cname]
+                else: # not CircuitElement
+                    all_children_are_CircuitElement = 0
+
+                children_views[child_base + j].type_number = type_number
+                if type_number==0: # current source
+                    total_IL += circuit_component.subgroups[j].IL
+                    children_views[child_base + j].V      = <const double*> 0
+                    children_views[child_base + j].I      = <const double*> 0
+                    children_views[child_base + j].length = 0
+                else:
+                    mv_child = circuit_component.subgroups[j].IV_table  
+                    Ni = mv_child.shape[1]
+                    abs_max_num_points += Ni
+                    children_views[child_base + j].V           = &mv_child[0, 0]
+                    children_views[child_base + j].I           = &mv_child[1, 0]
+                    children_views[child_base + j].length      = Ni
+
+            jobs_c[i].total_IL = total_IL
+            jobs_c[i].all_children_are_CircuitElement = all_children_are_CircuitElement
+
+            # ----- photon-coupled children → IVView[] -----
+            if n_children > 0:
+                jobs_c[i].children_pc_IVs = pc_children_views + child_base
+            else:
+                jobs_c[i].children_pc_IVs = <IVView*> 0
+
+            for j in range(n_children):
+                element_area = 0
+                element = circuit_component.subgroups[j]
+                Ni = 0
+                if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
+                    abs_max_num_points += circuit_component.subgroups[j].IV_table.shape[1]
+                    mv_child_pc = element.photon_coupling_diodes[0].IV_table
+                    element_area = element.area
+                    Ni = mv_child_pc.shape[1]
+                if Ni > 0:
+                    pc_children_views[child_base + j].V      = &mv_child_pc[0, 0]
+                    pc_children_views[child_base + j].I      = &mv_child_pc[1, 0]
+                    pc_children_views[child_base + j].length = Ni
+                else:
+                    pc_children_views[child_base + j].V      = <const double*> 0
+                    pc_children_views[child_base + j].I      = <const double*> 0
+                    pc_children_views[child_base + j].length = 0
+                pc_children_views[child_base + j].scale       = element_area
+
+            child_base += n_children
+
+            max_num_points_ = np.ceil(100/0.2*max_I) + 5
+            abs_max_num_points = max(abs_max_num_points, max_num_points_)
+            abs_max_num_points = max(abs_max_num_points, max_num_points)
+            abs_max_num_points = int(abs_max_num_points)
+
+            jobs_c[i].abs_max_num_points = abs_max_num_points
+
+            # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
+            out_IV = np.empty((2, abs_max_num_points), dtype=np.float64)
             out_IV_list[i] = out_IV
+            mv_outV = out_IV[0]
+            mv_outI = out_IV[1]
 
-            # assign memoryviews (NO cdef here)
-            mv_ctn    = children_type_numbers
-            mv_cVs    = children_Vs
-            mv_cIs    = children_Is
-            mv_coffs  = children_offsets
-            mv_clens  = children_lengths
+            jobs_c[i].out_V   = &mv_outV[0]
+            jobs_c[i].out_I   = &mv_outI[0]
+            jobs_c[i].out_len = &c_out_len_all[i]
 
-            mv_pcVs   = children_pc_Vs
-            mv_pcIs   = children_pc_Is
-            mv_pcoffs = children_pc_offsets
-            mv_pclens = children_pc_lengths
-
-            mv_params = circuit_element_parameters
-            mv_outV   = out_IV[0]
-            mv_outI   = out_IV[1]
-
-            jobs[i].connection = connection
-            jobs[i].circuit_component_type_number = circuit_component_type_number
-            jobs[i].n_children = mv_ctn.shape[0]
-
-            # children_type_numbers / offsets / lengths (int arrays)
-            if mv_ctn.shape[0] > 0:
-                jobs[i].children_type_numbers = <const int*>&mv_ctn[0]
+            # ----- dark_IV -----
+            if hasattr(circuit_component,"dark_IV_table") and circuit_component.dark_IV_table is not None:
+                mv_dark = circuit_component.dark_IV_table   # (2, Ni_dark)
+                Ni = mv_dark.shape[1]
+                jobs_c[i].dark_IV.V           = &mv_dark[0, 0]
+                jobs_c[i].dark_IV.I           = &mv_dark[1, 0]
+                jobs_c[i].dark_IV.length      = Ni
             else:
-                jobs[i].children_type_numbers = <const int*>0
+                jobs_c[i].dark_IV.V           = <const double*> 0
+                jobs_c[i].dark_IV.I           = <const double*> 0
+                jobs_c[i].dark_IV.length      = 0
 
-            if mv_coffs.shape[0] > 0:
-                jobs[i].children_offsets = <const int*>&mv_coffs[0]
-            else:
-                jobs[i].children_offsets = <const int*>0
-
-            if mv_clens.shape[0] > 0:
-                jobs[i].children_lengths = <const int*>&mv_clens[0]
-            else:
-                jobs[i].children_lengths = <const int*>0
-
-            # children_Vs / Is (double arrays)
-            if mv_cVs.shape[0] > 0:
-                jobs[i].children_Vs = &mv_cVs[0]
-            else:
-                jobs[i].children_Vs = <double*>0
-
-            if mv_cIs.shape[0] > 0:
-                jobs[i].children_Is = &mv_cIs[0]
-            else:
-                jobs[i].children_Is = <double*>0
-
-            jobs[i].children_Vs_size = mv_cVs.shape[0]
-
-            # photon-coupling arrays (may also be empty)
-            if mv_pcVs.shape[0] > 0:
-                jobs[i].children_pc_Vs = &mv_pcVs[0]
-                jobs[i].children_pc_Vs_size = mv_pcVs.shape[0]
-            else:
-                jobs[i].children_pc_Vs = <double*>0
-                jobs[i].children_pc_Vs_size = 0
-
-            if mv_pcIs.shape[0] > 0:
-                jobs[i].children_pc_Is = &mv_pcIs[0]
-            else:
-                jobs[i].children_pc_Is = <double*>0
-
-            if mv_pcoffs.shape[0] > 0:
-                jobs[i].children_pc_offsets = <const int*>&mv_pcoffs[0]
-            else:
-                jobs[i].children_pc_offsets = <const int*>0
-
-            if mv_pclens.shape[0] > 0:
-                jobs[i].children_pc_lengths = <const int*>&mv_pclens[0]
-            else:
-                jobs[i].children_pc_lengths = <const int*>0
-
-            jobs[i].total_IL              = total_IL
-            jobs[i].cap_current           = cap_current
-            jobs[i].max_num_points        = max_num_points
-            jobs[i].area                  = area
-            jobs[i].abs_max_num_points    = abs_max_num_points
-
-            jobs[i].circuit_element_parameters = &mv_params[0]
-            jobs[i].out_V                       = &mv_outV[0]
-            jobs[i].out_I                       = &mv_outI[0]
-            jobs[i].out_len                     = &c_out_len_all[i]
-
+        # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            batch_wall_ms = combine_iv_jobs_batch(<int> n_jobs, jobs)
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
+
+        # ----- unpack outputs -----
+        for i in range(n_jobs):
+            circuit_component = jobs[i]["circuit_component"]
+            olen = c_out_len_all[i]
+            if olen < 0:
+                raise ValueError(f"Negative out_len for job {i}")
+            circuit_component.IV_table = out_IV_list[i][:, :olen]
+            if jobs_c[i].all_children_are_CircuitElement==1:
+                circuit_component.dark_IV_table = circuit_component.IV_table.copy()
+                circuit_component.dark_IV_table[1,:] -= jobs_c[i].total_IL*jobs_c[i].area
 
     finally:
-        free(jobs)
+        free(jobs_c)
+        free(children_views)
+        free(pc_children_views)
 
-    results = []
-    for i in range(n_jobs):
-        olen = c_out_len_all[i]
-        IV = out_IV_list[i][:,:olen]
-        results.append(IV)
-
-    return results, batch_wall_ms
+    return kernel_ms

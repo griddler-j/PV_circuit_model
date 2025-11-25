@@ -5,26 +5,27 @@
 extern "C" {
 #endif
 
+struct IVView {
+    const double* V;   // pointer to V array
+    const double* I;   // pointer to I array
+    int length;        // Ni
+    double scale;  
+    int type_number; 
+};
+
 struct IVJobDesc {
     int connection;
     int circuit_component_type_number;
     int n_children;
-    const int* children_type_numbers;
-    const double* children_Vs;
-    const double* children_Is;
-    const int* children_offsets;
-    const int* children_lengths;
-    int children_Vs_size;
-    const double* children_pc_Vs;
-    const double* children_pc_Is;
-    const int* children_pc_offsets;
-    const int* children_pc_lengths;
-    int children_pc_Vs_size;
+    const IVView* children_IVs;
+    const IVView* children_pc_IVs;
+    IVView dark_IV;
     double total_IL;
     double cap_current;
     int max_num_points;
     double area;
     int abs_max_num_points;
+    int all_children_are_CircuitElement;
     const double* circuit_element_parameters;
     double* out_V;
     double* out_I;
@@ -32,30 +33,6 @@ struct IVJobDesc {
 };
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs);
-
-double combine_iv_job(int connection,
-    int circuit_component_type_number,
-    int n_children,
-    const int* children_type_numbers,
-    const double* children_Vs,
-    const double* children_Is,
-    const int* children_offsets,
-    const int* children_lengths,
-    int children_Vs_size,
-    const double* children_pc_Vs,
-    const double* children_pc_Is,
-    const int* children_pc_offsets,
-    const int* children_pc_lengths,
-    int children_pc_Vs_size,
-    double total_IL,
-    double cap_current,
-    int max_num_points,
-    double area,
-    int abs_max_num_points,
-    const double* circuit_element_parameters,
-    double* out_V,
-    double* out_I,
-    int* out_len);
 
 #ifdef __cplusplus
 }
