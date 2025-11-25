@@ -102,10 +102,11 @@ cpdef tuple run_single_job(
     cdef int children_pc_Vs_size = children_pc_Vs.shape[0]
 
     # Output buffers
-    cdef np.ndarray[np.float64_t, ndim=1] out_V = \
-        np.empty(abs_max_num_points_out, dtype=np.float64)
-    cdef np.ndarray[np.float64_t, ndim=1] out_I = \
-        np.empty(abs_max_num_points_out, dtype=np.float64)
+    cdef np.ndarray[np.float64_t, ndim=2] out_IV = np.empty((2, abs_max_num_points_out), dtype=np.float64)
+    cdef double[::1] mv_out_V = out_IV[0]
+    cdef double[::1] mv_out_I = out_IV[1]
+    cdef double* c_out_V = &mv_out_V[0]
+    cdef double* c_out_I = &mv_out_I[0]
     cdef int out_len = 0
 
 
@@ -123,8 +124,6 @@ cpdef tuple run_single_job(
     cdef int* c_children_pc_lengths = <int*> children_pc_lengths.data
 
     cdef double* c_circuit_element_parameters = &(<np.float64_t*>circuit_element_parameters.data)[0]
-    cdef double* c_out_V = &(<np.float64_t*>out_V.data)[0]
-    cdef double* c_out_I = &(<np.float64_t*>out_I.data)[0]
     cdef int* c_out_len = &out_len
 
     cdef double kernel_ms
@@ -158,9 +157,8 @@ cpdef tuple run_single_job(
         raise ValueError(f"Invalid out_len {out_len} (abs_max_num_points_out={abs_max_num_points_out})")
 
     # Slice to actual used length
-    V = out_V[:out_len].copy()
-    I = out_I[:out_len].copy()
-    return V, I, kernel_ms
+    IV = out_IV[:,:out_len] # try not copy!   #.copy(order='C')
+    return IV, kernel_ms
 
 def run_multiple_jobs_in_parallel(job_args_list):
     """
@@ -195,8 +193,7 @@ def run_multiple_jobs_in_parallel(job_args_list):
     mv_out_len = out_len_array
     c_out_len_all = <int*>&mv_out_len[0]
 
-    out_V_list = [None] * n_jobs
-    out_I_list = [None] * n_jobs
+    out_IV_list = [None] * n_jobs
 
     try:
         for i in range(n_jobs):
@@ -220,10 +217,8 @@ def run_multiple_jobs_in_parallel(job_args_list):
              abs_max_num_points_out) = job_args_list[i]
 
             # allocate per-job outputs
-            out_V = np.empty(abs_max_num_points_out, dtype=np.float64)
-            out_I = np.empty(abs_max_num_points_out, dtype=np.float64)
-            out_V_list[i] = out_V
-            out_I_list[i] = out_I
+            out_IV = np.empty((2, abs_max_num_points_out), dtype=np.float64)
+            out_IV_list[i] = out_IV
 
             # assign memoryviews (NO cdef here)
             mv_ctn    = children_type_numbers
@@ -238,8 +233,8 @@ def run_multiple_jobs_in_parallel(job_args_list):
             mv_pclens = children_pc_lengths
 
             mv_params = circuit_element_parameters
-            mv_outV   = out_V
-            mv_outI   = out_I
+            mv_outV   = out_IV[0]
+            mv_outI   = out_IV[1]
 
             jobs[i].connection = connection
             jobs[i].circuit_component_type_number = circuit_component_type_number
@@ -317,8 +312,7 @@ def run_multiple_jobs_in_parallel(job_args_list):
     results = []
     for i in range(n_jobs):
         olen = c_out_len_all[i]
-        V = np.array(out_V_list[i][:olen], copy=True)
-        I = np.array(out_I_list[i][:olen], copy=True)
-        results.append((V, I))
+        IV = out_IV_list[i][:,:olen]
+        results.append(IV)
 
     return results, batch_wall_ms

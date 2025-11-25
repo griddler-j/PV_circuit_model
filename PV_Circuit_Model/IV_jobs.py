@@ -24,10 +24,11 @@ class KernelTimer:
     def tic(self):
         self.wrapper_timer_tic = time.time()
     def toc(self):
+        assert(self.wrapper_timer_tic >= 0)
         lapse = time.time()-self.wrapper_timer_tic
         self.build_IV_events[-1]["wrapper_timer"] += lapse
         self.wrapper_timer += lapse
-        self.wrapper_timer_tic = 0.0
+        self.wrapper_timer_tic = -1.0
     def inc(self,time_):
         self.build_IV_events[-1]["kernel_timer"] += time_
         self.kernel_timer += time_
@@ -128,9 +129,8 @@ class IV_Job_Heap:
             jobs = self.get_runnable_jobs()
             get_job_time += time.time()-t1b
 
-            if len(jobs) >= 2:
+            if len(jobs) >= 0:
                 job_descs = []
-                kernel_timer.tic()
                 for i, job in enumerate(jobs):
                     job_descs.append(make_job_desc(job))
                 job_descs_ = [jd for jd in job_descs if jd is not None]
@@ -148,7 +148,7 @@ class IV_Job_Heap:
                         circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
                     job["done"] = True
                     self.job_done_index -= 1
-                kernel_timer.toc()
+                
 
             else:
 
@@ -156,7 +156,7 @@ class IV_Job_Heap:
         # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms2/1000}s including marshalling")
 
                 for i, job in enumerate(jobs):
-                    kernel_timer.tic()
+                    
                     # job_descs = [make_job_desc(job) for _ in range(10)]
 
                     result = make_job_desc(job,run_immediately=True)
@@ -168,7 +168,7 @@ class IV_Job_Heap:
                         total_ms_ += total_ms
                         total_ms_2 += total_ms2
                         circuit_component.IV_table = IV
-                    kernel_timer.toc()
+
                     if job["all_children_are_CircuitElement"]:
                         circuit_component.dark_IV_table = circuit_component.IV_table.copy()
                         circuit_component.dark_IV_table[1,:] -= job["total_IL"]*job["area"]
@@ -243,20 +243,15 @@ def make_job_desc(job, run_immediately=False):
     children_type_numbers = np.array(type_numbers_, dtype=np.int32)
     children_type_numbers = np.ascontiguousarray(children_type_numbers)  
 
+    kernel_timer.tic()
     children_Vs, children_Is, children_offsets, children_lengths = build_children_buffers(children_IVs)
-
-    children_Vs = np.ascontiguousarray(children_Vs)
-    children_Is = np.ascontiguousarray(children_Is)
-    children_offsets = np.ascontiguousarray(children_offsets)
-    children_lengths = np.ascontiguousarray(children_lengths)
+    kernel_timer.toc()
     abs_max_num_points += children_Vs.size
 
     children_pc_IVs = job["children_pc_IVs"]
+    kernel_timer.tic()
     children_pc_Vs, children_pc_Is, children_pc_offsets, children_pc_lengths = build_children_buffers(children_pc_IVs)
-    children_pc_Vs = np.ascontiguousarray(children_pc_Vs)
-    children_pc_Is = np.ascontiguousarray(children_pc_Is)
-    children_pc_offsets = np.ascontiguousarray(children_pc_offsets)
-    children_pc_lengths = np.ascontiguousarray(children_pc_lengths)
+    kernel_timer.toc()
     abs_max_num_points += children_Vs.size
 
     max_num_points = job["max_num_points"] if job["max_num_points"] is not None else -1
@@ -282,18 +277,18 @@ def make_job_desc(job, run_immediately=False):
 
     if run_immediately:
         t1 = time.time()
-        V, I, kernel_ms = ivkernel.run_single_job(
+        IV, kernel_ms = ivkernel.run_single_job(
             int(connection),
             int(circuit_component_type_number),
             children_type_numbers.astype(np.int32, copy=False),
-            children_Vs.astype(np.float64, copy=False),
-            children_Is.astype(np.float64, copy=False),
-            children_offsets.astype(np.int32, copy=False),
-            children_lengths.astype(np.int32, copy=False),
-            children_pc_Vs.astype(np.float64, copy=False),
-            children_pc_Is.astype(np.float64, copy=False),
-            children_pc_offsets.astype(np.int32, copy=False),
-            children_pc_lengths.astype(np.int32, copy=False),
+            children_Vs,
+            children_Is,
+            children_offsets,
+            children_lengths,
+            children_pc_Vs,
+            children_pc_Is,
+            children_pc_offsets,
+            children_pc_lengths,
             float(total_IL),
             float(cap_current) if cap_current is not None else -1.0,
             int(max_num_points),
@@ -304,20 +299,20 @@ def make_job_desc(job, run_immediately=False):
         )
         kernel_timer.inc(kernel_ms/1000)
         t2 = time.time() - t1
-        return np.vstack([V, I]), kernel_ms, t2*1000
+        return IV, kernel_ms, t2*1000
     
     return (
             int(connection),
             int(circuit_component_type_number),
             children_type_numbers.astype(np.int32, copy=False),
-            children_Vs.astype(np.float64, copy=False),
-            children_Is.astype(np.float64, copy=False),
-            children_offsets.astype(np.int32, copy=False),
-            children_lengths.astype(np.int32, copy=False),
-            children_pc_Vs.astype(np.float64, copy=False),
-            children_pc_Is.astype(np.float64, copy=False),
-            children_pc_offsets.astype(np.int32, copy=False),
-            children_pc_lengths.astype(np.int32, copy=False),
+            children_Vs,
+            children_Is,
+            children_offsets,
+            children_lengths,
+            children_pc_Vs,
+            children_pc_Is,
+            children_pc_offsets,
+            children_pc_lengths,
             float(total_IL),
             float(cap_current) if cap_current is not None else -1.0,
             int(max_num_points),
@@ -340,12 +335,9 @@ def run_jobs_in_cpp(job_descs):
         return [], 0.0, 0.0
 
     t0 = time.time()
-    IVs_, kernel_ms = ivkernel.run_multiple_jobs_in_parallel(job_descs)
+    IVs, kernel_ms = ivkernel.run_multiple_jobs_in_parallel(job_descs)
     wall_ms = (time.time() - t0) * 1000.0
-    IVs = [np.vstack(IV_) for IV_ in IVs_]
-
     kernel_timer.inc(kernel_ms/1000)
-
     return IVs, kernel_ms, wall_ms
 
 
