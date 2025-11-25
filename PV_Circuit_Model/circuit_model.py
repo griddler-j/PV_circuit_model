@@ -50,7 +50,7 @@ class CircuitElement(CircuitComponent):
         elif I is not None:
             V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
         self.operating_point = [V,I]
-        if refine_IV and hasattr(self,"I0"):
+        if refine_IV and isinstance(self,Diode):
             findright_ = np.where(self.IV_table[0,:] > V)[0]
             findleft_ = np.where(self.IV_table[0,:] < V)[0]
             if len(findright_)>2 and self.IV_table[0,findright_[1]]-V < 0.001/100*5 and len(findleft_)>2 and V-self.IV_table[0,findleft_[-2]] < 0.001/100*5:
@@ -378,7 +378,8 @@ class CircuitGroup(CircuitComponent):
                 element.set_operating_point(V=V_,I=None,refine_IV=refine_IV_,top_level=False)
         if refine_IV_ and top_level:
             self.refined_IV = True
-            self.build_IV()
+            if self.IV_table is None:
+                self.build_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
                 V_ = V

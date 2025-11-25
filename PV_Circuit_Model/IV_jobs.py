@@ -2,7 +2,9 @@ import numpy as np
 import os
 import time
 from PV_Circuit_Model.iv_jobs_cython import build_children_buffers
-import PV_Circuit_Model.ivkernel as ivkernel    
+import PV_Circuit_Model.ivkernel as ivkernel  
+
+kernel_timer = 0.0
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
@@ -86,8 +88,11 @@ class IV_Job_Heap:
         t1 = time.time()
         total_ms_ = 0
         total_ms_2 = 0
+        get_job_time = 0
         while self.job_done_index > 0:
+            t1b = time.time()
             jobs = self.get_runnable_jobs()
+            get_job_time += time.time()-t1b
 
             # if len(jobs) >= 0:
             #     job_descs = []
@@ -119,6 +124,8 @@ class IV_Job_Heap:
                 circuit_component = job["circuit_component"]
                 if result is not None:
                     IV, total_ms, total_ms2 = result[0], result[1], result[2]
+                    global kernel_timer
+                    kernel_timer += total_ms
                     total_ms_ += total_ms
                     total_ms_2 += total_ms2
                     circuit_component.IV_table = IV
@@ -128,8 +135,8 @@ class IV_Job_Heap:
                 job["done"] = True
                 self.job_done_index -= 1
 
-        # duration = time.time()-t1
-        # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms_2/1000}s including marshalling")
+        duration = time.time()-t1
+        # print(f"Dude, total time used was {duration}s and cpp took up {total_ms_/1000}s, {total_ms_2/1000}s including marshalling, get job time was {get_job_time}s")
     def __str__(self):
         return str(self.job_list)
 
