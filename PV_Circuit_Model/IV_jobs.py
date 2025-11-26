@@ -71,7 +71,7 @@ class IV_Job_Heap:
         for i in range(self.job_done_index-1,-1,-1):
             job = self.job_list[i]
             if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<self.job_done_index:
-                return [self.job_list[j] for j in include_indices]
+                return [self.job_list[j] for j in include_indices], i+1
             if refine_mode:
                 circuit_component = job["circuit_component"]
                 type_name = type(circuit_component).__name__
@@ -79,18 +79,16 @@ class IV_Job_Heap:
                     include_indices.append(i)
             else:
                 include_indices.append(i)
-        return [self.job_list[j] for j in include_indices]
+        return [self.job_list[j] for j in include_indices], min(include_indices)
     def run_jobs(self,refine_mode=False):
         kernel_timer.tic()
         while self.job_done_index > 0:
-            jobs = self.get_runnable_jobs(refine_mode=refine_mode)
+            jobs, min_include_index = self.get_runnable_jobs(refine_mode=refine_mode)
             kernel_ms = ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
             kernel_timer.inc(kernel_ms)
-            self.job_done_index -= len(jobs)
+            self.job_done_index = min_include_index
         kernel_timer.toc()
     def refine_IV(self, circuit_component):
-        self.job_list = []
-        self.build(circuit_component)
         self.job_done_index = len(self.job_list)
         self.run_jobs(refine_mode=True)
     def __str__(self):

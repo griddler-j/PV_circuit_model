@@ -707,21 +707,10 @@ double combine_iv_job(int connection,
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
     auto t0 = std::chrono::high_resolution_clock::now();
-
-    // #pragma omp parallel
-    // {
-    //     #pragma omp single
-    //     {
-    //         std::cout << "OpenMP threads: " << omp_get_num_threads() << std::endl;
-    //     }
-    // }
-
-    double highest_ms = 0;
-
     // #pragma omp parallel for num_threads(num_threads)
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
-        double ms = combine_iv_job(
+        combine_iv_job(
             job.connection,
             job.circuit_component_type_number,
             job.op_pt_V,
@@ -741,9 +730,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
             job.out_I,
             job.out_len
         );
-        if (ms > highest_ms) {
-            highest_ms = ms;
-        }
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
