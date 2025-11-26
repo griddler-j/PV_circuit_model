@@ -46,7 +46,7 @@ def get_Jsc(argument):
     return Jsc
 CircuitGroup.get_Jsc = get_Jsc
 
-def get_Pmax(argument, return_op_point=False):
+def get_Pmax(argument, return_op_point=False, refine_IV=False):
     if isinstance(argument,CircuitGroup):
         if hasattr(argument,"IV_parameters") and "Pmax" in argument.IV_parameters:
             Pmax = argument.IV_parameters["Pmax"]
@@ -71,8 +71,8 @@ def get_Pmax(argument, return_op_point=False):
     index = np.argmax(power)
     Vmp = V[index]
     Imp = I[index]
-    if isinstance(argument,CircuitGroup):
-        argument.set_operating_point(V=Vmp, refine_IV=True)
+    if isinstance(argument,CircuitGroup) and refine_IV:
+        argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
         if argument.IV_table is None:
             argument.build_IV()
             IV_curve = argument.IV_table

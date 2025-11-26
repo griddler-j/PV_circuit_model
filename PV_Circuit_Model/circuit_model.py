@@ -44,31 +44,12 @@ class CircuitElement(CircuitComponent):
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
-    def set_operating_point(self,V=None,I=None,refine_IV=False,top_level=True):
+    def set_operating_point(self,V=None,I=None):
         if V is not None:
             I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
         elif I is not None:
             V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
         self.operating_point = [V,I]
-        if refine_IV and isinstance(self,Diode):
-            findright_ = np.where(self.IV_table[0,:] > V)[0]
-            findleft_ = np.where(self.IV_table[0,:] < V)[0]
-            if len(findright_)>2 and self.IV_table[0,findright_[1]]-V < 0.001/100*5 and len(findleft_)>2 and V-self.IV_table[0,findleft_[-2]] < 0.001/100*5:
-                return # already refined IV before, good
-            Vs = self.get_V_range()
-            if isinstance(self,ReverseDiode):
-                V_range = np.sort(np.concatenate([Vs, np.linspace(-V - 0.001, -V + 0.001, 100)]))
-            else:
-                V_range = np.sort(np.concatenate([Vs, np.linspace(V - 0.001, V + 0.001, 100)]))
-            self.build_IV(V=V_range)
-            if top_level:
-                if V is not None:
-                    I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
-                elif I is not None:
-                    V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
-                self.operating_point = [V,I]
-            if self.parent is not None:
-                self.parent.null_IV(keep_dark=False)
     def get_value_text(self):
         pass
     def get_draw_func(self):
@@ -339,8 +320,8 @@ class CircuitGroup(CircuitComponent):
             if isinstance(element,CircuitGroup):
                 element.reassign_parents()
 
-    def set_operating_point(self,V=None,I=None,refine_IV=False,top_level=True, refine_op_point=True):
-        refine_op_point_ = top_level and not refine_IV and refine_op_point
+    def set_operating_point(self,V=None,I=None,refine_IV=False):
+        # refine_op_point_ = top_level and not refine_IV and refine_op_point
         refine_IV_ = refine_IV
         if hasattr(self,"refined_IV") and self.refined_IV:
             refine_IV_ = False
@@ -358,25 +339,23 @@ class CircuitGroup(CircuitComponent):
                 # solar cell needs to scale IV table by area
                 if hasattr(self,"shape") and self.area is not None:
                     target_I /= self.area
-                element.set_operating_point(V=None,I=target_I,refine_IV=False,top_level=False)
+                element.set_operating_point(V=None,I=target_I)
             else: # then all elements have same voltage
-                element.set_operating_point(V=V_,I=None,refine_IV=False,top_level=False)
-        if refine_IV_ and top_level:
+                element.set_operating_point(V=V_,I=None)
+        if refine_IV_:
             self.refined_IV = True
             self.job_heap.refine_IV(self)
-            # if self.IV_table is None:
-            #     self.build_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
                 V_ = V
             elif I is not None:
                 V_ = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
                 I_ = I
-        if refine_op_point_:
-            assign_nodes(self)
-            op_point = iterative_solve(self,V=V,I=I)
-            V_ = op_point[0]
-            I_ = op_point[1]
+        # if refine_op_point_:
+        #     assign_nodes(self)
+        #     op_point = iterative_solve(self,V=V,I=I)
+        #     V_ = op_point[0]
+        #     I_ = op_point[1]
             
         self.operating_point = [V_,I_]
         # cells also store Vint
