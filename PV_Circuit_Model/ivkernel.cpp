@@ -56,47 +56,47 @@ void interp_monotonic_inc(
     bool additive        // true: adds to yq
 ) {
     if (!x || !y || !xq || !yq || n <= 0 || m <= 0) return;
-
     if (n == 1) {
         // Degenerate: constant function
         for (int j = 0; j < m; ++j) {
-            yq[j] = y[0];
+            yq[j] = (additive ? yq[j] : 0.0) + y[0];
         }
         return;
     }
-
-    int j = 0;
-
+    int j_left = 0;
     // --- Left extrapolation: xq <= x[0] ---
-    while (j < m && xq[j] < x[0]) {
-        double t = (xq[j] - x[0]) / (x[1] - x[0]);
-        yq[j] = (additive? yq[j]:0.0) + y[0] + t * (y[1] - y[0]);
-        ++j;
+    double slope_left;
+    if (xq[j_left] <= x[0]) {
+        slope_left = (y[1] - y[0])/(x[1] - x[0]);
+        while (j_left < m && xq[j_left] <= x[0]) {
+            yq[j_left] = (additive? yq[j_left]:0.0) + y[0] + (xq[j_left] - x[0])*slope_left;
+            ++j_left;
+        }
     }
-
+    int j_right = m-1;
+    // --- Right extrapolation: xq >= x[n-1] ---
+    double slope_right;
+    if (xq[j_right] >= x[n-1]) {
+        slope_right = (y[n-1] - y[n-2])/(x[n-1] - x[n-2]);
+        while (j_left <= j_right && xq[j_right] >= x[n-1]) {
+            yq[j_right] = (additive? yq[j_right]:0.0) + y[n-1] + (xq[j_right] - x[n-1])*slope_right;
+            --j_right;
+        }
+    }
     // --- Main interpolation region: x[0] < xq < x[n-1] ---
     int i = 0; // segment index for x
-    for (; j < m && xq[j] < x[n-1]; ++j) {
+    int prev_i = -1;
+    double slope;
+    for (int j = j_left; j <= j_right; ++j) {
         double xj = xq[j];
-
         // Advance i until x[i] <= xj <= x[i+1]
         while (i + 1 < n - 1 && x[i+1] < xj) {
             ++i;
         }
-
-        double x0 = x[i];
-        double x1 = x[i+1];
-        double y0 = y[i];
-        double y1 = y[i+1];
-
-        double t = (xj - x0) / (x1 - x0);
-        yq[j] = (additive? yq[j]:0.0) + y0 + t * (y1 - y0);
-    }
-
-    // --- Right extrapolation: xq >= x[n-1] ---
-    for (; j < m; ++j) {
-        double t = (xq[j] - x[n-2]) / (x[n-1] - x[n-2]);
-        yq[j] = (additive? yq[j]:0.0) + y[n-2] + t * (y[n-1] - y[n-2]);
+        if (i > prev_i)
+            slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+        prev_i = i;
+        yq[j] = (additive? yq[j]:0.0) + y[i] + slope*(xj - x[i]);
     }
 }
 
