@@ -47,7 +47,7 @@ class IV_Job_Heap:
         self.cap_current = cap_current
         self.build(circuit_component,this_job_id)
         self.job_done_index = len(self.job_list)
-        kernel_timer.register(circuit_component)
+        # kernel_timer.register(circuit_component)
     def add(self,circuit_component,parent_id=None):
         this_job_id = len(self.job_list)
         self.job_list.append({"circuit_component": circuit_component, "children_job_ids": [], "done": False})
@@ -81,13 +81,13 @@ class IV_Job_Heap:
                 include_indices.append(i)
         return [self.job_list[j] for j in include_indices], min(include_indices)
     def run_jobs(self,refine_mode=False):
-        kernel_timer.tic()
+        # kernel_timer.tic()
         while self.job_done_index > 0:
             jobs, min_include_index = self.get_runnable_jobs(refine_mode=refine_mode)
             kernel_ms = ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
-            kernel_timer.inc(kernel_ms)
+            # kernel_timer.inc(kernel_ms)
             self.job_done_index = min_include_index
-        kernel_timer.toc()
+        # kernel_timer.toc()
     def refine_IV(self, circuit_component):
         self.job_done_index = len(self.job_list)
         self.run_jobs(refine_mode=True)
