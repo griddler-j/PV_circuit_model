@@ -2,6 +2,7 @@ import numpy as np
 import os
 import time
 import PV_Circuit_Model.ivkernel as ivkernel  
+from matplotlib import pyplot as plt
 
 class KernelTimer:
     def __init__(self):

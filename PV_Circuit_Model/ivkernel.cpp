@@ -10,6 +10,7 @@
 #include <omp.h> 
 #include <chrono>
 #include "ivkernel.h"
+#include <cassert>
 
 extern "C" {
 
@@ -18,7 +19,8 @@ void build_current_source_iv(
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
-    int* out_len
+    int* out_len,
+    int abs_max_num_points
 ) {
     double IL = circuit_element_parameters[0];
     int n = 2;
@@ -33,7 +35,8 @@ void build_resistor_iv(
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
-    int* out_len
+    int* out_len,
+    int abs_max_num_points
 ) {
     double cond = circuit_element_parameters[0];
     int n = 5;
@@ -261,7 +264,8 @@ void build_forward_diode_iv(
     int max_num_points,
     double* out_V,
     double* out_I,
-    int* out_len
+    int* out_len,
+    int abs_max_num_points
 ) {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -280,6 +284,7 @@ void build_forward_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
+    assert(outN <= abs_max_num_points);
     for (int i = 0; i < outN; ++i) {
         out_V[i] = V[i];
         out_I[i] = I[i];
@@ -294,7 +299,8 @@ void build_reverse_diode_iv(
     int max_num_points,
     double* out_V,
     double* out_I,
-    int* out_len
+    int* out_len,
+    int abs_max_num_points
 ) {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -313,6 +319,7 @@ void build_reverse_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
+    assert(outN <= abs_max_num_points);
     for (int i = 0; i < outN; ++i) {
         out_V[i] = -V[outN-i-1];
         out_I[i] = -I[outN-i-1];
@@ -325,11 +332,11 @@ void build_Si_intrinsic_diode_iv(
     int max_num_points,
     double* out_V,
     double* out_I,
-    int* out_len
+    int* out_len,
+    int abs_max_num_points
 ) {
     std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true);
     std::vector<double> I(V.size());
-
     double ni = circuit_element_parameters[5];
     int base_type_number = static_cast<int>(circuit_element_parameters[6]);
     double base_doping = circuit_element_parameters[0];
@@ -339,6 +346,7 @@ void build_Si_intrinsic_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
+    assert(outN <= abs_max_num_points);
     for (int i = 0; i < outN; ++i) {
         out_V[i] = V[i];
         out_I[i] = I[i];
@@ -387,9 +395,9 @@ double combine_iv_job(int connection,
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
-            n_children, connection);
-    std::fflush(stdout); 
+    // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
+    //         n_children, connection);
+    // std::fflush(stdout); 
 
     if (dark_IV.length > 0) {
         std::vector<double> Vs(dark_IV.length);
@@ -414,21 +422,22 @@ double combine_iv_job(int connection,
     double cap_current_by_area = cap_current / area;
 
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
+       
         switch (circuit_component_type_number) {
             case 0: // CurrentSource
-                build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len);
+                build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);
                 break;
             case 1: // Resistor
-                build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len);
+                build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);;
                 break;
             case 2: // ForwardDiode
-                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points);
                 break;
             case 3: // ReverseDiode
-                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points);
                 break;
             case 4: // Intrinsic Si Diode
-                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points);
                 break;
         }
 
@@ -505,8 +514,10 @@ double combine_iv_job(int connection,
             const double* IV_table_V = children_IVs[i].V;
             int len = children_IVs[i].length;
             if (children_IVs[i].type_number==2) { //  forward diode
+                assert(len > 0);
                 right_limit = std::min(right_limit, IV_table_V[len-1]);
             } else if (children_IVs[i].type_number==3) {  // rev diode
+                assert(len > 0);
                 left_limit = std::max(left_limit, IV_table_V[0]);
             }
         }
@@ -653,9 +664,7 @@ double combine_iv_job(int connection,
             );
 
             int n_out = (int)new_Vs.size();
-            if (abs_max_num_points > 0 && n_out > abs_max_num_points) {
-                n_out = abs_max_num_points;
-            }
+            assert(!(abs_max_num_points > 0 && n_out > abs_max_num_points));
             std::memcpy(out_V, new_Vs.data(), n_out * sizeof(double));
             std::memcpy(out_I, new_Is.data(), n_out * sizeof(double));
             *out_len = n_out;
@@ -673,14 +682,7 @@ double combine_iv_job(int connection,
 
     int n_out = (int)Vs.size();
 
-    if (n_out > abs_max_num_points) {
-        std::printf("cpp: combine_iv_job error: n_out = %d, abs_max_num_points = %d\n",
-            n_out, abs_max_num_points);
-        std::fflush(stdout); 
-    }
-    if (abs_max_num_points > 0 && n_out > abs_max_num_points) {
-        n_out = abs_max_num_points;
-    }
+    assert(!(abs_max_num_points > 0 && n_out > abs_max_num_points));
     std::memcpy(out_V, Vs.data(), n_out * sizeof(double));
     std::memcpy(out_I, Is.data(), n_out * sizeof(double));
     *out_len = n_out;
@@ -702,7 +704,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
     //     }
     // }
 
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
         double ms = combine_iv_job(

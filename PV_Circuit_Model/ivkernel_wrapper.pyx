@@ -81,6 +81,9 @@ def run_multiple_jobs(jobs):
     if children_views == NULL:
         free(jobs_c)
         raise MemoryError()
+
+    # This list keeps all numpy buffers alive until we return from this function
+    owned_buffers = []   # type: list
     memset(children_views, 0, total_children * sizeof(IVView))
 
     cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))
@@ -145,7 +148,7 @@ def run_multiple_jobs(jobs):
                 except AttributeError:
                     pass
                 params = np.array([
-                    circuit_component.base_doping,
+                    circuit_component.base_doping,1,circuit_component.VT,
                     circuit_component.base_thickness,
                     max_I,
                     circuit_component.ni,
@@ -155,8 +158,10 @@ def run_multiple_jobs(jobs):
                 # CircuitGroup or unknown
                 params = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float64)
 
+            owned_buffers.append(params)
             params = np.ascontiguousarray(params, dtype=np.float64)
             mv_params = params
+            
 
             # ----- scalar fields -----
             total_IL = 0.0
@@ -207,11 +212,16 @@ def run_multiple_jobs(jobs):
 
                 children_views[child_base + j].type_number = type_number
                 if type_number==0: # current source
-                    total_IL += circuit_component.subgroups[j].IL
+                    total_IL -= circuit_component.subgroups[j].IL
                     children_views[child_base + j].V      = <const double*> 0
                     children_views[child_base + j].I      = <const double*> 0
                     children_views[child_base + j].length = 0
                 else:
+                    # ensure IV_table is C-contiguous float64 (2, Ni)
+                    arr = circuit_component.subgroups[j].IV_table
+                    if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
+                        arr = np.ascontiguousarray(arr, dtype=np.float64)
+                        circuit_component.subgroups[j].IV_table = arr
                     mv_child = circuit_component.subgroups[j].IV_table  
                     Ni = mv_child.shape[1]
                     abs_max_num_points += Ni
@@ -234,6 +244,11 @@ def run_multiple_jobs(jobs):
                 Ni = 0
                 if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
                     abs_max_num_points += circuit_component.subgroups[j].IV_table.shape[1]
+                    # ensure IV_table is C-contiguous float64 (2, Ni)
+                    arr = circuit_component.subgroups[j].IV_table
+                    if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
+                        arr = np.ascontiguousarray(arr, dtype=np.float64)
+                        circuit_component.subgroups[j].IV_table = arr
                     mv_child_pc = element.photon_coupling_diodes[0].IV_table
                     element_area = element.area
                     Ni = mv_child_pc.shape[1]
@@ -268,6 +283,11 @@ def run_multiple_jobs(jobs):
 
             # ----- dark_IV -----
             if hasattr(circuit_component,"dark_IV_table") and circuit_component.dark_IV_table is not None:
+                # ensure IV_table is C-contiguous float64 (2, Ni)
+                arr = circuit_component.dark_IV_table
+                if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
+                    arr = np.ascontiguousarray(arr, dtype=np.float64)
+                    circuit_component.dark_IV_table = arr
                 mv_dark = circuit_component.dark_IV_table   # (2, Ni_dark)
                 Ni = mv_dark.shape[1]
                 jobs_c[i].dark_IV.V           = &mv_dark[0, 0]
@@ -280,7 +300,7 @@ def run_multiple_jobs(jobs):
 
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
+           kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
 
         # ----- unpack outputs -----
         for i in range(n_jobs):

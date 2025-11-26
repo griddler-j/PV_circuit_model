@@ -3,8 +3,9 @@ from Cython.Build import cythonize
 import numpy as np
 import sys
 
-compile_args = ["/O2"]
-link_args = []
+# compile_args = ["/O2"]
+compile_args = ["/Zi", "/Od"]
+link_args = ["/DEBUG"]
 
 if sys.platform == "win32":
     # VS 2022: /openmp or /openmp:llvm (either should work)
