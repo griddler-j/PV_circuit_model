@@ -708,7 +708,7 @@ double combine_iv_job(int connection,
 
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     // #pragma omp parallel
@@ -721,7 +721,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
 
     double highest_ms = 0;
 
-    //#pragma omp parallel for
+    // #pragma omp parallel for num_threads(num_threads)
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
         double ms = combine_iv_job(
