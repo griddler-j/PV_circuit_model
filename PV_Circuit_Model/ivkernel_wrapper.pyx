@@ -113,11 +113,12 @@ def run_multiple_jobs(jobs,refine_mode=False):
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
     cdef int olen
-    cdef int num_threads = 1
+    cdef int num_threads = min(n_jobs,32)
+    if n_jobs > 8:
+        num_threads = 8
 
     try:
         for i in range(n_jobs):
-            abs_max_num_points = 0
             job = jobs[i]
             circuit_component = job["circuit_component"]
             type_name = type(circuit_component).__name__
@@ -131,12 +132,6 @@ def run_multiple_jobs(jobs,refine_mode=False):
             max_I = 0.2
             if hasattr(circuit_component, "max_I"):
                 max_I = circuit_component.max_I
-
-            if refine_mode:
-                if circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
-                    jobs_c[i].op_pt_V = circuit_component.operating_point[0]
-                    max_num_points = np.ceil(100/0.2*max_I) + 5 + 102
-
             if circuit_component_type_number == 0:      # CurrentSource
                 params = np.array([circuit_component.IL], dtype=np.float64)
             elif circuit_component_type_number == 1:    # Resistor
@@ -202,6 +197,7 @@ def run_multiple_jobs(jobs,refine_mode=False):
                 jobs_c[i].refine_mode = 0
 
             # ----- children_IVs → IVView[] (zero-copy views) -----
+            abs_max_num_points = 0
             n_children = 0
             all_children_are_CircuitElement = 0
             if hasattr(circuit_component,"subgroups"):
@@ -250,12 +246,13 @@ def run_multiple_jobs(jobs,refine_mode=False):
             else:
                 jobs_c[i].children_pc_IVs = <IVView*> 0
 
+            abs_max_num_points_multipier = 1
             for j in range(n_children):
                 element_area = 0
                 element = circuit_component.subgroups[j]
                 Ni = 0
                 if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
-                    abs_max_num_points += circuit_component.subgroups[j].IV_table.shape[1]
+                    abs_max_num_points_multipier += 1
                     # ensure IV_table is C-contiguous float64 (2, Ni)
                     arr = circuit_component.subgroups[j].IV_table
                     if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
@@ -274,10 +271,20 @@ def run_multiple_jobs(jobs,refine_mode=False):
                     pc_children_views[child_base + j].length = 0
                 pc_children_views[child_base + j].scale       = element_area
 
+            abs_max_num_points = abs_max_num_points_multipier*abs_max_num_points
+
             child_base += n_children
 
-            max_num_points_ = np.ceil(100/0.2*max_I) + 5
-            abs_max_num_points = max(abs_max_num_points, max_num_points_)
+            if circuit_component_type_number==0: # current source
+                abs_max_num_points = 2
+            elif circuit_component_type_number==1: # resistor
+                abs_max_num_points = 5
+            elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
+                abs_max_num_points = np.ceil(100/0.2*max_I) + 5
+                if refine_mode:
+                    jobs_c[i].op_pt_V = circuit_component.operating_point[0]
+                    abs_max_num_points += 100
+
             abs_max_num_points = max(abs_max_num_points, max_num_points)
             abs_max_num_points = int(abs_max_num_points)
 

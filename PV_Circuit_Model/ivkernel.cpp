@@ -492,7 +492,7 @@ double combine_iv_job(int connection,
                 if (len > 0) { 
                     const double* IV_table_V = children_IVs[i].V;  
                     const double* IV_table_I = children_IVs[i].I;  
-                    if (i<n_children-1 && children_pc_IVs[i+1].length>0 && children_IVs[i+1].length>0) {  // need to add the current transferred by the subcell above via pc 
+                    if (i<n_children-1 && children_pc_IVs[i+1].length>0 && children_IVs[i+1].length>0) {  // need to add the current transferred by the subcell above via pc                        
                         const double* pc_IV_table_V = children_pc_IVs[i+1].V;  
                         const double* pc_IV_table_I = children_pc_IVs[i+1].I; 
                         double scale =  children_pc_IVs[i+1].scale;
@@ -569,7 +569,6 @@ double combine_iv_job(int connection,
             Is.resize(write);
         }
     }
-
     // remesh
     if (max_num_points > 0) {
         double V_range = Vs.back() - Vs.front();
@@ -691,13 +690,11 @@ double combine_iv_job(int connection,
 
         }
     } 
-
     if (area != 1) {
         for (int i=0; i<Is.size(); i++) Is[i] *= area;
     }
 
     int n_out = (int)Vs.size();
-
     std::memcpy(out_V, Vs.data(), n_out * sizeof(double));
     std::memcpy(out_I, Is.data(), n_out * sizeof(double));
     *out_len = n_out;
@@ -748,7 +745,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
             highest_ms = ms;
         }
     }
-
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return ms;

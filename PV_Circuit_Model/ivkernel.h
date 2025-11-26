@@ -34,7 +34,7 @@ struct IVJobDesc {
     int* out_len;
 };
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs);
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads);
 
 #ifdef __cplusplus
 }
