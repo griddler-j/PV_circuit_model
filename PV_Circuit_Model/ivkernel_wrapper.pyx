@@ -4,7 +4,7 @@
 
 import numpy as np
 cimport numpy as np
-# from cython cimport nogil
+from cython cimport nogil
 from libc.stdlib cimport malloc, free 
 from libc.string cimport memset
 
@@ -23,21 +23,23 @@ cdef extern from "ivkernel.h":
         int n_children
         const IVView* children_IVs
         const IVView* children_pc_IVs
+        double op_pt_V
+        int refine_mode
         IVView dark_IV
         double total_IL
         double cap_current
         int max_num_points
         double area
         int abs_max_num_points
-        int all_children_are_CircuitElement   # maps to C++ bool
+        int all_children_are_CircuitElement   
         const double* circuit_element_parameters
         double* out_V
         double* out_I
         int* out_len
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) #nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) nogil
 
-def run_multiple_jobs(jobs):
+def run_multiple_jobs(jobs,refine_mode=False):
     cdef Py_ssize_t n_jobs = len(jobs)
     if n_jobs == 0:
         return [], 0.0
@@ -114,6 +116,7 @@ def run_multiple_jobs(jobs):
 
     try:
         for i in range(n_jobs):
+            abs_max_num_points = 0
             job = jobs[i]
             circuit_component = job["circuit_component"]
             type_name = type(circuit_component).__name__
@@ -122,6 +125,11 @@ def run_multiple_jobs(jobs):
             circuit_component_type_number = 5  # default CircuitGroup
             if type_name in type_numbers:
                 circuit_component_type_number = type_numbers[type_name]
+
+            if refine_mode:
+                if circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
+                    jobs_c[i].op_pt_V = circuit_component.operating_point[0]
+                    max_num_points = np.ceil(100/0.2*max_I) + 5 + 102
 
             # ----- build circuit_element_parameters (matches your C++ expectations) -----
             max_I = 0.2
@@ -174,7 +182,6 @@ def run_multiple_jobs(jobs):
             max_num_points = -1
             if hasattr(circuit_component,"max_num_points"):
                 max_num_points = circuit_component.max_num_points if circuit_component.max_num_points is not None else -1
-            abs_max_num_points = 0
 
             # ----- fill IVJobDesc scalars -----
             jobs_c[i].connection = -1
@@ -188,6 +195,10 @@ def run_multiple_jobs(jobs):
             jobs_c[i].max_num_points     = max_num_points
             jobs_c[i].area               = area
             jobs_c[i].circuit_element_parameters = &mv_params[0]
+            if refine_mode:
+                jobs_c[i].refine_mode = 1
+            else:
+                jobs_c[i].refine_mode = 0
 
             # ----- children_IVs → IVView[] (zero-copy views) -----
             n_children = 0
@@ -299,8 +310,8 @@ def run_multiple_jobs(jobs):
                 jobs_c[i].dark_IV.length      = 0
 
         # ----- call C++ batched kernel (no Python inside) -----
-        # with nogil:
-        kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
+        with nogil:
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
 
         # ----- unpack outputs -----
         for i in range(n_jobs):

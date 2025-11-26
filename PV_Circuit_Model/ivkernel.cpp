@@ -7,7 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <cstdio>
-// #include <omp.h> 
+#include <omp.h> 
 #include <chrono>
 #include "ivkernel.h"
 
@@ -199,7 +199,8 @@ void calc_intrinsic_Si_I(
     }
 }
 
-std::vector<double> get_V_range(const double* circuit_element_parameters,int max_num_points,bool intrinsic_Si_calc) {
+std::vector<double> get_V_range(const double* circuit_element_parameters,int max_num_points,bool intrinsic_Si_calc,double op_pt_V,
+    int refine_mode,bool is_reverse_diode) {
     // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
@@ -255,6 +256,20 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
         V.push_back(v);
     }
 
+    if (refine_mode==1) {
+        double op_pt_V_ = op_pt_V;
+        if (is_reverse_diode) op_pt_V_ *=-1;
+        const int extra_points = 100;
+        const double delta = 0.001;   // +/- window around op_pt_V
+        const double start = op_pt_V_ - delta;
+        const double end   = op_pt_V_ + delta;
+        const double step  = (extra_points > 1) ? (end - start) / (extra_points - 1) : 0.0;
+        for (int i = 0; i < extra_points; ++i) {
+            V.push_back(start + step * i);
+        }
+        std::sort(V.begin(), V.end());
+    }
+
     return V;
 }
 
@@ -264,7 +279,9 @@ void build_forward_diode_iv(
     double* out_V,
     double* out_I,
     int* out_len,
-    int abs_max_num_points
+    int abs_max_num_points,
+    double op_pt_V,
+    int refine_mode
 ) {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -272,7 +289,7 @@ void build_forward_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,refine_mode,false);
 
     // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
@@ -298,15 +315,17 @@ void build_reverse_diode_iv(
     double* out_V,
     double* out_I,
     int* out_len,
-    int abs_max_num_points
-) {
+    int abs_max_num_points,
+    double op_pt_V,
+    int refine_mode)
+ {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,refine_mode,true);
 
     // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
@@ -330,9 +349,11 @@ void build_Si_intrinsic_diode_iv(
     double* out_V,
     double* out_I,
     int* out_len,
-    int abs_max_num_points
+    int abs_max_num_points,
+    double op_pt_V,
+    int refine_mode
 ) {
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true,op_pt_V,refine_mode,false);
     std::vector<double> I(V.size());
     double ni = circuit_element_parameters[5];
     int base_type_number = static_cast<int>(circuit_element_parameters[6]);
@@ -374,6 +395,8 @@ static void thin_grid_by_quantization(std::vector<double>& xs, double tol)
 
 double combine_iv_job(int connection,
     int circuit_component_type_number,
+    double op_pt_V,
+    int refine_mode,
     int n_children,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
@@ -427,13 +450,13 @@ double combine_iv_job(int connection,
                 build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);;
                 break;
             case 2: // ForwardDiode
-                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points);
+                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,refine_mode);
                 break;
             case 3: // ReverseDiode
-                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points);
+                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,refine_mode);
                 break;
             case 4: // Intrinsic Si Diode
-                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points);
+                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,refine_mode);
                 break;
         }
 
@@ -704,6 +727,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
         double ms = combine_iv_job(
             job.connection,
             job.circuit_component_type_number,
+            job.op_pt_V,
+            job.refine_mode,
             job.n_children,
             job.children_IVs,
             job.children_pc_IVs,

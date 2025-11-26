@@ -18,8 +18,6 @@ class KernelTimer:
         self.wrapper_timer = 0.0
         self.build_IV_events = []
     def register(self,circuit_component):
-        if self.is_activated and type(circuit_component).__name__=="Cell":
-            assert(1==0)
         self.build_IV_events.append({'component':type(circuit_component).__name__, 'wrapper_timer': 0.0, 'kernel_timer': 0.0})
     def tic(self):
         self.wrapper_timer_tic = time.time()
@@ -68,18 +66,33 @@ class IV_Job_Heap:
             for i, element in enumerate(circuit_component.subgroups):
                 if element.IV_table is None:
                     self.build(element, this_job_id=new_job_ids[i])
-    def get_runnable_jobs(self):
+    def get_runnable_jobs(self,refine_mode=False):
+        include_indices = []
         for i in range(self.job_done_index-1,-1,-1):
             job = self.job_list[i]
             if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<self.job_done_index:
-                return self.job_list[i+1:self.job_done_index]
-        return self.job_list[:self.job_done_index]
-    def run_jobs(self):
+                return [self.job_list[j] for j in include_indices]
+            if refine_mode:
+                circuit_component = job["circuit_component"]
+                type_name = type(circuit_component).__name__
+                if type_name not in ["CurrentSource", "Resistor"]:
+                    include_indices.append(i)
+            else:
+                include_indices.append(i)
+        return [self.job_list[j] for j in include_indices]
+    def run_jobs(self,refine_mode=False):
+        kernel_timer.tic()
         while self.job_done_index > 0:
-            jobs = self.get_runnable_jobs()
-            kernel_ms = ivkernel.run_multiple_jobs(jobs)
+            jobs = self.get_runnable_jobs(refine_mode=refine_mode)
+            kernel_ms = ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
             kernel_timer.inc(kernel_ms)
             self.job_done_index -= len(jobs)
+        kernel_timer.toc()
+    def refine_IV(self, circuit_component):
+        self.job_list = []
+        self.build(circuit_component)
+        self.job_done_index = len(self.job_list)
+        self.run_jobs(refine_mode=True)
     def __str__(self):
         return str(self.job_list)
 

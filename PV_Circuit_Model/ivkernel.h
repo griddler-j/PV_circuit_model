@@ -19,6 +19,8 @@ struct IVJobDesc {
     int n_children;
     const IVView* children_IVs;
     const IVView* children_pc_IVs;
+    double op_pt_V;
+    int refine_mode;
     IVView dark_IV;
     double total_IL;
     double cap_current;

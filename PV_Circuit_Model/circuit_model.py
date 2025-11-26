@@ -358,13 +358,14 @@ class CircuitGroup(CircuitComponent):
                 # solar cell needs to scale IV table by area
                 if hasattr(self,"shape") and self.area is not None:
                     target_I /= self.area
-                element.set_operating_point(V=None,I=target_I,refine_IV=refine_IV_,top_level=False)
+                element.set_operating_point(V=None,I=target_I,refine_IV=False,top_level=False)
             else: # then all elements have same voltage
-                element.set_operating_point(V=V_,I=None,refine_IV=refine_IV_,top_level=False)
+                element.set_operating_point(V=V_,I=None,refine_IV=False,top_level=False)
         if refine_IV_ and top_level:
             self.refined_IV = True
-            if self.IV_table is None:
-                self.build_IV()
+            self.job_heap.refine_IV(self)
+            # if self.IV_table is None:
+            #     self.build_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
                 V_ = V
@@ -419,8 +420,8 @@ class CircuitGroup(CircuitComponent):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
 
-        job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
-        job_heap.run_jobs()
+        self.job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
+        self.job_heap.run_jobs()
         return
 
         # if solar cell, then express in current density

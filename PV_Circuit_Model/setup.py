@@ -12,7 +12,7 @@ link_args = []
 if sys.platform == "win32":
     pass
     # VS 2022: /openmp or /openmp:llvm (either should work)
-    # compile_args.append("/openmp")
+    compile_args.append("/openmp")
 else:
     compile_args += ["-O3", "-fopenmp"]
     link_args.append("-fopenmp")

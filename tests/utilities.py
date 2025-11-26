@@ -20,8 +20,10 @@ def get_fields(device, prefix=None):
         dict = {}
         test_attributes = config.get("test_attributes")
         keys = ["common", prefix]
+        device.null_all_IV()
         t1 = time.time()
         iv_jobs.kernel_timer.reset()
+        device.build_IV()
         for key in keys:
             if key is not None and key in test_attributes:
                 for attribute in test_attributes[key]:
