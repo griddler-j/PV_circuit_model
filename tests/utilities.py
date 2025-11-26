@@ -22,7 +22,7 @@ def get_fields(device, prefix=None):
         keys = ["common", prefix]
         device.null_all_IV()
         t1 = time.time()
-        iv_jobs.kernel_timer.reset()
+        # iv_jobs.kernel_timer.reset()
         device.build_IV()
         for key in keys:
             if key is not None and key in test_attributes:
@@ -39,9 +39,9 @@ def get_fields(device, prefix=None):
                             dict[attribute_name]["value"] = attr()
                         else:
                             dict[attribute_name]["value"] = attr
-        iv_jobs.kernel_timer.show_log()
+        # iv_jobs.kernel_timer.show_log()
         print(f"Finished in {time.time()-t1} seconds")
-        print(iv_jobs.kernel_timer)
+        # print(iv_jobs.kernel_timer)
     return dict
 
 def make_timestamp():
