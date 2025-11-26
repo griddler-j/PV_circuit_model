@@ -7,10 +7,9 @@
 #include <cstring>
 #include <iostream>
 #include <cstdio>
-#include <omp.h> 
+// #include <omp.h> 
 #include <chrono>
 #include "ivkernel.h"
-#include <cassert>
 
 extern "C" {
 
@@ -284,7 +283,6 @@ void build_forward_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
-    assert(outN <= abs_max_num_points);
     for (int i = 0; i < outN; ++i) {
         out_V[i] = V[i];
         out_I[i] = I[i];
@@ -319,7 +317,6 @@ void build_reverse_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
-    assert(outN <= abs_max_num_points);
     for (int i = 0; i < outN; ++i) {
         out_V[i] = -V[outN-i-1];
         out_I[i] = -I[outN-i-1];
@@ -346,7 +343,6 @@ void build_Si_intrinsic_diode_iv(
 
     // Write to output buffer
     int outN = (int)V.size();
-    assert(outN <= abs_max_num_points);
     for (int i = 0; i < outN; ++i) {
         out_V[i] = V[i];
         out_I[i] = I[i];
@@ -514,10 +510,8 @@ double combine_iv_job(int connection,
             const double* IV_table_V = children_IVs[i].V;
             int len = children_IVs[i].length;
             if (children_IVs[i].type_number==2) { //  forward diode
-                assert(len > 0);
                 right_limit = std::min(right_limit, IV_table_V[len-1]);
             } else if (children_IVs[i].type_number==3) {  // rev diode
-                assert(len > 0);
                 left_limit = std::max(left_limit, IV_table_V[0]);
             }
         }
@@ -664,7 +658,6 @@ double combine_iv_job(int connection,
             );
 
             int n_out = (int)new_Vs.size();
-            assert(!(abs_max_num_points > 0 && n_out > abs_max_num_points));
             std::memcpy(out_V, new_Vs.data(), n_out * sizeof(double));
             std::memcpy(out_I, new_Is.data(), n_out * sizeof(double));
             *out_len = n_out;
@@ -682,7 +675,6 @@ double combine_iv_job(int connection,
 
     int n_out = (int)Vs.size();
 
-    assert(!(abs_max_num_points > 0 && n_out > abs_max_num_points));
     std::memcpy(out_V, Vs.data(), n_out * sizeof(double));
     std::memcpy(out_I, Is.data(), n_out * sizeof(double));
     *out_len = n_out;
@@ -704,7 +696,9 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
     //     }
     // }
 
-    #pragma omp parallel for
+    double highest_ms = 0;
+
+    //#pragma omp parallel for
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
         double ms = combine_iv_job(
@@ -725,6 +719,9 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) {
             job.out_I,
             job.out_len
         );
+        if (ms > highest_ms) {
+            highest_ms = ms;
+        }
     }
 
     auto t1 = std::chrono::high_resolution_clock::now();

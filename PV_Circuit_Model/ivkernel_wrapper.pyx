@@ -4,7 +4,7 @@
 
 import numpy as np
 cimport numpy as np
-from cython cimport nogil
+# from cython cimport nogil
 from libc.stdlib cimport malloc, free 
 from libc.string cimport memset
 
@@ -35,7 +35,7 @@ cdef extern from "ivkernel.h":
         double* out_I
         int* out_len
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs) #nogil
 
 def run_multiple_jobs(jobs):
     cdef Py_ssize_t n_jobs = len(jobs)
@@ -299,8 +299,8 @@ def run_multiple_jobs(jobs):
                 jobs_c[i].dark_IV.length      = 0
 
         # ----- call C++ batched kernel (no Python inside) -----
-        with nogil:
-           kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
+        # with nogil:
+        kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c)
 
         # ----- unpack outputs -----
         for i in range(n_jobs):
