@@ -126,15 +126,15 @@ def run_multiple_jobs(jobs,refine_mode=False):
             if type_name in type_numbers:
                 circuit_component_type_number = type_numbers[type_name]
 
-            if refine_mode:
-                if circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
-                    jobs_c[i].op_pt_V = circuit_component.operating_point[0]
-                    max_num_points = np.ceil(100/0.2*max_I) + 5 + 102
-
             # ----- build circuit_element_parameters (matches your C++ expectations) -----
             max_I = 0.2
             if hasattr(circuit_component, "max_I"):
                 max_I = circuit_component.max_I
+
+            if refine_mode:
+                if circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
+                    jobs_c[i].op_pt_V = circuit_component.operating_point[0]
+                    max_num_points = np.ceil(100/0.2*max_I) + 5 + 102
 
             if circuit_component_type_number == 0:      # CurrentSource
                 params = np.array([circuit_component.IL], dtype=np.float64)
