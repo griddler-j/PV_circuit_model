@@ -115,7 +115,6 @@ def run_multiple_jobs(jobs,refine_mode=False):
     cdef int num_threads = min(n_jobs,32)
     if n_jobs > 8:
         num_threads = 8
-    num_threads = 1
 
     try:
         for i in range(n_jobs):

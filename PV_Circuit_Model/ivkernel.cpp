@@ -535,7 +535,7 @@ double combine_iv_job(int connection,
         Vs.erase(std::remove_if(Vs.begin(),Vs.end(),[left_limit, right_limit](double v) {return v < left_limit || v > right_limit;}),Vs.end());
         auto new_end = std::unique(Vs.begin(), Vs.end());
         Vs.erase(new_end, Vs.end());
-        
+
         Is.assign(Vs.size(), 0.0);
         for (int i = 0; i < n_children; ++i) {  
             int len = children_IVs[i].length;
@@ -548,59 +548,41 @@ double combine_iv_job(int connection,
         for (int k = 0; k < (int)Is.size(); ++k) Is[k] = Is[k] + total_IL;
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
-    // 1. from existing mesh get second derivative.  
-    // 2. Keep only (max_num_points-2) points with largest second derivatives, plus the end points
-    // bonus: no re-interp necessary at all
-    // if (max_num_points > -1)    std::printf("cpp: yo max_num_points = %d\n",max_num_points);
-    // if (max_num_points > 2 && Vs.size() > max_num_points) {
-    //     std::printf("cpp: yo remesh\n");
-    //     std::fflush(stdout); 
-    //     int n = static_cast<int>(Vs.size());
-    //     int n_internal = n - 2;  // indices 1..n-2
+    if (max_num_points > 2 && Vs.size() > max_num_points) { 
+        int n = static_cast<int>(Vs.size());
+        std::vector<double> dI_dV(n-1);
+        std::vector<double> accum_abs_ddI_dV(n-1); // not exactly, multiplied by x segment length also
+        accum_abs_ddI_dV.push_back(0.0);
+        for (int i = 0; i < n - 1; ++i) {
+            dI_dV[i] = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
+            if (i > 0) {
+                accum_abs_ddI_dV[i] = accum_abs_ddI_dV[i-1] + std::abs(dI_dV[i]-dI_dV[i-1])*(Vs[i]-Vs[i-1]);
+            }
+        }
+        double dI_dV_variation_segment = accum_abs_ddI_dV[n-2]/(max_num_points-2);
+        std::vector<int> idx;
+        idx.reserve(max_num_points);
+        idx.push_back(0);
+        int count = 1;
+        for (int i = 1; i < n - 1; ++i) {
+            if (accum_abs_ddI_dV[i] >= count * dI_dV_variation_segment) {
+                idx.push_back(i);
+                ++count;
+            }
+        }
+        idx.push_back(n-1);
 
-    //     std::vector<double> abs_d2I_dV2(n_internal);
-    //     double this_slope = (Is[1] - Is[0]) / (Vs[1] - Vs[0]);
+        // remesh
+        std::vector<double> new_Vs(idx.size());
+        std::vector<double> new_Is(idx.size());
+        for (std::size_t i = 0; i < idx.size(); ++i) {
+            new_Vs[i] = Vs[idx[i]];
+            new_Is[i] = Is[idx[i]];
+        }
 
-    //     for (int i = 1; i < n - 1; ++i) {
-    //         double next_slope = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
-    //         abs_d2I_dV2[i - 1] =
-    //             std::abs((next_slope - this_slope) / (Vs[i+1] - Vs[i-1]));
-    //         this_slope = next_slope;
-    //     }
-
-    //     // argsort internal indices 1..n-2 by descending curvature
-    //     std::vector<int> idx(n_internal);
-    //     std::iota(idx.begin(), idx.end(), 1);  // store real mesh indices 1..n-2
-
-    //     std::sort(idx.begin(), idx.end(),
-    //         [&](int a, int b) {
-    //             return abs_d2I_dV2[a - 1] > abs_d2I_dV2[b - 1];
-    //         });
-
-    //     // keep only (max_num_points - 2) internal points
-    //     int n_internal_keep = max_num_points - 2;
-    //     if (n_internal_keep > n_internal)
-    //         n_internal_keep = n_internal;
-    //     idx.resize(n_internal_keep);
-
-    //     // add endpoints 0 and n-1
-    //     idx.push_back(0);
-    //     idx.push_back(n - 1);
-
-    //     // sort indices in ascending order
-    //     std::sort(idx.begin(), idx.end());
-
-    //     // remesh
-    //     std::vector<double> new_Vs(idx.size());
-    //     std::vector<double> new_Is(idx.size());
-    //     for (std::size_t i = 0; i < idx.size(); ++i) {
-    //         new_Vs[i] = Vs[idx[i]];
-    //         new_Is[i] = Is[idx[i]];
-    //     }
-
-    //     Vs.swap(new_Vs);
-    //     Is.swap(new_Is);
-    // }
+        Vs.swap(new_Vs);
+        Is.swap(new_Is);
+    }
     if (area != 1) {
         for (int i=0; i<Is.size(); i++) Is[i] *= area;
     }
@@ -618,7 +600,7 @@ double combine_iv_job(int connection,
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
     auto t0 = std::chrono::high_resolution_clock::now();
-    // #pragma omp parallel for num_threads(num_threads)
+    //#pragma omp parallel for num_threads(num_threads)
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
         combine_iv_job(

@@ -12,6 +12,7 @@ class Module(CircuitGroup):
         super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
         cells = self.findElementType(Cell,serialize=True)
         self.cells = cells
+        self.max_num_points = 100*len(cells)
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
