@@ -26,8 +26,6 @@ class Module(CircuitGroup):
         self.temperature = temperature
         if rebuild_IV:
             self.build_IV()
-    def build_IV(self, max_num_points=1000):
-        super().build_IV(max_num_points=max_num_points)
 
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
 def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,fontsize=9,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):

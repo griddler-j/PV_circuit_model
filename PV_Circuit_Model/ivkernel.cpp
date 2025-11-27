@@ -403,7 +403,6 @@ double combine_iv_job(int connection,
     const IVView* children_pc_IVs,
     IVView dark_IV,
     double total_IL,
-    double cap_current,
     int max_num_points,
     double area,
     int abs_max_num_points,
@@ -438,8 +437,6 @@ double combine_iv_job(int connection,
 
     std::vector<double> Vs(children_Vs_size);
     std::vector<double> Is(children_Vs_size);
-
-    double cap_current_by_area = cap_current / area;
 
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
        
@@ -478,13 +475,9 @@ double combine_iv_job(int connection,
         for (int iteration = 0; iteration < 2; ++iteration) {
             if (iteration == 1 && !extra_Is.empty()) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());       
             std::sort(Is.begin(), Is.end());
-            if (max_num_points == -1) {
-                auto new_end = std::unique(Is.begin(), Is.end());
-                Is.erase(new_end, Is.end());
-            } else {
-                double tol = (Is.back()-Is.front())/(max_num_points*1000);
-                thin_grid_by_quantization(Is, tol);
-            }     
+            auto new_end = std::unique(Is.begin(), Is.end());
+            Is.erase(new_end, Is.end());
+
             Vs.assign(Is.size(), 0.0);     
             std::vector<double> this_V(Is.size());
             // do reverse order to allow for photon coupling
@@ -540,13 +533,9 @@ double combine_iv_job(int connection,
             }
         }
         Vs.erase(std::remove_if(Vs.begin(),Vs.end(),[left_limit, right_limit](double v) {return v < left_limit || v > right_limit;}),Vs.end());
-        if (max_num_points == -1) {
-            auto new_end = std::unique(Vs.begin(), Vs.end());
-            Vs.erase(new_end, Vs.end());
-        } else {
-            double tol = (Vs.back()-Vs.front())/(max_num_points*1000);
-            thin_grid_by_quantization(Vs, tol);
-        }
+        auto new_end = std::unique(Vs.begin(), Vs.end());
+        Vs.erase(new_end, Vs.end());
+        
         Is.assign(Vs.size(), 0.0);
         for (int i = 0; i < n_children; ++i) {  
             int len = children_IVs[i].length;
@@ -557,73 +546,61 @@ double combine_iv_job(int connection,
             }
         }    
         for (int k = 0; k < (int)Is.size(); ++k) Is[k] = Is[k] + total_IL;
-        if (cap_current_by_area > 0) {
-            size_t write = 0;
-            for (size_t read = 0; read < Is.size(); ++read) {
-                if (std::abs(Is[read]) < cap_current_by_area) {
-                    Vs[write] = Vs[read];
-                    Is[write] = Is[read];
-                    ++write;
-                }
-            }
-            Vs.resize(write);
-            Is.resize(write);
-        }
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
     // 1. from existing mesh get second derivative.  
     // 2. Keep only (max_num_points-2) points with largest second derivatives, plus the end points
     // bonus: no re-interp necessary at all
-    if (max_num_points > -1)    std::printf("cpp: yo max_num_points = %d\n",max_num_points);
-    if (max_num_points > 2 && Vs.size() > max_num_points) {
-        std::printf("cpp: yo remesh\n");
-        std::fflush(stdout); 
-        int n = static_cast<int>(Vs.size());
-        int n_internal = n - 2;  // indices 1..n-2
+    // if (max_num_points > -1)    std::printf("cpp: yo max_num_points = %d\n",max_num_points);
+    // if (max_num_points > 2 && Vs.size() > max_num_points) {
+    //     std::printf("cpp: yo remesh\n");
+    //     std::fflush(stdout); 
+    //     int n = static_cast<int>(Vs.size());
+    //     int n_internal = n - 2;  // indices 1..n-2
 
-        std::vector<double> abs_d2I_dV2(n_internal);
-        double this_slope = (Is[1] - Is[0]) / (Vs[1] - Vs[0]);
+    //     std::vector<double> abs_d2I_dV2(n_internal);
+    //     double this_slope = (Is[1] - Is[0]) / (Vs[1] - Vs[0]);
 
-        for (int i = 1; i < n - 1; ++i) {
-            double next_slope = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
-            abs_d2I_dV2[i - 1] =
-                std::abs((next_slope - this_slope) / (Vs[i+1] - Vs[i-1]));
-            this_slope = next_slope;
-        }
+    //     for (int i = 1; i < n - 1; ++i) {
+    //         double next_slope = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
+    //         abs_d2I_dV2[i - 1] =
+    //             std::abs((next_slope - this_slope) / (Vs[i+1] - Vs[i-1]));
+    //         this_slope = next_slope;
+    //     }
 
-        // argsort internal indices 1..n-2 by descending curvature
-        std::vector<int> idx(n_internal);
-        std::iota(idx.begin(), idx.end(), 1);  // store real mesh indices 1..n-2
+    //     // argsort internal indices 1..n-2 by descending curvature
+    //     std::vector<int> idx(n_internal);
+    //     std::iota(idx.begin(), idx.end(), 1);  // store real mesh indices 1..n-2
 
-        std::sort(idx.begin(), idx.end(),
-            [&](int a, int b) {
-                return abs_d2I_dV2[a - 1] > abs_d2I_dV2[b - 1];
-            });
+    //     std::sort(idx.begin(), idx.end(),
+    //         [&](int a, int b) {
+    //             return abs_d2I_dV2[a - 1] > abs_d2I_dV2[b - 1];
+    //         });
 
-        // keep only (max_num_points - 2) internal points
-        int n_internal_keep = max_num_points - 2;
-        if (n_internal_keep > n_internal)
-            n_internal_keep = n_internal;
-        idx.resize(n_internal_keep);
+    //     // keep only (max_num_points - 2) internal points
+    //     int n_internal_keep = max_num_points - 2;
+    //     if (n_internal_keep > n_internal)
+    //         n_internal_keep = n_internal;
+    //     idx.resize(n_internal_keep);
 
-        // add endpoints 0 and n-1
-        idx.push_back(0);
-        idx.push_back(n - 1);
+    //     // add endpoints 0 and n-1
+    //     idx.push_back(0);
+    //     idx.push_back(n - 1);
 
-        // sort indices in ascending order
-        std::sort(idx.begin(), idx.end());
+    //     // sort indices in ascending order
+    //     std::sort(idx.begin(), idx.end());
 
-        // remesh
-        std::vector<double> new_Vs(idx.size());
-        std::vector<double> new_Is(idx.size());
-        for (std::size_t i = 0; i < idx.size(); ++i) {
-            new_Vs[i] = Vs[idx[i]];
-            new_Is[i] = Is[idx[i]];
-        }
+    //     // remesh
+    //     std::vector<double> new_Vs(idx.size());
+    //     std::vector<double> new_Is(idx.size());
+    //     for (std::size_t i = 0; i < idx.size(); ++i) {
+    //         new_Vs[i] = Vs[idx[i]];
+    //         new_Is[i] = Is[idx[i]];
+    //     }
 
-        Vs.swap(new_Vs);
-        Is.swap(new_Is);
-    }
+    //     Vs.swap(new_Vs);
+    //     Is.swap(new_Is);
+    // }
     if (area != 1) {
         for (int i=0; i<Is.size(); i++) Is[i] *= area;
     }
@@ -654,7 +631,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
             job.children_pc_IVs,
             job.dark_IV,
             job.total_IL,
-            job.cap_current,
             job.max_num_points,
             job.area,
             job.abs_max_num_points,

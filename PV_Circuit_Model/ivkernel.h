@@ -23,7 +23,6 @@ struct IVJobDesc {
     int refine_mode;
     IVView dark_IV;
     double total_IL;
-    double cap_current;
     int max_num_points;
     double area;
     int abs_max_num_points;

@@ -27,7 +27,6 @@ cdef extern from "ivkernel.h":
         int refine_mode
         IVView dark_IV
         double total_IL
-        double cap_current
         int max_num_points
         double area
         int abs_max_num_points
@@ -106,7 +105,7 @@ def run_multiple_jobs(jobs,refine_mode=False):
     cdef int circuit_component_type_number, type_number
     cdef int n_children, Ni
     cdef int abs_max_num_points
-    cdef double total_IL, cap_current, area
+    cdef double total_IL, area
     cdef int max_num_points
     cdef int all_children_are_CircuitElement
 
@@ -173,9 +172,6 @@ def run_multiple_jobs(jobs,refine_mode=False):
             area = 1.0
             if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
                 area = circuit_component.area
-            cap_current = -1.0
-            if hasattr(circuit_component,"cap_current"):
-                cap_current = circuit_component.cap_current if circuit_component.cap_current is not None else -1.0
             max_num_points = -1
             if hasattr(circuit_component,"max_num_points"):
                 max_num_points = circuit_component.max_num_points if circuit_component.max_num_points is not None else -1
@@ -188,7 +184,6 @@ def run_multiple_jobs(jobs,refine_mode=False):
                     jobs_c[i].connection = 1
 
             jobs_c[i].circuit_component_type_number = circuit_component_type_number
-            jobs_c[i].cap_current        = cap_current
             jobs_c[i].max_num_points     = max_num_points
             jobs_c[i].area               = area
             jobs_c[i].circuit_element_parameters = &mv_params[0]
@@ -396,7 +391,7 @@ def run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mod
     cdef int circuit_component_type_number, type_number
     cdef int n_children, Ni
     cdef int abs_max_num_points
-    cdef double total_IL, cap_current, area
+    cdef double total_IL, area
     cdef int max_num_points
     cdef int all_children_are_CircuitElement
 
@@ -425,11 +420,9 @@ def run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mod
             # ----- scalar fields -----
             total_IL = job["total_IL"]
             area = job["area"]
-            cap_current = job["cap_current"]
             max_num_points = job["max_num_points"]
             jobs_c[i].connection = job["connection"]
             jobs_c[i].circuit_component_type_number = circuit_component_type_number
-            jobs_c[i].cap_current        = cap_current
             jobs_c[i].max_num_points     = max_num_points
             jobs_c[i].area               = area
             jobs_c[i].circuit_element_parameters = &mv_params[0]

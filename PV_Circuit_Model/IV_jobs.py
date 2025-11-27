@@ -139,9 +139,10 @@ def make_simplified_job_list(job_list):
         area = 1.0
         if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
             area = circuit_component.area
+
         max_num_points = -1
-        if hasattr(circuit_component,"max_num_points"):
-            max_num_points = circuit_component.max_num_points if circuit_component.max_num_points is not None else -1
+        if hasattr(circuit_component,"max_num_points") and circuit_component.max_num_points is not None:
+            max_num_points = circuit_component.max_num_points
 
         connection = -1
         if hasattr(circuit_component, "connection"):
@@ -175,7 +176,8 @@ def make_simplified_job_list(job_list):
                             "operating_V": operating_V,
                             "all_children_are_CircuitElement": all_children_are_CircuitElement,
                             "max_I": max_I,"params":params,"area":area,"connection":connection,
-                            "IV": circuit_component.IV_table, "dark_IV": dark_IV,"max_num_points":max_num_points,
+                            "IV": circuit_component.IV_table, "dark_IV": dark_IV,
+                            "max_num_points": max_num_points,
                             "children_job_ids": job["children_job_ids"], "children_job_ids_ordered": job["children_job_ids_ordered"]})
         if hasattr(circuit_component,"photon_coupling_diodes") and len(circuit_component.photon_coupling_diodes)>0:
             job_list_[-1]["pc_IV_table"] = circuit_component.photon_coupling_diodes[0].IV_table
@@ -216,11 +218,10 @@ def run_iv_job_heaps_parallel(job_list_list,refine_mode=False):
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
-    def __init__(self,circuit_component,max_num_points = None):
+    def __init__(self,circuit_component):
         self.job_list = []
         self.add(circuit_component) # now job_list has one
         self.build()
-        self.max_num_points = max_num_points
         # kernel_timer.register(circuit_component)
     def add(self,circuit_component):
         self.job_list.append({"circuit_component": circuit_component, "children_job_ids": [], "children_job_ids_ordered": []})

@@ -35,6 +35,11 @@ class CircuitComponent:
             self.dark_IV_table = None
         if self.parent is not None:
             self.parent.null_IV(keep_dark=keep_dark)
+    def build_IV(self):
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
+        self.job_heap = IV_Job_Heap(self)
+        self.job_heap.run_IV()
 
 class CircuitElement(CircuitComponent):
     def __init__(self,tag=None):
@@ -399,10 +404,10 @@ class CircuitGroup(CircuitComponent):
                 element.name = str(i)
         return list_
     
-    def build_IV(self, max_num_points=None):
+    def build_IV(self):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
-        self.job_heap = IV_Job_Heap(self, max_num_points=max_num_points)
+        self.job_heap = IV_Job_Heap(self)
         self.job_heap.run_IV()
     
     def __str__(self):
