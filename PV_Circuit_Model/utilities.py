@@ -6,52 +6,10 @@ import json
 from collections.abc import Mapping, Sequence
 
 def interp_(x, xp, fp):
-    """
-    Like np.interp, but extrapolates linearly outside the bounds using the slopes
-    of the first two and last two points.
-    """
-    xp_ = xp.copy()
-    fp_ = fp.copy()
-    is_number = False
-    if isinstance(x, numbers.Number):
-        x = np.array([x])
-        is_number = True
-    x_ = x.copy()
-    if isinstance(x_,list):
-        x_ = np.array(x_)
-    if isinstance(xp_,list):
-        xp_ = np.array(xp_)
-    if isinstance(fp_,list):
-        fp_ = np.array(fp_)
-    while xp_[0]==xp_[1]:
-        xp_ = xp_[1:]
-        fp_ = fp_[1:]
-    while xp_[-1]==xp_[-2]:
-        xp_ = xp_[:-1]
-        fp_ = fp_[:-1]
-    if xp_[0] > xp_[-1]:
-        xp_ = -1*xp_
-        x_ = -1*x_
-    y_multiplier = 1.0
-    if fp_[0] > fp_[-1]:
-        y_multiplier = -1.0
-        fp_ = -1*fp_
-    slope_left = (fp_[1] - fp_[0]) / (xp_[1] - xp_[0])
-    slope_right = (fp_[-1] - fp_[-2]) / (xp_[-1] - xp_[-2])
-    y = np.interp(x_, xp_, fp_)
-    
-    try:
-        y[x_ < xp_[0]] = fp_[0] + slope_left * (x_[x_ < xp_[0]] - xp_[0])
-    except Exception as e:
-        print(x_)
-        print(xp_[0])
-        print("Caught an error:", e)
-        assert(1==0)
-    
-    y[x_ > xp_[-1]] = fp_[-1] + slope_right * (x_[x_ > xp_[-1]] - xp_[-1])
-    y *= y_multiplier
-    if is_number:
-        return y[0]
+    if xp[-1] > xp[0]:
+        y = np.interp(x, xp, fp)
+    else:
+        y = np.interp(-x, -xp, fp)
     return y
 
 def rotate_points(xy_pairs, origin, angle_deg):

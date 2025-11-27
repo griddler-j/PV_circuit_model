@@ -4,6 +4,7 @@ from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.iterative_solver import assign_nodes, iterative_solve
 import copy
 from tqdm import tqdm
+from PV_Circuit_Model.IV_jobs import *
 
 pbar = None
 x_spacing = 1.5
@@ -34,6 +35,11 @@ class CircuitComponent:
             self.dark_IV_table = None
         if self.parent is not None:
             self.parent.null_IV(keep_dark=keep_dark)
+    def build_IV(self):
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
+        self.job_heap = IV_Job_Heap(self)
+        self.job_heap.run_IV()
 
 class CircuitElement(CircuitComponent):
     def __init__(self,tag=None):
@@ -43,32 +49,12 @@ class CircuitElement(CircuitComponent):
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
-    def set_operating_point(self,V=None,I=None,refine_IV=False,top_level=True):
+    def set_operating_point(self,V=None,I=None):
         if V is not None:
             I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
         elif I is not None:
             V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
         self.operating_point = [V,I]
-        if refine_IV and hasattr(self,"I0"):
-            findright_ = np.where(self.IV_table[0,:] > V)[0]
-            findleft_ = np.where(self.IV_table[0,:] < V)[0]
-            if len(findright_)>2 and self.IV_table[0,findright_[1]]-V < 0.001/100*5 and len(findleft_)>2 and V-self.IV_table[0,findleft_[-2]] < 0.001/100*5:
-                return # already refined IV before, good
-            Vs = self.get_V_range()
-            if isinstance(self,ReverseDiode):
-                V_range = np.sort(np.concatenate([Vs, np.linspace(-V - 0.001, -V + 0.001, 100)]))
-            else:
-                V_range = np.sort(np.concatenate([Vs, np.linspace(V - 0.001, V + 0.001, 100)]))
-            self.build_IV(V=V_range)
-            
-            if top_level:
-                if V is not None:
-                    I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
-                elif I is not None:
-                    V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
-                self.operating_point = [V,I]
-            if self.parent is not None:
-                self.parent.null_IV(keep_dark=False)
     def get_value_text(self):
         pass
     def get_draw_func(self):
@@ -144,9 +130,6 @@ class CurrentSource(CircuitElement):
         if rebuild_IV:
             self.build_IV()
 
-    def build_IV(self, V=np.array([-0.1,0.1]), *args, **kwargs):
-        self.IV_table = np.array([V, self.calc_I(V)])
-
     def __str__(self):
         return "Current Source: IL = " + self.get_value_text()
     
@@ -166,8 +149,6 @@ class Resistor(CircuitElement):
             return self.cond
         else:
             return self.cond*np.ones_like(V)
-    def build_IV(self, V=np.array([-0.1,-0.05,0,0.05,0.1]), *args, **kwargs):
-        self.IV_table = np.array([V, self.calc_I(V)])
     def set_cond(self,cond):
         self.cond = cond
         self.null_IV()
@@ -241,17 +222,11 @@ class Diode(CircuitElement):
     def calc_dI_dV(self,V):
         I = self.calc_I(V)
         return I/(self.n*self.VT)
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        if V is None:
-            V = self.get_V_range(max_num_points)
-        self.IV_table = np.array([V,self.calc_I(V)])
     
 class ForwardDiode(Diode):
     def __init__(self,I0=1e-15,n=1,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift=0,tag=tag)
         self.max_I = 0.2
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        super().build_IV(V,max_num_points)
     def __str__(self):
         return "Forward Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
     def get_value_text(self):
@@ -277,14 +252,6 @@ class ReverseDiode(Diode):
     def calc_dI_dV(self,V):
         I = self.calc_I(V)
         return -I/(self.n*self.VT)
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        if V is None:
-            V = self.get_V_range(max_num_points)
-        # I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
-        self.IV_table = np.array([-V,self.calc_I(-V)])
-        # self.IV_table[1,:] += self.I0
-        # self.IV_table *= -1
-        self.IV_table = self.IV_table[:,::-1]
     def __str__(self):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
     def get_value_text(self):
@@ -325,6 +292,10 @@ class CircuitGroup(CircuitComponent):
 
     def null_all_IV(self):
         self.IV_table = None
+        if hasattr(self,"refined_IV") and self.refined_IV:
+            self.refined_IV = False
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
         if hasattr(self,"dark_IV_table"):
             self.dark_IV_table = None
         for element in self.subgroups:
@@ -339,8 +310,8 @@ class CircuitGroup(CircuitComponent):
             if isinstance(element,CircuitGroup):
                 element.reassign_parents()
 
-    def set_operating_point(self,V=None,I=None,refine_IV=False,top_level=True, refine_op_point=True):
-        refine_op_point_ = top_level and not refine_IV and refine_op_point
+    def set_operating_point(self,V=None,I=None,refine_IV=False):
+        # refine_op_point_ = top_level and not refine_IV and refine_op_point
         refine_IV_ = refine_IV
         if hasattr(self,"refined_IV") and self.refined_IV:
             refine_IV_ = False
@@ -358,23 +329,23 @@ class CircuitGroup(CircuitComponent):
                 # solar cell needs to scale IV table by area
                 if hasattr(self,"shape") and self.area is not None:
                     target_I /= self.area
-                element.set_operating_point(V=None,I=target_I,refine_IV=refine_IV_,top_level=False)
+                element.set_operating_point(V=None,I=target_I)
             else: # then all elements have same voltage
-                element.set_operating_point(V=V_,I=None,refine_IV=refine_IV_,top_level=False)
-        if refine_IV_ and top_level:
+                element.set_operating_point(V=V_,I=None)
+        if refine_IV_:
             self.refined_IV = True
-            self.build_IV()
+            self.job_heap.refine_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
                 V_ = V
             elif I is not None:
                 V_ = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
                 I_ = I
-        if refine_op_point_:
-            assign_nodes(self)
-            op_point = iterative_solve(self,V=V,I=I)
-            V_ = op_point[0]
-            I_ = op_point[1]
+        # if refine_op_point_:
+        #     assign_nodes(self)
+        #     op_point = iterative_solve(self,V=V,I=I)
+        #     V_ = op_point[0]
+        #     I_ = op_point[1]
             
         self.operating_point = [V_,I_]
         # cells also store Vint
@@ -413,173 +384,6 @@ class CircuitGroup(CircuitComponent):
             for i, element in enumerate(list_):
                 element.name = str(i)
         return list_
-    
-    def build_IV(self, max_num_points=None, cap_current=None):
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
-        # if solar cell, then express in current density
-        Vints = None
-        if hasattr(self,"shape") and self.area is not None and cap_current is not None:
-            cap_current /= self.area
-        all_circuit_element_children = True
-        for element in self.subgroups:
-            if isinstance(element,CircuitGroup):
-                all_circuit_element_children = False
-            if element.IV_table is None:
-                element.build_IV(max_num_points=max_num_points,cap_current=cap_current)
-        shift_IV_only = False 
-        total_IL = 0.0       
-        if self.connection=="series":
-            extra_Is = []
-            for iteration in [0,1]: # goes to 1 only if there is PC diode
-                # add voltage
-                Is = []
-                for element in self.subgroups:
-                    Is.extend(list(element.IV_table[1,:]))
-                if iteration==1:
-                    Is.extend(extra_Is)
-                Is = np.sort(np.array(Is))
-                if max_num_points is None:
-                    Is = np.unique(Is)
-                else:
-                    tol = (Is[-1]-Is[0])/(max_num_points*1000)
-                    quantized = np.round(Is / tol)
-                    _, idx = np.unique(quantized, return_index=True)
-                    Is = Is[idx]
-                Vs = np.zeros_like(Is)
-                Vints = np.zeros_like(Is)
-                # do reverse order to allow for photon coupling
-                pc_IVs = []
-                for element in reversed(self.subgroups):
-                    IV_table = element.IV_table
-                    if len(pc_IVs)>0:
-                        prev_subcell_V = interp_(Is,prev_IV[1,:],prev_IV[0,:])
-                        added_I = np.zeros_like(prev_subcell_V)
-                        for pc_IV in pc_IVs:
-                            added_I -= interp_(prev_subcell_V, pc_IV[0,:], pc_IV[1,:])
-                        V = interp_(Is-added_I,IV_table[1,:],IV_table[0,:])
-                        extra_Is.extend(Is+added_I)
-                    else:
-                        V = interp_(Is,IV_table[1,:],IV_table[0,:])
-                    Vs += V
-                    if hasattr(self,"shape") and isinstance(element,CircuitGroup):
-                        Vints += V
-                    pc_IVs = []
-                    prev_IV = []
-                    if hasattr(element,"photon_coupling_diodes"):
-                        prev_IV = element.IV_table
-                        for pc in element.photon_coupling_diodes:
-                            pc_IVs.append(pc.IV_table.copy())
-                            pc_IVs[-1][1,:] *= element.area
-                    if element.IV_table.shape[0]==3 and np.max(element.IV_table[2,:])>0:
-                        Vint = interp_(Is,IV_table[2,:],IV_table[0,:])
-                        Vints += Vint
-                if len(extra_Is)==0:
-                    break
-        else:
-            # add current
-            for element in self.subgroups:
-                if isinstance(element,CurrentSource):
-                    element.set_IL(element.IL)
-                    total_IL -= element.IL
-            if self.dark_IV_table is not None:
-                shift_IV_only = True
-                self.IV_table = self.dark_IV_table.copy()
-                if hasattr(self,"shape") and self.area is not None:
-                    total_IL *= self.area
-                self.IV_table[1,:] += total_IL
-            else:
-                Vs = []
-                left_limit = None
-                right_limit = None
-                for element in self.subgroups:
-                    if not isinstance(element,CurrentSource):
-                        Vs.extend(list(element.IV_table[0,:]))
-                        if isinstance(element,ForwardDiode):
-                            if right_limit is None:
-                                right_limit = element.IV_table[0,-1]
-                            else:
-                                right_limit = min(element.IV_table[0,-1],right_limit)
-                        elif isinstance(element,ReverseDiode):
-                            if left_limit is None:
-                                left_limit = element.IV_table[0,0]
-                            else:
-                                left_limit = min(element.IV_table[0,0],left_limit)
-                Vs = np.sort(np.array(Vs))
-                if left_limit is not None:
-                    find_ = np.where(Vs >= left_limit)[0]
-                    Vs = Vs[find_]
-                if right_limit is not None:
-                    find_ = np.where(Vs <= right_limit)[0]
-                    Vs = Vs[find_]
-                if max_num_points is None:
-                    Vs = np.unique(Vs)
-                else:
-                    tol = (Vs[-1]-Vs[0])/(max_num_points*1000)
-                    quantized = np.round(Vs / tol)
-                    _, idx = np.unique(quantized, return_index=True)
-                    Vs = Vs[idx]
-                Is = np.zeros_like(Vs)
-                for element in self.subgroups:
-                    if not isinstance(element,CurrentSource):
-                        Is += interp_(Vs,element.IV_table[0,:],element.IV_table[1,:])
-                Is += total_IL
-                if cap_current is not None:
-                    find_ = np.where(np.abs(Is) < cap_current)[0]
-                    Vs = Vs[find_]
-                    Is = Is[find_]
-                # plt.plot(Vs,Is)
-                # plt.show()
-
-        if shift_IV_only==False:
-            self.IV_table = np.array([Vs,Is])
-            if max_num_points is None:
-                pass
-            else:
-                V_range = np.max(Vs)-np.min(Vs)
-                I_range = np.max(Is)-np.min(Is)
-                V_segments = Vs[1:]-Vs[:-1]
-                I_segments = Is[1:]-Is[:-1]
-                segment_lengths = np.sqrt((V_segments/V_range)**2+(I_segments/I_range)**2)
-                total_length = np.sum(segment_lengths)
-                ideal_segment_length = total_length / max_num_points
-                short_segments = np.where(segment_lengths < ideal_segment_length)[0]
-                long_segments = np.where(segment_lengths >= ideal_segment_length)[0]
-                if len(short_segments)>0:
-                    short_segment_lengths = segment_lengths[short_segments]
-                    short_segment_lengths_cum = np.cumsum(short_segment_lengths)
-                    short_segment_left_V = Vs[short_segments]
-                    long_segment_left_V = Vs[long_segments]
-                    ideal_Vs = np.linspace(0,short_segment_lengths_cum[-1],max_num_points-len(long_segments))
-                    short_segment_lengths_cum -= short_segment_lengths_cum[0]
-                    index = np.searchsorted(short_segment_lengths_cum, ideal_Vs, side='right')-1
-                    new_Vs = short_segment_left_V[index] + ideal_Vs - short_segment_lengths_cum[index]
-                    new_Vs = list(new_Vs)
-                    new_Vs.extend(long_segment_left_V)
-                    new_Vs = np.sort(np.array(new_Vs))
-                    if new_Vs[0] > Vs[0]:
-                        new_Vs = np.hstack((Vs[0],new_Vs))
-                    if new_Vs[-1] < Vs[-1]:
-                        new_Vs = np.hstack((new_Vs,Vs[-1]))
-                    new_Is = interp_(new_Vs,Vs,Is)
-                    if Vints is not None:
-                        new_Vints = interp_(new_Is,Is,Vints)
-                        self.IV_table = np.array([new_Vs, new_Is, new_Vints])
-                    else:
-                        self.IV_table = np.array([new_Vs, new_Is])
-                else:
-                    if Vints is not None:
-                        self.IV_table = np.array([Vs,Is,Vints])
-                    else:
-                        self.IV_table = np.array([Vs,Is])
-            if all_circuit_element_children:
-                self.dark_IV_table = self.IV_table.copy()
-                self.dark_IV_table[1,:] -= total_IL
-            # solar cell needs to scale IV table by area
-            if hasattr(self,"shape") and self.area is not None:
-                self.IV_table[1,:] *= self.area
-                if self.dark_IV_table is not None:
-                    self.dark_IV_table[1,:] *= self.area
     
     def __str__(self):
         word = self.connection + " connection:\n"

@@ -8,11 +8,11 @@ import matplotlib.colors as mcolors
 
 class Module(CircuitGroup):
     def __init__(self,subgroups,connection="series",location=None,
-                 rotation=0,cap_current=None,name=None,temperature=25,Suns=1.0):
+                 rotation=0,name=None,temperature=25,Suns=1.0):
         super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
-        self.cap_current = cap_current
         cells = self.findElementType(Cell,serialize=True)
         self.cells = cells
+        self.max_num_points = 40*len(cells)
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
@@ -27,11 +27,6 @@ class Module(CircuitGroup):
         self.temperature = temperature
         if rebuild_IV:
             self.build_IV()
-    def build_IV(self, max_num_points=None, cap_current=None):
-        if cap_current is None:
-            cap_current = self.cap_current
-        super().build_IV(max_num_points=max_num_points,
-                         cap_current=cap_current)
 
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
 def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,fontsize=9,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):
@@ -187,7 +182,7 @@ def make_module(cells, num_strings=3, num_cells_per_halfstring=24,
                                 "parallel",name="cell_string"))
 
     tile_elements(cell_strings, rows=1, x_gap = 1, y_gap = 0.0, turn=False)
-    module = Module(cell_strings,"series",cap_current=cells[0].IL()*3)
+    module = Module(cell_strings,"series")
     module.aux["halfstring_resistor"] = halfstring_resistor
     return module
 
