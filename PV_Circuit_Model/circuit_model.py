@@ -130,9 +130,6 @@ class CurrentSource(CircuitElement):
         if rebuild_IV:
             self.build_IV()
 
-    def build_IV(self, V=np.array([-0.1,0.1]), *args, **kwargs):
-        self.IV_table = np.array([V, self.calc_I(V)])
-
     def __str__(self):
         return "Current Source: IL = " + self.get_value_text()
     
@@ -152,8 +149,6 @@ class Resistor(CircuitElement):
             return self.cond
         else:
             return self.cond*np.ones_like(V)
-    def build_IV(self, V=np.array([-0.1,-0.05,0,0.05,0.1]), *args, **kwargs):
-        self.IV_table = np.array([V, self.calc_I(V)])
     def set_cond(self,cond):
         self.cond = cond
         self.null_IV()
@@ -227,17 +222,11 @@ class Diode(CircuitElement):
     def calc_dI_dV(self,V):
         I = self.calc_I(V)
         return I/(self.n*self.VT)
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        if V is None:
-            V = self.get_V_range(max_num_points)
-        self.IV_table = np.array([V,self.calc_I(V)])
     
 class ForwardDiode(Diode):
     def __init__(self,I0=1e-15,n=1,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift=0,tag=tag)
         self.max_I = 0.2
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        super().build_IV(V,max_num_points)
     def __str__(self):
         return "Forward Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
     def get_value_text(self):
@@ -263,14 +252,6 @@ class ReverseDiode(Diode):
     def calc_dI_dV(self,V):
         I = self.calc_I(V)
         return -I/(self.n*self.VT)
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        if V is None:
-            V = self.get_V_range(max_num_points)
-        # I = self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
-        self.IV_table = np.array([-V,self.calc_I(-V)])
-        # self.IV_table[1,:] += self.I0
-        # self.IV_table *= -1
-        self.IV_table = self.IV_table[:,::-1]
     def __str__(self):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
     def get_value_text(self):
@@ -403,12 +384,6 @@ class CircuitGroup(CircuitComponent):
             for i, element in enumerate(list_):
                 element.name = str(i)
         return list_
-    
-    def build_IV(self):
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
-        self.job_heap = IV_Job_Heap(self)
-        self.job_heap.run_IV()
     
     def __str__(self):
         word = self.connection + " connection:\n"

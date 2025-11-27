@@ -124,12 +124,6 @@ class Intrinsic_Si_diode(ForwardDiode):
         V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
         V = np.array(V)
         return V
-    
-    def build_IV(self, V=None, max_num_points=100, *args, **kwargs):
-        if V is None:
-            V = self.get_V_range(max_num_points=max_num_points)
-        I = self.calc_I(V)
-        self.IV_table = np.array([V,I])
 
 class Cell(CircuitGroup):
     def __init__(self,components,connection="series",area=None,location=None,

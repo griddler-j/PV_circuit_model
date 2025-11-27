@@ -47,8 +47,6 @@ class MultiJunctionCell(CircuitGroup):
         self.temperature = temperature
         if rebuild_IV:
             self.build_IV()
-    def build_IV(self, max_num_points=None, **kwargs):
-        super().build_IV(max_num_points=max_num_points)
     def specific_Rs_cond(self):
         if self.series_resistor is None:
             return np.inf
