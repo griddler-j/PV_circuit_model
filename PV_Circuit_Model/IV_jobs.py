@@ -38,6 +38,28 @@ class KernelTimer:
     
 kernel_timer = KernelTimer()
 
+def get_runnable_iv_jobs(job_list, job_done_index, refine_mode=False):
+    include_indices = []
+    for i in range(job_done_index-1,-1,-1):
+        job = job_list[i]
+        if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<job_done_index:
+            return [job_list[j] for j in include_indices], i+1
+        if refine_mode:
+            circuit_component = job["circuit_component"]
+            type_name = type(circuit_component).__name__
+            if type_name not in ["CurrentSource", "Resistor"]:
+                include_indices.append(i)
+        else:
+            include_indices.append(i)
+    return [job_list[j] for j in include_indices], min(include_indices)
+
+def run_iv_jobs(job_list, refine_mode=False):
+    job_done_index = len(job_list)
+    while job_done_index > 0:
+        jobs, min_include_index = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
+        ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
+        job_done_index = min_include_index
+
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
     def __init__(self,circuit_component,max_num_points=None, cap_current=None):
@@ -46,13 +68,10 @@ class IV_Job_Heap:
         self.max_num_points = max_num_points
         self.cap_current = cap_current
         self.build(circuit_component,this_job_id)
-        self.job_done_index = len(self.job_list)
         # kernel_timer.register(circuit_component)
     def add(self,circuit_component,parent_id=None):
         this_job_id = len(self.job_list)
         self.job_list.append({"circuit_component": circuit_component, "children_job_ids": [], "done": False})
-        if parent_id is not None:
-            self.job_list[parent_id]["children_job_ids"].append(this_job_id)
         return this_job_id
     def build(self,circuit_component,this_job_id=None):
         if hasattr(circuit_component,"subgroups"):
@@ -60,6 +79,7 @@ class IV_Job_Heap:
             for _, element in enumerate(circuit_component.subgroups):
                 if element.IV_table is None:
                     new_job_id = self.add(element, parent_id=this_job_id)
+                    self.job_list[this_job_id]["children_job_ids"].append(new_job_id)
                     new_job_ids.append(new_job_id)
                 else:
                     new_job_ids.append(-1)
@@ -80,17 +100,10 @@ class IV_Job_Heap:
             else:
                 include_indices.append(i)
         return [self.job_list[j] for j in include_indices], min(include_indices)
-    def run_jobs(self,refine_mode=False):
-        # kernel_timer.tic()
-        while self.job_done_index > 0:
-            jobs, min_include_index = self.get_runnable_jobs(refine_mode=refine_mode)
-            kernel_ms = ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
-            # kernel_timer.inc(kernel_ms)
-            self.job_done_index = min_include_index
-        # kernel_timer.toc()
-    def refine_IV(self, circuit_component):
-        self.job_done_index = len(self.job_list)
-        self.run_jobs(refine_mode=True)
+    def run_IV(self):
+        run_iv_jobs(self.job_list)
+    def refine_IV(self):
+        run_iv_jobs(self.job_list, refine_mode=True)
     def __str__(self):
         return str(self.job_list)
 
