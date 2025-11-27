@@ -10,6 +10,7 @@
 #include <omp.h> 
 #include <chrono>
 #include "ivkernel.h"
+#include <numeric>
 
 extern "C" {
 
@@ -569,127 +570,60 @@ double combine_iv_job(int connection,
             Is.resize(write);
         }
     }
-    // remesh
-    if (max_num_points > 0) {
-        double V_range = Vs.back() - Vs.front();
-        double I_range = Is.back() - Is.front();
-        std::vector<double> segment_lengths(Vs.size()-1);
-        double total_length = 0.0;
-        for (int i=0; i<(int)segment_lengths.size(); ++i) {
-            double dv = (Vs[i+1]-Vs[i])/V_range;
-            double di = (Is[i+1]-Is[i])/I_range;
-            segment_lengths[i] = std::sqrt(dv * dv + di * di);
-            total_length = total_length + segment_lengths[i];
+    // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
+    // 1. from existing mesh get second derivative.  
+    // 2. Keep only (max_num_points-2) points with largest second derivatives, plus the end points
+    // bonus: no re-interp necessary at all
+    if (max_num_points > -1)    std::printf("cpp: yo max_num_points = %d\n",max_num_points);
+    if (max_num_points > 2 && Vs.size() > max_num_points) {
+        std::printf("cpp: yo remesh\n");
+        std::fflush(stdout); 
+        int n = static_cast<int>(Vs.size());
+        int n_internal = n - 2;  // indices 1..n-2
+
+        std::vector<double> abs_d2I_dV2(n_internal);
+        double this_slope = (Is[1] - Is[0]) / (Vs[1] - Vs[0]);
+
+        for (int i = 1; i < n - 1; ++i) {
+            double next_slope = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
+            abs_d2I_dV2[i - 1] =
+                std::abs((next_slope - this_slope) / (Vs[i+1] - Vs[i-1]));
+            this_slope = next_slope;
         }
-        double ideal_segment_length = total_length / max_num_points;
-        std::vector<int> short_segments;
-        std::vector<int> long_segments;
-        std::vector<double> short_segment_lengths;
-        std::vector<double> short_segment_lengths_cum;
-        short_segments.reserve((int)segment_lengths.size());
-        long_segments.reserve((int)segment_lengths.size());
-        short_segment_lengths.reserve((int)segment_lengths.size());
-        short_segment_lengths_cum.reserve((int)segment_lengths.size());
-        for (int i = 0; i < (int)segment_lengths.size(); ++i) {
-            if (segment_lengths[i] < ideal_segment_length) {
-                short_segments.push_back(i);
-                short_segment_lengths.push_back(segment_lengths[i]);
-                short_segment_lengths_cum.push_back(segment_lengths[i]);
-                int s = short_segment_lengths_cum.size();
-                if (s > 1) short_segment_lengths_cum[s-1] = short_segment_lengths_cum[s-1] + short_segment_lengths_cum[s-2];
-            } else {
-                long_segments.push_back(i);
-            }
+
+        // argsort internal indices 1..n-2 by descending curvature
+        std::vector<int> idx(n_internal);
+        std::iota(idx.begin(), idx.end(), 1);  // store real mesh indices 1..n-2
+
+        std::sort(idx.begin(), idx.end(),
+            [&](int a, int b) {
+                return abs_d2I_dV2[a - 1] > abs_d2I_dV2[b - 1];
+            });
+
+        // keep only (max_num_points - 2) internal points
+        int n_internal_keep = max_num_points - 2;
+        if (n_internal_keep > n_internal)
+            n_internal_keep = n_internal;
+        idx.resize(n_internal_keep);
+
+        // add endpoints 0 and n-1
+        idx.push_back(0);
+        idx.push_back(n - 1);
+
+        // sort indices in ascending order
+        std::sort(idx.begin(), idx.end());
+
+        // remesh
+        std::vector<double> new_Vs(idx.size());
+        std::vector<double> new_Is(idx.size());
+        for (std::size_t i = 0; i < idx.size(); ++i) {
+            new_Vs[i] = Vs[idx[i]];
+            new_Is[i] = Is[idx[i]];
         }
-        if (short_segments.size()>0) {
-            // how many “short” samples we want
-            int n_target = max_num_points - (int)long_segments.size();
-            if (n_target < 1) n_target = 1;
-            // ideal_Vs: linspace(0, short_segment_lengths_cum.back(), n_target)
-            std::vector<double> ideal_Vs(n_target);
-            double L_total = short_segment_lengths_cum.back();
-            if (n_target == 1) {
-                ideal_Vs[0] = L_total;  // or 0.0, depending how close you want to match np.linspace
-            } else {
-                for (int k = 0; k < n_target; ++k) {
-                    ideal_Vs[k] = L_total * (double)k / (double)(n_target - 1);
-                }
-            }
-            // index = searchsorted(short_segment_lengths_cum, ideal_Vs, side='right') - 1
-            std::vector<int> index(n_target);
-            for (int k = 0; k < n_target; ++k) {
-                double v = ideal_Vs[k];
-                auto it = std::upper_bound(short_segment_lengths_cum.begin(),short_segment_lengths_cum.end(),v);  // first element > v
-                int idx = static_cast<int>(it - short_segment_lengths_cum.begin()) - 1;
-                if (idx < 0) idx = 0;  // clamp like numpy’s behavior for very small v
-                index[k] = idx;
-            }
-            
-            // ---- Build left-endpoint arrays for short and long segments ----
-            std::vector<double> short_segment_left_V(short_segments.size());
-            for (size_t j = 0; j < short_segments.size(); ++j) {
-                short_segment_left_V[j] = Vs[ short_segments[j] ];
-            }
 
-            std::vector<double> long_segment_left_V(long_segments.size());
-            for (size_t j = 0; j < long_segments.size(); ++j) {
-                long_segment_left_V[j] = Vs[ long_segments[j] ];
-            }
-
-            // ---- new_Vs = short_segment_left_V[index] + ideal_Vs - short_segment_lengths_cum[index] ----
-            std::vector<double> new_Vs;
-            new_Vs.reserve(index.size() + long_segment_left_V.size() + 2); // +2 for endpoints
-
-            for (size_t k = 0; k < index.size(); ++k) {
-                int idx = index[k];  // index into short_segments / short_segment_left_V / short_segment_lengths_cum
-
-                double left_V = short_segment_left_V[idx];
-                double cum_L  = short_segment_lengths_cum[idx];
-                double v      = left_V + ideal_Vs[k] - cum_L;
-
-                new_Vs.push_back(v);
-            }
-
-            // ---- new_Vs.extend(long_segment_left_V) ----
-            new_Vs.insert(new_Vs.end(), long_segment_left_V.begin(), long_segment_left_V.end());
-
-            // ---- new_Vs = np.sort(new_Vs) ----
-            std::sort(new_Vs.begin(), new_Vs.end());
-
-            // ---- If needed, ensure endpoints cover [Vs.front(), Vs.back()] ----
-            if (!new_Vs.empty() && new_Vs.front() > Vs.front()) {
-                new_Vs.insert(new_Vs.begin(), Vs.front());
-            }
-            if (!new_Vs.empty() && new_Vs.back() < Vs.back()) {
-                new_Vs.push_back(Vs.back());
-            }
-
-            // ---- new_Is = interp_(new_Vs, Vs, Is) ----
-            // Assuming you have a monotonic interp like:
-            //   interp_monotonic_inc(x, y, n, xq, m, yq, additive)
-            std::vector<double> new_Is(new_Vs.size(), 0.0);
-
-            interp_monotonic_inc(
-                Vs.data(),          // x  (original V grid)
-                Is.data(),          // y  (original I(V))
-                (int)Vs.size(),
-                new_Vs.data(),      // xq (new grid)
-                (int)new_Vs.size(),
-                new_Is.data(),      // yq
-                false               // additive = false → overwrite, not accumulate
-            );
-
-            int n_out = (int)new_Vs.size();
-            std::memcpy(out_V, new_Vs.data(), n_out * sizeof(double));
-            std::memcpy(out_I, new_Is.data(), n_out * sizeof(double));
-            *out_len = n_out;
-            auto t1 = std::chrono::high_resolution_clock::now();
-            double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-
-            return ms;
-
-        }
-    } 
+        Vs.swap(new_Vs);
+        Is.swap(new_Is);
+    }
     if (area != 1) {
         for (int i=0; i<Is.size(); i++) Is[i] *= area;
     }

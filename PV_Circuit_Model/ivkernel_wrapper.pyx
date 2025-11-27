@@ -116,6 +116,7 @@ def run_multiple_jobs(jobs,refine_mode=False):
     cdef int num_threads = min(n_jobs,32)
     if n_jobs > 8:
         num_threads = 8
+    num_threads = 1
 
     try:
         for i in range(n_jobs):
@@ -403,9 +404,10 @@ def run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mod
     cdef double kernel_ms
     cdef int olen
 
-    cdef int num_threads = min(n_jobs,32)
+    cdef int num_threads = 1
+    '''min(n_jobs,32)
     if n_jobs > 8:
-        num_threads = 8
+        num_threads = 8'''
 
     try:
         for i in range(n_jobs):

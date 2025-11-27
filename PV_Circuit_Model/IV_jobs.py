@@ -139,9 +139,6 @@ def make_simplified_job_list(job_list):
         area = 1.0
         if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
             area = circuit_component.area
-        cap_current = -1.0
-        if hasattr(circuit_component,"cap_current"):
-            cap_current = circuit_component.cap_current if circuit_component.cap_current is not None else -1.0
         max_num_points = -1
         if hasattr(circuit_component,"max_num_points"):
             max_num_points = circuit_component.max_num_points if circuit_component.max_num_points is not None else -1
@@ -178,7 +175,7 @@ def make_simplified_job_list(job_list):
                             "operating_V": operating_V,
                             "all_children_are_CircuitElement": all_children_are_CircuitElement,
                             "max_I": max_I,"params":params,"area":area,"connection":connection,
-                            "IV": circuit_component.IV_table, "dark_IV": dark_IV,"cap_current":cap_current,"max_num_points":max_num_points,
+                            "IV": circuit_component.IV_table, "dark_IV": dark_IV,"max_num_points":max_num_points,
                             "children_job_ids": job["children_job_ids"], "children_job_ids_ordered": job["children_job_ids_ordered"]})
         if hasattr(circuit_component,"photon_coupling_diodes") and len(circuit_component.photon_coupling_diodes)>0:
             job_list_[-1]["pc_IV_table"] = circuit_component.photon_coupling_diodes[0].IV_table
@@ -219,12 +216,11 @@ def run_iv_job_heaps_parallel(job_list_list,refine_mode=False):
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
-    def __init__(self,circuit_component,max_num_points=None, cap_current=None):
+    def __init__(self,circuit_component,max_num_points = None):
         self.job_list = []
         self.add(circuit_component) # now job_list has one
-        self.max_num_points = max_num_points
-        self.cap_current = cap_current
         self.build()
+        self.max_num_points = max_num_points
         # kernel_timer.register(circuit_component)
     def add(self,circuit_component):
         self.job_list.append({"circuit_component": circuit_component, "children_job_ids": [], "children_job_ids_ordered": []})
@@ -247,12 +243,6 @@ class IV_Job_Heap:
     def run_IV(self):
         run_iv_jobs(self.job_list)
     def refine_IV(self):
-        # circuit_component = self.job_list[0]["circuit_component"]
-        # if type(circuit_component.subgroups[0]).__name__=="Module":
-        #     job_list_list = []
-        #     for module in circuit_component.subgroups:
-        #         job_list_list.append(module.job_heap.job_list)
-        #     run_iv_job_heaps_parallel(job_list_list,refine_mode=True)
         run_iv_jobs(self.job_list, refine_mode=True)
     def __str__(self):
         return str(self.job_list)

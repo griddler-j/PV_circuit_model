@@ -336,33 +336,6 @@ class Cell(CircuitGroup):
         self.set_specific_shunt_cond(1/Rsh)
     def set_shunt_res(self,Rsh):
         self.set_specific_shunt_res(Rsh*self.area)
-
-class Module(CircuitGroup):
-    def __init__(self,subgroups,connection="series",location=np.array([0,0]),
-                 rotation=0,cap_current=None,name=None,temperature=25,Suns=1.0):
-        super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
-        if self.location is None:
-            self.location = np.array([0,0])
-        self.cap_current = cap_current
-        cells = self.findElementType(Cell,serialize=True)
-        self.cells = cells
-        self.temperature = temperature
-        self.set_temperature(temperature)
-        self.Suns = Suns
-        self.set_Suns(Suns)     
-    def set_Suns(self,Suns, rebuild_IV=True):
-        for cell in self.cells:
-            cell.set_Suns(Suns=Suns, rebuild_IV=False)
-        if rebuild_IV:
-            self.build_IV()
-    def set_temperature(self,temperature, rebuild_IV=True):
-        super().set_temperature(temperature,rebuild_IV=False)
-        self.temperature = temperature
-        if rebuild_IV:
-            self.build_IV()
-    def build_IV(self, max_num_points=500):
-        super().build_IV(max_num_points=max_num_points,
-                         cap_current=self.cap_current)
     
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
 def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",min_value=None,max_value=None,title="Cells Layout",colormap=cm.plasma):
