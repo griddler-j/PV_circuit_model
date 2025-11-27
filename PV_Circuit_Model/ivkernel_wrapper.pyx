@@ -162,8 +162,8 @@ def run_multiple_jobs(jobs,refine_mode=False):
                 # CircuitGroup or unknown
                 params = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float64)
 
-            owned_buffers.append(params)
             params = np.ascontiguousarray(params, dtype=np.float64)
+            owned_buffers.append(params)
             mv_params = params
             
 
@@ -414,8 +414,8 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
             # ----- build circuit_element_parameters (matches your C++ expectations) -----
             max_I = job["max_I"]
             params = job["params"]
-            owned_buffers.append(params)
             params = np.ascontiguousarray(params, dtype=np.float64)
+            owned_buffers.append(params)
             mv_params = params
 
             # ----- scalar fields -----
@@ -462,6 +462,7 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
                     arr = source["IV"]
                     if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
                         arr = np.ascontiguousarray(arr, dtype=np.float64)
+                    owned_buffers.append(arr)
                     mv_child = arr
                     Ni = mv_child.shape[1]
                     abs_max_num_points += Ni
@@ -487,12 +488,13 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
                     source = aux_IV_list[-id]
                 element_area = 0
                 Ni = 0
-                if "pc_IV_table" in source::
+                if "pc_IV_table" in source:
                     abs_max_num_points_multipier += 1
                     # ensure IV_table is C-contiguous float64 (2, Ni)
                     arr = source["pc_IV_table"]
                     if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
                         arr = np.ascontiguousarray(arr, dtype=np.float64)
+                    owned_buffers.append(arr)
                     mv_child_pc = arr
                     element_area = source["pc_IV_table_scale"]
                     Ni = mv_child_pc.shape[1]
@@ -541,6 +543,7 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
                 arr = job["dark_IV"]
                 if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
                     arr = np.ascontiguousarray(arr, dtype=np.float64)
+                owned_buffers.append(arr)
                 mv_dark = arr   # (2, Ni_dark)
                 Ni = mv_dark.shape[1]
                 jobs_c[i].dark_IV.V           = &mv_dark[0, 0]
@@ -563,7 +566,7 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
             jobs[i]["IV"] = out_IV_list[i][:, :olen]
             if jobs_c[i].all_children_are_CircuitElement==1:
                 jobs[i]["dark_IV"] = jobs[i]["IV"].copy()
-                jobs[i]["dark_IV"] -= jobs_c[i].total_IL*jobs_c[i].area
+                jobs[i]["dark_IV"][1, :] -= jobs_c[i].total_IL*jobs_c[i].area
 
     finally:
         free(jobs_c)

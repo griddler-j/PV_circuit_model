@@ -47,10 +47,14 @@ def get_runnable_iv_jobs(job_list, job_done_index, refine_mode=False):
         if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<job_done_index:
             return [job_list[j] for j in include_indices], i+1
         if refine_mode:
-            circuit_component = job["circuit_component"]
-            type_name = type(circuit_component).__name__
-            if type_name not in ["CurrentSource", "Resistor"]:
-                include_indices.append(i)
+            if "circuit_component_type_number" in job:
+                if job["circuit_component_type_number"] > 1:
+                    include_indices.append(i)
+            else:
+                circuit_component = job["circuit_component"]
+                type_name = type(circuit_component).__name__
+                if type_name not in ["CurrentSource", "Resistor"]:
+                    include_indices.append(i)
         else:
             include_indices.append(i)
     return [job_list[j] for j in include_indices], 0
@@ -68,6 +72,7 @@ def run_iv_jobs_simplified(job_list, aux_IV_list, refine_mode=False):
         jobs, min_include_index = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
         ivkernel.run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=refine_mode)
         job_done_index = min_include_index
+    return [{"IV_table": job["IV"],"dark_IV_table": job["dark_IV"]} for job in job_list] 
 
 def make_simplified_job_list(job_list):
     type_numbers = {
@@ -204,7 +209,6 @@ def run_iv_job_heaps_parallel(job_list_list,refine_mode=False):
             circuit_component.IV_table = result[j]["IV_table"]
             if result[j]["dark_IV_table"] is not None:
                 circuit_component.dark_IV_table = result[j]["dark_IV_table"]
-
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
