@@ -45,7 +45,10 @@ def get_runnable_iv_jobs(job_list, job_done_index, refine_mode=False):
     for i in range(job_done_index-1,-1,-1):
         job = job_list[i]
         if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<job_done_index:
-            return [job_list[j] for j in include_indices], i+1
+            if "circuit_component_type_number" in job:
+                return include_indices
+            else:
+                return [job_list[j] for j in include_indices], i+1
         if refine_mode:
             if "circuit_component_type_number" in job:
                 if job["circuit_component_type_number"] > 1:
@@ -57,7 +60,10 @@ def get_runnable_iv_jobs(job_list, job_done_index, refine_mode=False):
                     include_indices.append(i)
         else:
             include_indices.append(i)
-    return [job_list[j] for j in include_indices], 0
+    if "circuit_component_type_number" in job:
+        return include_indices
+    else:
+        return [job_list[j] for j in include_indices], 0
 
 def run_iv_jobs(job_list, refine_mode=False):
     job_done_index = len(job_list)
@@ -69,9 +75,9 @@ def run_iv_jobs(job_list, refine_mode=False):
 def run_iv_jobs_simplified(job_list, aux_IV_list, refine_mode=False):
     job_done_index = len(job_list)
     while job_done_index > 0:
-        jobs, min_include_index = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
-        ivkernel.run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=refine_mode)
-        job_done_index = min_include_index
+        include_indices = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
+        ivkernel.run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mode=refine_mode)
+        job_done_index = min(include_indices)
     return [{"IV_table": job["IV"],"dark_IV_table": job["dark_IV"]} for job in job_list] 
 
 def make_simplified_job_list(job_list):
@@ -192,7 +198,8 @@ def make_simplified_job_list(job_list):
     return job_list_, aux_IV_list_
 
 def run_iv_job_heaps_parallel(job_list_list,refine_mode=False):
-    n_workers = min(len(job_list_list), multiprocessing.cpu_count())
+    # n_workers = min(len(job_list_list), multiprocessing.cpu_count())
+    n_workers = 26
     # simplify the list structure first
     job_list_list_ = []
     for job_list in job_list_list:
@@ -214,32 +221,38 @@ def run_iv_job_heaps_parallel(job_list_list,refine_mode=False):
 class IV_Job_Heap:
     def __init__(self,circuit_component,max_num_points=None, cap_current=None):
         self.job_list = []
-        this_job_id = self.add(circuit_component)
+        self.add(circuit_component) # now job_list has one
         self.max_num_points = max_num_points
         self.cap_current = cap_current
-        self.build(circuit_component,this_job_id)
+        self.build()
         # kernel_timer.register(circuit_component)
-    def add(self,circuit_component,parent_id=None):
-        this_job_id = len(self.job_list)
+    def add(self,circuit_component):
         self.job_list.append({"circuit_component": circuit_component, "children_job_ids": [], "children_job_ids_ordered": []})
-        return this_job_id
-    def build(self,circuit_component,this_job_id=None):
-        if hasattr(circuit_component,"subgroups"):
-            new_job_ids = []
-            for _, element in enumerate(circuit_component.subgroups):
-                if element.IV_table is None:
-                    new_job_id = self.add(element, parent_id=this_job_id)
-                    self.job_list[this_job_id]["children_job_ids"].append(new_job_id)
-                    new_job_ids.append(new_job_id)
-                else:
-                    new_job_ids.append(-1)
-            self.job_list[this_job_id]["children_job_ids_ordered"] = new_job_ids
-            for i, element in enumerate(circuit_component.subgroups):
-                if element.IV_table is None:
-                    self.build(element, this_job_id=new_job_ids[i])
+        return len(self.job_list)-1
+    def build(self):
+        pos = 0
+        while pos < len(self.job_list):
+            circuit_component = self.job_list[pos]["circuit_component"] 
+            if hasattr(circuit_component,"subgroups"):
+                new_job_ids = []
+                for _, element in enumerate(circuit_component.subgroups):
+                    if element.IV_table is None:
+                        new_job_id = self.add(element)
+                        self.job_list[pos]["children_job_ids"].append(new_job_id)
+                        new_job_ids.append(new_job_id)
+                    else:
+                        new_job_ids.append(-1)
+                self.job_list[pos]["children_job_ids_ordered"] = new_job_ids
+            pos += 1
     def run_IV(self):
         run_iv_jobs(self.job_list)
     def refine_IV(self):
+        # circuit_component = self.job_list[0]["circuit_component"]
+        # if type(circuit_component.subgroups[0]).__name__=="Module":
+        #     job_list_list = []
+        #     for module in circuit_component.subgroups:
+        #         job_list_list.append(module.job_heap.job_list)
+        #     run_iv_job_heaps_parallel(job_list_list,refine_mode=True)
         run_iv_jobs(self.job_list, refine_mode=True)
     def __str__(self):
         return str(self.job_list)

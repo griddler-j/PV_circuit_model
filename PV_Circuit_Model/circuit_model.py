@@ -306,6 +306,10 @@ class CircuitGroup(CircuitComponent):
 
     def null_all_IV(self):
         self.IV_table = None
+        if hasattr(self,"refined_IV") and self.refined_IV:
+            self.refined_IV = False
+        if hasattr(self,"IV_parameters"):
+            del self.IV_parameters
         if hasattr(self,"dark_IV_table"):
             self.dark_IV_table = None
         for element in self.subgroups:
@@ -344,7 +348,7 @@ class CircuitGroup(CircuitComponent):
                 element.set_operating_point(V=V_,I=None)
         if refine_IV_:
             self.refined_IV = True
-            self.job_heap.refine_IV(self)
+            self.job_heap.refine_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
                 V_ = V
@@ -399,8 +403,15 @@ class CircuitGroup(CircuitComponent):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
 
+        # if type(self.subgroups[0]).__name__=="Module":
+        #     job_list_list = []
+        #     for module in self.subgroups:
+        #         module.job_heap = IV_Job_Heap(module, max_num_points=max_num_points, cap_current=cap_current)
+        #         job_list_list.append(module.job_heap.job_list)
+        #     run_iv_job_heaps_parallel(job_list_list,refine_mode=False)
+
         self.job_heap = IV_Job_Heap(self, max_num_points=max_num_points, cap_current=cap_current)
-        self.job_heap.run_jobs()
+        self.job_heap.run_IV()
         return
 
         # if solar cell, then express in current density

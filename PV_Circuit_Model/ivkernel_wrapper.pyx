@@ -341,7 +341,8 @@ def run_multiple_jobs(jobs,refine_mode=False):
 
 
 
-def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
+def run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mode=False):
+    jobs = [job_list[j] for j in include_indices]
     cdef Py_ssize_t n_jobs = len(jobs)
     if n_jobs == 0:
         return [], 0.0
@@ -401,6 +402,7 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
     cdef int olen
+
     cdef int num_threads = min(n_jobs,32)
     if n_jobs > 8:
         num_threads = 8
@@ -447,7 +449,7 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
             for j in range(n_children):
                 id = job["children_job_ids_ordered"][j]
                 if id > 0:
-                    source = jobs[id]
+                    source = job_list[id]
                 else:
                     source = aux_IV_list[-id]
                 type_number = source["circuit_component_type_number"]
@@ -483,7 +485,7 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
             for j in range(n_children):
                 id = job["children_job_ids_ordered"][j]
                 if id > 0:
-                    source = jobs[id]
+                    source = job_list[id]
                 else:
                     source = aux_IV_list[-id]
                 element_area = 0
@@ -541,7 +543,11 @@ def run_multiple_jobs_simplified(jobs,aux_IV_list,refine_mode=False):
             if "dark_IV" in job and job["dark_IV"] is not None:
                 # ensure IV_table is C-contiguous float64 (2, Ni)
                 arr = job["dark_IV"]
-                if (not arr.flags["C_CONTIGUOUS"]) or (arr.dtype != np.float64):
+                # ensure (2, Ni), float64, C-contiguous, *and writeable*
+                if ((not arr.flags["C_CONTIGUOUS"])
+                    or (arr.dtype != np.float64)
+                    or (not arr.flags["WRITEABLE"])):
+                    arr = np.array(arr, dtype=np.float64, copy=True)
                     arr = np.ascontiguousarray(arr, dtype=np.float64)
                 owned_buffers.append(arr)
                 mv_dark = arr   # (2, Ni_dark)
