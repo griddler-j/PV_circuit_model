@@ -16,16 +16,12 @@ class Module(CircuitGroup):
         self.set_temperature(temperature)
         self.Suns = Suns
         self.set_Suns(Suns)     
-    def set_Suns(self,Suns, rebuild_IV=True):
+    def set_Suns(self,Suns):
         for cell in self.cells:
-            cell.set_Suns(Suns=Suns, rebuild_IV=False)
-        if rebuild_IV:
-            self.build_IV()
-    def set_temperature(self,temperature, rebuild_IV=True):
-        super().set_temperature(temperature,rebuild_IV=False)
+            cell.set_Suns(Suns=Suns)
+    def set_temperature(self,temperature):
+        super().set_temperature(temperature)
         self.temperature = temperature
-        if rebuild_IV:
-            self.build_IV()
 
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
 def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,fontsize=9,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):
@@ -233,9 +229,7 @@ def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
     return cell_col_row, map, inverse_map
 CircuitGroup.get_cell_col_row = get_cell_col_row
 
-def set_Suns(circuit_group, suns, rebuild_IV=True):
+def set_Suns(circuit_group, suns):
     modules = circuit_group.findElementType(Module)
     for module in modules:
-        module.set_Suns(suns, rebuild_IV=rebuild_IV)
-    if rebuild_IV:
-        circuit_group.build_IV()
+        module.set_Suns(suns)

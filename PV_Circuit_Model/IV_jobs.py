@@ -46,27 +46,16 @@ def run_iv_jobs(components, children_job_ids, refine_mode=False):
     pbar = None
     if job_done_index > 100000:
         pbar = tqdm(total=job_done_index, desc="Processing the circuit hierarchy: ")
-    t2 = 0
-    t2b = 0
-
     while job_done_index > 0:
-        t1 = time.time()
         components_, min_index = get_runnable_iv_jobs(components, children_job_ids, job_done_index)
-        t2 += time.time()-t1
-
-        t1b = time.time()
-        kernel_ms, packing_time, unpacking_time = 0,0,0
         if len(components_) > 0:
-            kernel_ms, packing_time, unpacking_time = ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode)
-        lapse = time.time()-t1
-        print(f"Took {lapse}s, {packing_time}s packing_time, {kernel_ms/1000:.2f}s kernel time, {unpacking_time}s unpacking_time, to run {len(components_)} jobs")
-        t2b += lapse
+            ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode)
         if pbar is not None:
             pbar.update(job_done_index-min_index)
         job_done_index = min_index
     if pbar is not None:
         pbar.close()
     
-    print(f"Dang, took {t2}s to get runnable iv jobs, {t2b}s to run them")
+    # print(f"Dang, took {t2}s to get runnable iv jobs, {t2b}s to run them")
 
 

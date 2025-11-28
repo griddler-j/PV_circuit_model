@@ -152,7 +152,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
     for inner_k in range(100):
         trial_cell = make_solar_cell(Jsc, max_J01, 0.0, Rshunt, 
                                      Rs, Si_intrinsic_limit=Si_intrinsic_limit, **kwargs)
-        trial_cell.set_temperature(temperature,rebuild_IV=False)
+        trial_cell.set_temperature(temperature)
         trial_cell.set_Suns(Sun)
         Voc_ = trial_cell.get_Voc()
         if abs(Voc_-Voc) < 1e-10:
@@ -162,7 +162,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
     for inner_k in range(100):
         trial_cell = make_solar_cell(Jsc, 0.0, max_J02, Rshunt, Rs, 
                                      Si_intrinsic_limit=Si_intrinsic_limit,**kwargs)
-        trial_cell.set_temperature(temperature,rebuild_IV=False)
+        trial_cell.set_temperature(temperature)
         trial_cell.set_Suns(Sun)
         Voc_ = trial_cell.get_Voc()
         if abs(Voc_-Voc) < 1e-10:
@@ -196,7 +196,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
                 trial_J02 = min(trial_J02, max_J02)
             trial_cell = make_solar_cell(Jsc, trial_J01, trial_J02, Rshunt, Rs,
                                          Si_intrinsic_limit=Si_intrinsic_limit,**kwargs)
-            trial_cell.set_temperature(temperature,rebuild_IV=False)
+            trial_cell.set_temperature(temperature)
             trial_cell.set_Suns(Sun)
             Voc_ = trial_cell.get_Voc()
             if abs(Voc_-Voc) < 1e-10 or (trial_J02==0 and Voc_<Voc) or (trial_J02==max_J02 and Voc_>Voc):
@@ -300,7 +300,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
         record = []
         for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
             module = make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, halfstring_resistor = try_R, butterfly=butterfly)
-            module.set_Suns(1.0,rebuild_IV=False)
+            module.set_Suns(1.0)
             module.build_IV()
             Pmax = module.get_Pmax()
             record.append([try_R, Pmax, cell.get_Pmax()])
@@ -321,7 +321,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
             cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=half_cut,**kwargs)
             cells = [circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
             module = make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, butterfly=butterfly)
-            module.set_Suns(1.0,rebuild_IV=False)
+            module.set_Suns(1.0)
             module.build_IV()
             Pmax = module.get_Pmax()
             record.append([try_FF, Pmax, cell.get_Pmax()])

@@ -308,15 +308,16 @@ class IV_measurement(Measurement):
         JL = self.measurement_condition["JL"]
         if device is None:
             device = self.parent_device
-        device.set_temperature(temperature,rebuild_IV=False)
+        device.set_temperature(temperature)
         if JL is not None:
-            device.set_JL(JL,rebuild_IV=False)
+            device.set_JL(JL)
             device.set_Suns(1.0)
         elif IL is not None:
-            device.set_IL(IL,rebuild_IV=False)
+            device.set_IL(IL)
             device.set_Suns(1.0)
         else:
             device.set_Suns(Suns)
+        device.build_IV()
         self.simulated_data = device.IV_table
         self.derive_key_parameters(self.simulated_data, self.simulated_key_parameters, self.measurement_condition)
     def plot_func(self,data,color="black",ax=None,title=None,kwargs={}):
@@ -433,7 +434,8 @@ def simulate_Suns_Voc(cell, Suns=None, Iscs=None):
         assert(Suns.shape[0]==subcells_num)
         Iscs = np.ones_like(Suns)*np.nan
     Vocs = []
-    cell.set_Suns(1.0, rebuild_IV=False)
+    cell.set_Suns(1.0)
+    cell.build_IV()
     for i, _ in enumerate(Suns[0,:]):
         if not np.isnan(Suns[0,i]):
             if isinstance(cell,MultiJunctionCell):

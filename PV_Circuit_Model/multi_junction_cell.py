@@ -21,32 +21,24 @@ class MultiJunctionCell(CircuitGroup):
         self.set_temperature(temperature)
         self.Suns = Suns
         self.set_Suns(Suns)     
-    def set_Suns(self,Suns, rebuild_IV=True):
+    def set_Suns(self,Suns):
         if isinstance(Suns,numbers.Number):
             Suns = [Suns]*len(self.cells)
         for i, cell in enumerate(self.cells):
-            cell.set_Suns(Suns=Suns[i], rebuild_IV=False)
-        if rebuild_IV:
-            self.build_IV()
-    def set_JL(self,JL,Suns=1.0,temperature=25,rebuild_IV=True):
+            cell.set_Suns(Suns=Suns[i])
+    def set_JL(self,JL,Suns=1.0,temperature=25):
         if isinstance(JL,numbers.Number):
             JL = [JL]*len(self.cells)
         for i, cell in enumerate(self.cells):
             cell.set_JL(JL[i], Suns=Suns, temperature=temperature)
-        if rebuild_IV:
-            self.build_IV()
-    def set_IL(self,IL,Suns=1.0,temperature=25,rebuild_IV=True):
+    def set_IL(self,IL,Suns=1.0,temperature=25):
         if isinstance(IL,numbers.Number):
             IL = [IL]*len(self.cells)
         for i, cell in enumerate(self.cells):
             cell.set_IL(IL[i], Suns=Suns, temperature=temperature)
-        if rebuild_IV:
-            self.build_IV()
-    def set_temperature(self,temperature, rebuild_IV=True):
-        super().set_temperature(temperature,rebuild_IV=False)
+    def set_temperature(self,temperature):
+        super().set_temperature(temperature)
         self.temperature = temperature
-        if rebuild_IV:
-            self.build_IV()
     def specific_Rs_cond(self):
         if self.series_resistor is None:
             return np.inf

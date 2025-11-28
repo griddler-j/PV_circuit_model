@@ -65,13 +65,11 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.base_type = source.base_type
         self.base_doping = source.base_doping
         self.temperature = source.temperature
-    def changeTemperature(self,temperature,rebuild_IV=True):
+    def changeTemperature(self,temperature):
         self.temperature = temperature
         self.VT = get_VT(self.temperature)
         self.ni = get_ni(self.temperature)
         self.null_IV()
-        if rebuild_IV:
-            self.build_IV()
     def calc_I(self,V,get_dI_dV=False):
         ni = get_ni(self.temperature)
         VT = get_VT(self.temperature)
@@ -139,7 +137,6 @@ class Cell(CircuitGroup):
         self.area = area
         self.is_cell = True
         self.shape = shape
-        self.build_IV()
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
@@ -167,19 +164,15 @@ class Cell(CircuitGroup):
             if i < len(cell2.diode_branch.subgroups):
                 element.copy(cell2.diode_branch.subgroups[i])
 
-    def set_Suns(self,Suns,rebuild_IV=True):
+    def set_Suns(self,Suns):
         self.Suns = Suns
         currentSources = self.findElementType(CurrentSource)
         for currentSource in currentSources:
             currentSource.changeTemperatureAndSuns(Suns=Suns)
-        if rebuild_IV:
-            self.build_IV()
     
-    def set_temperature(self,temperature,rebuild_IV=True):
+    def set_temperature(self,temperature):
         super().set_temperature(temperature)
         self.temperature = temperature
-        if rebuild_IV:
-            self.build_IV()
 
     def JL(self):
         JL = 0.0
@@ -191,7 +184,7 @@ class Cell(CircuitGroup):
     def IL(self):
         return self.JL()*self.area     
     
-    def set_JL(self,JL,Suns=1.0,temperature=25,rebuild_IV=True):
+    def set_JL(self,JL,Suns=1.0,temperature=25):
         currentSources = self.findElementType(CurrentSource)
         for currentSource in currentSources:
             if currentSource.tag != "defect":
@@ -199,13 +192,11 @@ class Cell(CircuitGroup):
                 currentSource.refIL = JL
                 currentSource.refT = temperature
                 currentSource.changeTemperatureAndSuns(
-                    temperature=self.temperature,Suns=self.Suns,rebuild_IV=False)
+                    temperature=self.temperature,Suns=self.Suns)
                 break
-        if rebuild_IV:
-            self.build_IV()
 
-    def set_IL(self,IL,Suns=1.0,temperature=25,rebuild_IV=True):
-        self.set_JL(IL/self.area,Suns=Suns,temperature=temperature,rebuild_IV=rebuild_IV)
+    def set_IL(self,IL,Suns=1.0,temperature=25):
+        self.set_JL(IL/self.area,Suns=Suns,temperature=temperature)
     
     def J0(self,n):
         J0 = 0.0
@@ -241,44 +232,40 @@ class Cell(CircuitGroup):
     def I02(self):
         return self.I0(n=2)    
     
-    def set_J0(self,J0,n,temperature=25,rebuild_IV=True):
+    def set_J0(self,J0,n,temperature=25):
         diodes = self.findElementType(ForwardDiode)
         for diode in diodes:
             if diode.tag != "defect" and not isinstance(diode,Intrinsic_Si_diode) and diode.n==n and not isinstance(diode,PhotonCouplingDiode):
                 diode.refI0 = J0
                 diode.refT = temperature
-                diode.changeTemperature(temperature=self.temperature,rebuild_IV=False)
+                diode.changeTemperature(temperature=self.temperature)
                 break
-        if rebuild_IV:
-            self.build_IV()
-    def set_J01(self,J0,temperature=25,rebuild_IV=True):
-        self.set_J0(J0,n=1,temperature=temperature,rebuild_IV=rebuild_IV)
-    def set_J02(self,J0,temperature=25,rebuild_IV=True):
-        self.set_J0(J0,n=2,temperature=temperature,rebuild_IV=rebuild_IV)
+    def set_J01(self,J0,temperature=25):
+        self.set_J0(J0,n=1,temperature=temperature)
+    def set_J02(self,J0,temperature=25):
+        self.set_J0(J0,n=2,temperature=temperature)
 
-    def set_I0(self,I0,n,temperature=25,rebuild_IV=True):
-        self.set_J0(I0/self.area, n=n, temperature=temperature,rebuild_IV=rebuild_IV)
-    def set_I01(self,I0,temperature=25,rebuild_IV=True):
-        self.set_I0(I0,n=1,temperature=temperature,rebuild_IV=rebuild_IV)
-    def set_I02(self,I0,temperature=25,rebuild_IV=True):
-        self.set_I0(I0,n=2,temperature=temperature,rebuild_IV=rebuild_IV)
+    def set_I0(self,I0,n,temperature=25):
+        self.set_J0(I0/self.area, n=n, temperature=temperature)
+    def set_I01(self,I0,temperature=25):
+        self.set_I0(I0,n=1,temperature=temperature)
+    def set_I02(self,I0,temperature=25):
+        self.set_I0(I0,n=2,temperature=temperature)
 
-    def set_PC_J0(self,J0,n,temperature=25,rebuild_IV=True):
+    def set_PC_J0(self,J0,n,temperature=25):
         diodes = self.findElementType(PhotonCouplingDiode)
         for diode in diodes:
             if diode.tag != "defect" and not isinstance(diode,Intrinsic_Si_diode) and diode.n==n:
                 diode.refI0 = J0
                 diode.refT = temperature
-                diode.changeTemperature(temperature=self.temperature,rebuild_IV=False)
+                diode.changeTemperature(temperature=self.temperature)
                 break
-        if rebuild_IV:
-            self.build_IV()
-    def set_PC_J01(self,J0,temperature=25,rebuild_IV=True):
-        self.set_PC_J0(J0,n=1,temperature=temperature,rebuild_IV=rebuild_IV)
-    def set_PC_I0(self,I0,n,temperature=25,rebuild_IV=True):
-        self.set_PC_J0(I0/self.area, n=n, temperature=temperature,rebuild_IV=rebuild_IV)
-    def set_PC_I01(self,I0,temperature=25,rebuild_IV=True):
-        self.set_PC_I0(I0,n=1,temperature=temperature,rebuild_IV=rebuild_IV)
+    def set_PC_J01(self,J0,temperature=25):
+        self.set_PC_J0(J0,n=1,temperature=temperature)
+    def set_PC_I0(self,I0,n,temperature=25):
+        self.set_PC_J0(I0/self.area, n=n, temperature=temperature)
+    def set_PC_I01(self,I0,temperature=25):
+        self.set_PC_I0(I0,n=1,temperature=temperature)
     
     def specific_Rs_cond(self):
         if self.series_resistor is None:

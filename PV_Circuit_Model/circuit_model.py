@@ -26,15 +26,15 @@ class CircuitComponent:
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
-    def null_IV(self, keep_dark=False):
+        if tag:
+            self.tag = tag
+    def null_IV(self):
         self.refined_IV = False
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
         self.IV_table = None
-        if keep_dark==False and hasattr(self,"dark_IV_table"):
-            self.dark_IV_table = None
         if self.parent is not None:
-            self.parent.null_IV(keep_dark=keep_dark)
+            self.parent.null_IV()
     def build_IV(self):
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
@@ -100,18 +100,7 @@ class CurrentSource(CircuitElement):
 
     def set_IL(self,IL):
         self.IL = IL
-        keep_dark = True
-        if IL > 0 and self.parent is not None:
-            forward_diodes = self.parent.findElementType(ForwardDiode)
-            for diode in forward_diodes:
-                while diode.max_I < 2*IL:
-                    keep_dark = False
-                    diode.max_I *= 2
-            if not keep_dark:
-                for diode in forward_diodes:
-                    diode.build_IV()
-        self.null_IV(keep_dark=keep_dark)
-        self.build_IV()
+        self.null_IV()
 
     def copy(self,source):
         self.refSuns = source.refSuns
@@ -122,14 +111,12 @@ class CurrentSource(CircuitElement):
         self.temp_coeff = source.temp_coeff
         self.set_IL(source.IL)
 
-    def changeTemperatureAndSuns(self,temperature=None,Suns=None,rebuild_IV=True):
+    def changeTemperatureAndSuns(self,temperature=None,Suns=None):
         if Suns is not None:
             self.Suns = Suns
         if temperature is not None:
             self.T = temperature
         self.set_IL(self.Suns*(self.refIL / self.refSuns + self.temp_coeff * (self.T - self.refT)))
-        if rebuild_IV:
-            self.build_IV()
 
     def __str__(self):
         return "Current Source: IL = " + self.get_value_text()
@@ -195,14 +182,12 @@ class Diode(CircuitElement):
         self.refT = source.refT
         self.set_I0(source.I0)
 
-    def changeTemperature(self,temperature,rebuild_IV=True):
+    def changeTemperature(self,temperature):
         self.VT = get_VT(temperature)
         old_ni  = get_ni(self.refT)
         new_ni  = get_ni(temperature)
         scale_factor = (new_ni/old_ni)**(2/self.n)
         self.set_I0(self.refI0*scale_factor)
-        if rebuild_IV:
-            self.build_IV()
 
     def get_V_range(self,max_num_points=100):
         if max_num_points is None:
@@ -276,7 +261,6 @@ class CircuitGroup(CircuitComponent):
             self.max_num_points = int(1000*np.sqrt(len(cells)))
         self.parent = None
         self.IV_table = None
-        self.dark_IV_table = None
         self.name = name
         if location is None:
             self.location = np.array([0,0])
@@ -306,8 +290,6 @@ class CircuitGroup(CircuitComponent):
             self.refined_IV = False
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
-        if hasattr(self,"dark_IV_table"):
-            self.dark_IV_table = None
         for element in self.subgroups:
             if isinstance(element,CircuitElement):
                 if not max_num_pts_only:
@@ -373,15 +355,13 @@ class CircuitGroup(CircuitComponent):
                 element.removeElementOfTag(tag)
         self.null_IV()
 
-    def set_temperature(self,temperature,rebuild_IV=True):
+    def set_temperature(self,temperature):
         diodes = self.findElementType(Diode)
         for diode in diodes:
-            diode.changeTemperature(temperature,rebuild_IV=False)
+            diode.changeTemperature(temperature)
         currentSources = self.findElementType(CurrentSource)
         for currentSource in currentSources:
-            currentSource.changeTemperatureAndSuns(temperature=temperature,rebuild_IV=False)
-        if rebuild_IV:
-            self.build_IV()
+            currentSource.changeTemperatureAndSuns(temperature=temperature)
 
     def findElementType(self,type_,serialize=False):
         list_ = []
