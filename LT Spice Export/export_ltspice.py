@@ -300,15 +300,52 @@ if __name__ == "__main__":
     # plt.show()
     # assert(1==0)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     np.random.seed(1)
     module = quick_butterfly_module(Si_intrinsic_limit=False)
+
+    # module2 = quick_butterfly_module(num_strings=3, num_cells_per_halfstring=20) 
+    # module3 = quick_module(num_strings=3, num_cells_per_halfstring=20)
+    # tile_elements([module2,module3],rows=1,x_gap=20,turn=False)
+    # draw_modules([module2,module3],show_names=True)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     for cell in tqdm(module.cells):
         diode_branch = cell.diode_branch
         diode_branch.subgroups = [element for element in diode_branch.subgroups if not isinstance(element,ReverseDiode)]
         # diode_branch.null_all_IV()
-        # cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.05)),rebuild_IV=False)
-        # cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)),rebuild_IV=False)
-        # cell.set_J02(cell.J02() * max(1.0,np.random.normal(loc=1.0, scale=0.2)),rebuild_IV=False)
+        # cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.05)))
+        # cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
+        # cell.set_J02(cell.J02() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
         # cell.set_specific_shunt_res(10000 * 10**(np.random.normal(loc=0, scale=0.5)))
         # cell.set_specific_Rs(0.3 * 10**(np.random.normal(loc=0, scale=0.2)))
 
@@ -338,9 +375,9 @@ if __name__ == "__main__":
     for i in tqdm(range(26)):
         module_ = circuit_deepcopy(module)
         # for cell in module_.cells:
-        #     cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.05)),rebuild_IV=False)
-        #     cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)),rebuild_IV=False)
-        #     cell.set_J02(cell.J02() * max(1.0,np.random.normal(loc=1.0, scale=0.2)),rebuild_IV=False)
+        #     cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.05)))
+        #     cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
+        #     cell.set_J02(cell.J02() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
         #     cell.set_specific_shunt_res(10000 * 10**(np.random.normal(loc=0, scale=0.5)))
         #     cell.set_specific_Rs(0.3 * 10**(np.random.normal(loc=0, scale=0.2)))
         modules.append(module_)
@@ -375,9 +412,9 @@ if __name__ == "__main__":
         string_ = circuit_deepcopy(string)
         for module_ in string_.subgroups:
             for cell in module_.cells:
-                cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.05)),rebuild_IV=False)
-                cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)),rebuild_IV=False)
-                cell.set_J02(cell.J02() * max(1.0,np.random.normal(loc=1.0, scale=0.2)),rebuild_IV=False)
+                cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.05)))
+                cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
+                cell.set_J02(cell.J02() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
                 cell.set_specific_shunt_res(10000 * 10**(np.random.normal(loc=0, scale=0.5)))
                 cell.set_specific_Rs(0.3 * 10**(np.random.normal(loc=0, scale=0.2)))
         strings.append(string_)
