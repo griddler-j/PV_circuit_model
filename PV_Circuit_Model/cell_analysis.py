@@ -318,7 +318,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
         try_FF = target_Pmax/Isc/Voc
         record = []
         for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
-            cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True,**kwargs)
+            cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=half_cut,**kwargs)
             cells = [circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
             module = make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, butterfly=butterfly)
             module.set_Suns(1.0,rebuild_IV=False)
