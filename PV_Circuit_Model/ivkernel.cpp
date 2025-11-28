@@ -553,7 +553,7 @@ double combine_iv_job(int connection,
         std::vector<double> dI_dV(n-1);
         std::vector<double> accum_abs_ddI_dV(n-1); // not exactly, multiplied by x segment length also
         accum_abs_ddI_dV.push_back(0.0);
-        double V_range = Vs[Vs.size()-1]-Vs[0];
+        double V_range = std::min(std::abs(Vs[Vs.size()-1]),std::abs(Vs[0]));
         double V_closest_to_SC = 1000000;
         int idx_V_closest_to_SC = 0;
         double V_closest_to_SC_right = 1000000;
@@ -574,6 +574,10 @@ double combine_iv_job(int connection,
                 idx_V_closest_to_SC_left = i;
             }
             dI_dV[i] = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
+            if (!std::isfinite(dI_dV[i])) { // catches NaN, +inf, -inf
+                if (i==0)  dI_dV[i] = 0;
+                else dI_dV[i] = dI_dV[i-1];
+            }
             if (i > 0) {
                 accum_abs_ddI_dV[i] = accum_abs_ddI_dV[i-1] + std::abs(dI_dV[i]-dI_dV[i-1])*(Vs[i]-Vs[i-1]);
             }
@@ -585,11 +589,12 @@ double combine_iv_job(int connection,
         int count = 1;
         for (int i = 1; i < n - 1; ++i) {
             if (accum_abs_ddI_dV[i] >= count * dI_dV_variation_segment) {
-                if (i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[count-1])
+                int last_index = idx.size()-1;
+                if (i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index])
                     idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
-                else if (i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[count-1])
+                else if (i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index])
                     idx.push_back(idx_V_closest_to_SC_left);  // just also capture points closest to SC to keep Isc accurate
-                else if (i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[count-1])
+                else if (i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index])
                     idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
                 idx.push_back(i);
                 ++count;

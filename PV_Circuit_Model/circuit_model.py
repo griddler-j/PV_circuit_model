@@ -371,15 +371,13 @@ class CircuitGroup(CircuitComponent):
         if rebuild_IV:
             self.build_IV()
 
-    def findElementType(self,type,serialize=False,path=[]):
+    def findElementType(self,type_,serialize=False):
         list_ = []
-        if isinstance(type,str):
-            type = eval(type)
         for i, element in enumerate(self.subgroups):
-            if isinstance(element,type):
+            if (not isinstance(type_,str) and isinstance(element,type_))  or (isinstance(type_,str) and type(element).__name__==type_):
                 list_.append(element)
             elif isinstance(element,CircuitGroup):
-                list_.extend(element.findElementType(type,serialize=serialize))
+                list_.extend(element.findElementType(type_,serialize=serialize))
         if serialize:
             for i, element in enumerate(list_):
                 element.name = str(i)
