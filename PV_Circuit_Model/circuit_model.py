@@ -73,6 +73,7 @@ class CircuitElement(CircuitComponent):
         pass
 
 class CurrentSource(CircuitElement):
+    _type_number = 0
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
         super().__init__(tag=tag)
         if np.isnan(IL):
@@ -139,6 +140,7 @@ class CurrentSource(CircuitElement):
         return draw_CC_symbol
 
 class Resistor(CircuitElement):
+    _type_number = 1
     def __init__(self, cond=1, tag=None):
         super().__init__(tag=tag)
         self.cond = cond
@@ -171,6 +173,7 @@ class Resistor(CircuitElement):
         return draw_resistor_symbol
 
 class Diode(CircuitElement):
+    _type_number = 2
     def __init__(self,I0=1e-15,n=1,V_shift=0,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(tag=tag)
         self.I0 = I0
@@ -245,6 +248,7 @@ class PhotonCouplingDiode(ForwardDiode):
         return "Photon Coupling Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
 
 class ReverseDiode(Diode):
+    _type_number = 3
     def __init__(self,I0=1e-15,n=1, V_shift=0,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift, tag=tag)
     def calc_I(self,V):
@@ -260,6 +264,7 @@ class ReverseDiode(Diode):
         return draw_reverse_diode_symbol
 
 class CircuitGroup(CircuitComponent):
+    _type_number = 5
     def __init__(self,subgroups,connection="series",name=None,location=None,
                  rotation=0,x_mirror=1,y_mirror=1,extent=None):
         self.connection = connection

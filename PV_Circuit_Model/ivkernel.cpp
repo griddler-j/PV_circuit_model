@@ -1,4 +1,9 @@
 // ivkernel.cpp
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
 #include <cmath>
 #include <vector>
 #include <algorithm>
@@ -12,8 +17,22 @@
 #include "ivkernel.h"
 #include <numeric>
 
+
 extern "C" {
 
+void pin_to_p_cores_only() {
+    // Example mask: use logical CPUs 0–15 (P-cores)
+    // Bit 0 = CPU0, bit 1 = CPU1, ...
+    DWORD_PTR mask = 0;
+    for (int i = 0; i < 16; ++i) {
+        mask |= (DWORD_PTR(1) << i);
+    }
+
+    HANDLE hProcess = GetCurrentProcess();
+    if (!SetProcessAffinityMask(hProcess, mask)) {
+        std::cerr << "Failed to set process affinity mask\n";
+    }
+}
 
 void build_current_source_iv(
     const double* circuit_element_parameters,
@@ -383,12 +402,10 @@ double combine_iv_job(int connection,
     int n_children,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
-    IVView dark_IV,
     double total_IL,
     int max_num_points,
     double area,
     int abs_max_num_points,
-    bool all_children_are_CircuitElement,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
@@ -399,20 +416,6 @@ double combine_iv_job(int connection,
     // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
     //         n_children, connection);
     // std::fflush(stdout); 
-
-    if (dark_IV.length > 0) {
-        std::vector<double> Vs(dark_IV.length);
-        std::vector<double> Is(dark_IV.length);
-        memcpy(Vs.data(), dark_IV.V, dark_IV.length * sizeof(double));
-        for (int i=0; i<dark_IV.length; i++) Is[i] = total_IL*area + dark_IV.I[i];
-        std::memcpy(out_V, Vs.data(), dark_IV.length * sizeof(double));
-        std::memcpy(out_I, Is.data(), dark_IV.length * sizeof(double));
-        *out_len = dark_IV.length;
-        
-        auto t1 = std::chrono::high_resolution_clock::now();
-        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        return ms;
-    }
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -667,7 +670,7 @@ double combine_iv_job(int connection,
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
     auto t0 = std::chrono::high_resolution_clock::now();
-    //#pragma omp parallel for num_threads(num_threads)
+    #pragma omp parallel for num_threads(num_threads)
     for (int j = 0; j < n_jobs; ++j) {
         IVJobDesc& job = jobs[j];
         combine_iv_job(
@@ -678,12 +681,10 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
             job.n_children,
             job.children_IVs,
             job.children_pc_IVs,
-            job.dark_IV,
             job.total_IL,
             job.max_num_points,
             job.area,
             job.abs_max_num_points,
-            job.all_children_are_CircuitElement,
             job.circuit_element_parameters,
             job.out_V,
             job.out_I,

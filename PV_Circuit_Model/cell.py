@@ -24,6 +24,7 @@ class intrinsic_Si():
     Jsc_fractional_temp_coeff = 0.0004
 
 class Intrinsic_Si_diode(ForwardDiode):
+    _type_number = 4
     bandgap_narrowing_RT = np.array([[1.00E+10,	1.41E-03],
         [1.00E+14,	0.00145608],
         [3.00E+14,	0.00155279],

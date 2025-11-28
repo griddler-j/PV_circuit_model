@@ -21,12 +21,10 @@ struct IVJobDesc {
     const IVView* children_pc_IVs;
     double op_pt_V;
     int refine_mode;
-    IVView dark_IV;
     double total_IL;
     int max_num_points;
     double area;
     int abs_max_num_points;
-    int all_children_are_CircuitElement;
     const double* circuit_element_parameters;
     double* out_V;
     double* out_I;
@@ -34,6 +32,8 @@ struct IVJobDesc {
 };
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads);
+
+void pin_to_p_cores_only();
 
 #ifdef __cplusplus
 }
