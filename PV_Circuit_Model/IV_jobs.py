@@ -40,44 +40,37 @@ class KernelTimer:
     
 kernel_timer = KernelTimer()
 
-def get_runnable_iv_jobs(job_list, job_done_index, refine_mode=False):
+def get_runnable_iv_jobs(job_list, job_done_index):
     include_indices = []
     for i in range(job_done_index-1,-1,-1):
         job = job_list[i]
         if len(job["children_job_ids"])>0 and min(job["children_job_ids"])<job_done_index:
             if "circuit_component_type_number" in job:
-                return include_indices
+                return include_indices, i+1
             else:
                 return [job_list[j] for j in include_indices], i+1
-        if refine_mode:
-            if "circuit_component_type_number" in job:
-                if job["circuit_component_type_number"] > 1:
-                    include_indices.append(i)
-            else:
-                circuit_component = job["circuit_component"]
-                type_name = type(circuit_component).__name__
-                if type_name not in ["CurrentSource", "Resistor"]:
-                    include_indices.append(i)
-        else:
+        if job["circuit_component"].IV_table is None:
             include_indices.append(i)
     if "circuit_component_type_number" in job:
-        return include_indices
+        return include_indices, 0
     else:
         return [job_list[j] for j in include_indices], 0
 
 def run_iv_jobs(job_list, refine_mode=False):
     job_done_index = len(job_list)
     while job_done_index > 0:
-        jobs, min_include_index = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
-        ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
-        job_done_index = min_include_index
+        jobs, min_index = get_runnable_iv_jobs(job_list, job_done_index)
+        if len(jobs) > 0:
+            ivkernel.run_multiple_jobs(jobs,refine_mode=refine_mode)
+        job_done_index = min_index
 
 def run_iv_jobs_simplified(job_list, aux_IV_list, refine_mode=False):
     job_done_index = len(job_list)
     while job_done_index > 0:
-        include_indices = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
-        ivkernel.run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mode=refine_mode)
-        job_done_index = min(include_indices)
+        include_indices, min_index = get_runnable_iv_jobs(job_list, job_done_index, refine_mode=refine_mode)
+        if len(include_indices) > 0:
+            ivkernel.run_multiple_jobs_simplified(job_list,aux_IV_list,include_indices,refine_mode=refine_mode)
+        job_done_index = min_index
     return [{"IV_table": job["IV"],"dark_IV_table": job["dark_IV"]} for job in job_list] 
 
 def make_simplified_job_list(job_list):

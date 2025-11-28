@@ -276,14 +276,15 @@ def run_multiple_jobs(jobs,refine_mode=False):
                 abs_max_num_points = 5
             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
                 abs_max_num_points = np.ceil(100/0.2*max_I) + 5
-                if refine_mode:
-                    jobs_c[i].op_pt_V = circuit_component.operating_point[0]
-                    abs_max_num_points += 100
 
             abs_max_num_points = max(abs_max_num_points, max_num_points)
             abs_max_num_points = int(abs_max_num_points)
 
             jobs_c[i].abs_max_num_points = abs_max_num_points
+            op_pt_V = 0
+            if hasattr(circuit_component,"operating_point") and circuit_component.operating_point is not None:
+                op_pt_V = circuit_component.operating_point[0]
+            jobs_c[i].op_pt_V = op_pt_V 
 
             # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
             out_IV = np.empty((2, abs_max_num_points), dtype=np.float64)

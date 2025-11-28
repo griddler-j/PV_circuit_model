@@ -266,6 +266,9 @@ class CircuitGroup(CircuitComponent):
         self.subgroups = subgroups
         for element in self.subgroups:
             element.parent = self
+        cells = self.findElementType("Cell")
+        if len(cells) > 10:
+            self.max_num_points = int(1000*np.sqrt(len(cells)))
         self.parent = None
         self.IV_table = None
         self.dark_IV_table = None
@@ -290,7 +293,9 @@ class CircuitGroup(CircuitComponent):
         self.subgroups.append(element)
         element.parent = self
 
-    def null_all_IV(self):
+    def null_all_IV(self,max_num_pts_only=False):
+        if max_num_pts_only and (not hasattr(self,"max_num_points") or self.max_num_points is None):
+            return
         self.IV_table = None
         if hasattr(self,"refined_IV") and self.refined_IV:
             self.refined_IV = False
@@ -300,9 +305,10 @@ class CircuitGroup(CircuitComponent):
             self.dark_IV_table = None
         for element in self.subgroups:
             if isinstance(element,CircuitElement):
-                element.IV_table = None
+                if not max_num_pts_only:
+                    element.IV_table = None
             else:
-                element.null_all_IV()
+                element.null_all_IV(max_num_pts_only=max_num_pts_only)
 
     def reassign_parents(self):
         for element in self.subgroups:
@@ -334,6 +340,7 @@ class CircuitGroup(CircuitComponent):
                 element.set_operating_point(V=V_,I=None)
         if refine_IV_:
             self.refined_IV = True
+            self.null_all_IV(max_num_pts_only=True)
             self.job_heap.refine_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])

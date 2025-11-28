@@ -71,21 +71,20 @@ def get_Pmax(argument, return_op_point=False, refine_IV=False):
     index = np.argmax(power)
     Vmp = V[index]
     Imp = I[index]
+    Pmax = power[index]
     if isinstance(argument,CircuitGroup) and refine_IV:
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
-        if argument.IV_table is None:
-            argument.build_IV()
-            IV_curve = argument.IV_table
-            V = IV_curve[0,:]
-            I = IV_curve[1,:]
-            power = -V*I
-            index = np.argmax(power)
-            V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
-            I = interp_(V,IV_curve[0,:],IV_curve[1,:])
-            power = -V*I
-            index = np.argmax(power)
-            Vmp = V[index]
-            Imp = I[index]
+        IV_curve = argument.IV_table
+        V = IV_curve[0,:]
+        I = IV_curve[1,:]
+        power = -V*I
+        index = np.argmax(power)
+        V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
+        I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+        power = -V*I
+        index = np.argmax(power)
+        Vmp = V[index]
+        Imp = I[index]
     Pmax = power[index]
     if isinstance(argument,CircuitGroup):
         if not hasattr(argument,"IV_parameters"):

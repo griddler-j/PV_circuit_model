@@ -200,8 +200,7 @@ void calc_intrinsic_Si_I(
     }
 }
 
-std::vector<double> get_V_range(const double* circuit_element_parameters,int max_num_points,bool intrinsic_Si_calc,double op_pt_V,
-    int refine_mode,bool is_reverse_diode) {
+std::vector<double> get_V_range(const double* circuit_element_parameters,int max_num_points,bool intrinsic_Si_calc,double op_pt_V,bool is_reverse_diode) {
     // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
@@ -257,20 +256,6 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
         V.push_back(v);
     }
 
-    if (refine_mode==1) {
-        double op_pt_V_ = op_pt_V;
-        if (is_reverse_diode) op_pt_V_ *=-1;
-        const int extra_points = 100;
-        const double delta = 0.001;   // +/- window around op_pt_V
-        const double start = op_pt_V_ - delta;
-        const double end   = op_pt_V_ + delta;
-        const double step  = (extra_points > 1) ? (end - start) / (extra_points - 1) : 0.0;
-        for (int i = 0; i < extra_points; ++i) {
-            V.push_back(start + step * i);
-        }
-        std::sort(V.begin(), V.end());
-    }
-
     return V;
 }
 
@@ -281,8 +266,7 @@ void build_forward_diode_iv(
     double* out_I,
     int* out_len,
     int abs_max_num_points,
-    double op_pt_V,
-    int refine_mode
+    double op_pt_V
 ) {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -290,7 +274,7 @@ void build_forward_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,refine_mode,false);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,false);
 
     // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
@@ -317,8 +301,7 @@ void build_reverse_diode_iv(
     double* out_I,
     int* out_len,
     int abs_max_num_points,
-    double op_pt_V,
-    int refine_mode)
+    double op_pt_V)
  {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -326,7 +309,7 @@ void build_reverse_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,refine_mode,true);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,true);
 
     // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
@@ -351,10 +334,9 @@ void build_Si_intrinsic_diode_iv(
     double* out_I,
     int* out_len,
     int abs_max_num_points,
-    double op_pt_V,
-    int refine_mode
+    double op_pt_V
 ) {
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true,op_pt_V,refine_mode,false);
+    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true,op_pt_V,false);
     std::vector<double> I(V.size());
     double ni = circuit_element_parameters[5];
     int base_type_number = static_cast<int>(circuit_element_parameters[6]);
@@ -448,13 +430,13 @@ double combine_iv_job(int connection,
                 build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);;
                 break;
             case 2: // ForwardDiode
-                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,refine_mode);
+                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
                 break;
             case 3: // ReverseDiode
-                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,refine_mode);
+                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
                 break;
             case 4: // Intrinsic Si Diode
-                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,refine_mode);
+                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
                 break;
         }
 
@@ -549,17 +531,30 @@ double combine_iv_job(int connection,
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
     if (max_num_points > 2 && Vs.size() > max_num_points) { 
+        int num_inflection_points = int(max_num_points*0.8);
+        int x_range_points = int(max_num_points*0.1);
+        int y_range_points = max_num_points - num_inflection_points - x_range_points;
+        int mpp_points = 0;
+        if (refine_mode==1) mpp_points = max_num_points*0.1;
+
         int n = static_cast<int>(Vs.size());
-        std::vector<double> dI_dV(n-1);
-        std::vector<double> accum_abs_ddI_dV(n-1); // not exactly, multiplied by x segment length also
-        accum_abs_ddI_dV.push_back(0.0);
+        std::vector<double> accum_abs_dir_change(n-1); 
+        std::vector<double> accum_abs_dir_change_near_mpp(n-1); 
+        std::vector<double> accum_x_change(n-1); 
+        std::vector<double> accum_y_change(n-1); 
+        accum_abs_dir_change.push_back(0.0);
+        accum_x_change.push_back(0.0);
+        accum_y_change.push_back(0.0);
         double V_range = std::min(std::abs(Vs[Vs.size()-1]),std::abs(Vs[0]));
+        double I_range = std::min(std::abs(Is[Is.size()-1]),std::abs(Is[0]));
         double V_closest_to_SC = 1000000;
         int idx_V_closest_to_SC = 0;
         double V_closest_to_SC_right = 1000000;
         int idx_V_closest_to_SC_right = 0;
         double V_closest_to_SC_left = 1000000;
         int idx_V_closest_to_SC_left = 0;
+        double sqrt_half = std::sqrt(0.5);
+        double last_unit_vector_x, last_unit_vector_y;
         for (int i = 0; i < n - 1; ++i) {
             if (V_closest_to_SC > std::abs(Vs[i])) {
                 V_closest_to_SC = std::abs(Vs[i]);
@@ -573,22 +568,51 @@ double combine_iv_job(int connection,
                 V_closest_to_SC_left = std::abs(Vs[i]+0.05*V_range);
                 idx_V_closest_to_SC_left = i;
             }
-            dI_dV[i] = (Is[i+1] - Is[i]) / (Vs[i+1] - Vs[i]);
-            if (!std::isfinite(dI_dV[i])) { // catches NaN, +inf, -inf
-                if (i==0)  dI_dV[i] = 0;
-                else dI_dV[i] = dI_dV[i-1];
+            double unit_vector_x = (Vs[i+1] - Vs[i])/V_range;
+            double unit_vector_y = (Is[i+1] - Is[i])/I_range;
+            double mag = std::sqrt((unit_vector_x*unit_vector_x + unit_vector_y*unit_vector_y));
+            unit_vector_x /= mag;
+            unit_vector_y /= mag;
+            if (!std::isfinite(unit_vector_x) || !std::isfinite(unit_vector_y)) { // catches NaN, +inf, -inf
+                if (i==0) {
+                    unit_vector_x = sqrt_half;
+                    unit_vector_y = sqrt_half;
+                }
+                else {
+                    unit_vector_x = last_unit_vector_x;
+                    unit_vector_y = last_unit_vector_y;
+                }
             }
             if (i > 0) {
-                accum_abs_ddI_dV[i] = accum_abs_ddI_dV[i-1] + std::abs(dI_dV[i]-dI_dV[i-1])*(Vs[i]-Vs[i-1]);
+                double dx = unit_vector_x - last_unit_vector_x;
+                double dy = unit_vector_y - last_unit_vector_y;
+                double fudge_factor1 = 1;
+                if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
+                double change = std::sqrt(dx*dx + dy*dy);
+                accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
+                accum_x_change[i] = accum_x_change[i-1] + std::abs(Vs[i]-Vs[i-1]);
+                accum_y_change[i] = accum_y_change[i-1] + std::abs(Is[i]-Is[i-1]);
+                if (refine_mode==1 && std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) {
+                    accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change;
+                }
             }
+            last_unit_vector_x = unit_vector_x;
+            last_unit_vector_y = unit_vector_y;
         }
-        double dI_dV_variation_segment = accum_abs_ddI_dV[n-2]/(max_num_points-2);
+        double variation_segment = accum_abs_dir_change[n-2]/(num_inflection_points-2);
+        double variation_segment_mpp;
+        if (refine_mode==1) accum_abs_dir_change_near_mpp[n-2]/(mpp_points);
+        double x_segment = accum_x_change[n-2]/x_range_points;
+        double y_segment = accum_y_change[n-2]/y_range_points;
         std::vector<int> idx;
-        idx.reserve(max_num_points+3);
+        idx.reserve(max_num_points+100+mpp_points);
         idx.push_back(0);
         int count = 1;
+        int countx = 1;
+        int county = 1;
+        int countmpp = 1;
         for (int i = 1; i < n - 1; ++i) {
-            if (accum_abs_ddI_dV[i] >= count * dI_dV_variation_segment) {
+            if (accum_abs_dir_change[i] >= count * variation_segment) {
                 int last_index = idx.size()-1;
                 if (i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index])
                     idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
@@ -598,6 +622,15 @@ double combine_iv_job(int connection,
                     idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
                 idx.push_back(i);
                 ++count;
+            } else if (accum_x_change[i] >= countx * x_segment) {
+                idx.push_back(i);
+                ++countx;
+            } else if (accum_y_change[i] >= county * y_segment) {
+                idx.push_back(i);
+                ++county;
+            } else if (refine_mode==1 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
+                idx.push_back(i);
+                ++countmpp;
             }
         }
         idx.push_back(n-1);
