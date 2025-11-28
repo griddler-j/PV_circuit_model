@@ -107,6 +107,7 @@ def run_multiple_jobs(components,refine_mode=False):
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
     cdef int olen
+    cdef double tmp
     cdef int num_threads = 1
     if n_jobs >= 16:
         num_threads = 16
@@ -117,6 +118,7 @@ def run_multiple_jobs(components,refine_mode=False):
         t1 = time.time()
         for i in range(n_jobs):
             circuit_component = components[i]
+            subgroups = getattr(circuit_component,"subgroups",None)
             circuit_component_type_number = circuit_component._type_number  # default CircuitGroup
 
             # ----- build circuit_element_parameters (matches your C++ expectations) -----
@@ -182,8 +184,8 @@ def run_multiple_jobs(components,refine_mode=False):
             # ----- children_IVs → IVView[] (zero-copy views) -----
             abs_max_num_points = 0
             n_children = 0
-            if hasattr(circuit_component,"subgroups"):
-                n_children = len(circuit_component.subgroups)
+            if subgroups:
+                n_children = len(subgroups)
 
             jobs_c[i].n_children = n_children
             if n_children > 0:
@@ -192,21 +194,19 @@ def run_multiple_jobs(components,refine_mode=False):
                 jobs_c[i].children_IVs = <IVView*> 0
 
             for j in range(n_children):
-                type_number = circuit_component.subgroups[j]._type_number
+                type_number = subgroups[j]._type_number
 
                 children_views[child_base + j].type_number = type_number
                 if type_number==0: # current source
-                    total_IL -= circuit_component.subgroups[j].IL
+                    total_IL -= subgroups[j].IL
                     children_views[child_base + j].V      = <const double*> 0
                     children_views[child_base + j].I      = <const double*> 0
                     children_views[child_base + j].length = 0
                 else:
                     # ensure IV_table is C-contiguous float64 (2, Ni)
-                    arr = circuit_component.subgroups[j].IV_table
+                    arr = subgroups[j].IV_table
                     if arr.dtype != np.float64 or arr.ndim != 2 or arr.shape[0] != 2 or arr.strides[1] != arr.itemsize:
                         assert(1==0)
-                        arr = np.ascontiguousarray(arr, dtype=np.float64)
-                        circuit_component.subgroups[j].IV_table = arr
                     mv_child_v = arr[0,:]
                     mv_child_i = arr[1,:]
                     Ni = arr.shape[1]
@@ -226,16 +226,15 @@ def run_multiple_jobs(components,refine_mode=False):
             abs_max_num_points_multipier = 1
             for j in range(n_children):
                 element_area = 0
-                element = circuit_component.subgroups[j]
+                element = subgroups[j]
                 Ni = 0
-                if hasattr(element,"photon_coupling_diodes") and len(element.photon_coupling_diodes)>0:
+                photon_coupling_diodes = getattr(element,"photon_coupling_diodes",None)
+                if photon_coupling_diodes and len(photon_coupling_diodes)>0:
                     abs_max_num_points_multipier += 1
                     # ensure IV_table is C-contiguous float64 (2, Ni)
-                    arr = element.photon_coupling_diodes[0].IV_table
+                    arr = photon_coupling_diodes[0].IV_table
                     if arr.dtype != np.float64 or arr.ndim != 2 or arr.shape[0] != 2 or arr.strides[1] != arr.itemsize:
                         assert(1==0)
-                        arr = np.ascontiguousarray(arr, dtype=np.float64)
-                        element.photon_coupling_diodes[0].IV_table = arr
                     mv_child_pc_v = arr[0,:]
                     mv_child_pc_i = arr[1,:]
                     element_area = element.area
@@ -259,7 +258,8 @@ def run_multiple_jobs(components,refine_mode=False):
             elif circuit_component_type_number==1: # resistor
                 abs_max_num_points = 5
             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
-                abs_max_num_points = np.ceil(100/0.2*max_I) + 5
+                tmp = 100.0 / 0.2 * max_I + 5.0
+                abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil
 
             abs_max_num_points = max(abs_max_num_points, max_num_points)
             abs_max_num_points = int(abs_max_num_points)
