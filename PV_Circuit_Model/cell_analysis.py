@@ -269,7 +269,7 @@ def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer
     J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,**kwargs)
     return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, **kwargs)
 
-def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=False, butterfly=False):
+def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=False, butterfly=False,**kwargs):
     force_n1 = False
     if special_conditions is not None:
         if "force_n1" in special_conditions:
@@ -294,7 +294,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
     elif FF is not None:
         target_Pmax = Voc*Isc*FF
     if force_n1: # vary the module Rs
-        cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=1.0, wafer_format=wafer_format,half_cut=half_cut)
+        cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=1.0, wafer_format=wafer_format,half_cut=half_cut,**kwargs)
         cells = [circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
         try_R = 0.02
         record = []
@@ -318,7 +318,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
         try_FF = target_Pmax/Isc/Voc
         record = []
         for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
-            cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True)
+            cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=True,**kwargs)
             cells = [circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
             module = make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, butterfly=butterfly)
             module.set_Suns(1.0,rebuild_IV=False)
@@ -339,8 +339,8 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
                 try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
     return module
 
-def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=True):
-    return quick_module(Isc, Voc, FF, Pmax, wafer_format, num_strings, num_cells_per_halfstring, special_conditions, half_cut, butterfly=True)
+def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=True,**kwargs):
+    return quick_module(Isc, Voc, FF, Pmax, wafer_format, num_strings, num_cells_per_halfstring, special_conditions, half_cut, butterfly=True,**kwargs)
 
 def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=[0.3333,0.5], Rshunts=[1e6,5e4], thicknesses=[160e-4,1e-6], wafer_format="M10",half_cut=True):
     shape, area = wafer_shape(format=wafer_format)

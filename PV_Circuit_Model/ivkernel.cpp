@@ -497,14 +497,18 @@ double combine_iv_job(int connection,
     else if (connection == 1) {
         // add current
         int pos = 0;
+        double left_limit = -100;
+        double right_limit = 100;
         for (int i=0; i < n_children; i++) {
             int Ni = children_IVs[i].length;
             memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
+            if (Ni > 0) {
+                left_limit = std::min(left_limit, children_IVs[i].V[0]-100);
+                right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
+            }
             pos += Ni;
         }
         std::sort(Vs.begin(), Vs.end());
-        double left_limit = -100;
-        double right_limit = 100;
         for (int i=0; i < n_children; ++i) {
             const double* IV_table_V = children_IVs[i].V;
             int len = children_IVs[i].length;
