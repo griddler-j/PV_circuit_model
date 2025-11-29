@@ -622,7 +622,9 @@ double combine_iv_job(int connection,
         accum_abs_dir_change.push_back(0.0);
         accum_x_change.push_back(0.0);
         accum_y_change.push_back(0.0);
-        double V_range = std::min(std::abs(Vs[Vs.size()-1]),std::abs(Vs[0]));
+        double V_range = Vs[Vs.size()-1];
+        double left_V = 0.05*Vs[0];
+        double right_V = 0.05*Vs[Vs.size()-1];
         double I_range = std::min(std::abs(Is[Is.size()-1]),std::abs(Is[0]));
         double V_closest_to_SC = 1000000;
         int idx_V_closest_to_SC = 0;
@@ -637,12 +639,14 @@ double combine_iv_job(int connection,
                 V_closest_to_SC = std::abs(Vs[i]);
                 idx_V_closest_to_SC = i;
             }
-            if (V_closest_to_SC_right > std::abs(Vs[i]-0.05*V_range)) {
-                V_closest_to_SC_right = std::abs(Vs[i]-0.05*V_range);
+            double absdiff = std::abs(Vs[i]-right_V);
+            if (V_closest_to_SC_right > absdiff) {
+                V_closest_to_SC_right = absdiff;
                 idx_V_closest_to_SC_right = i;
             }
-            if (V_closest_to_SC_left > std::abs(Vs[i]+0.05*V_range)) {
-                V_closest_to_SC_left = std::abs(Vs[i]+0.05*V_range);
+            absdiff = std::abs(Vs[i]-left_V);
+            if (V_closest_to_SC_left > absdiff) {
+                V_closest_to_SC_left = absdiff;
                 idx_V_closest_to_SC_left = i;
             }
             double unit_vector_x = (Vs[i+1] - Vs[i])/V_range;
