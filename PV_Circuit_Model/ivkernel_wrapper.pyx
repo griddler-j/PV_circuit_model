@@ -247,9 +247,9 @@ def run_multiple_jobs(components,refine_mode=False,parallel=True):
             child_base += n_children
 
             if circuit_component_type_number==0: # current source
-                abs_max_num_points = 2
+                abs_max_num_points = 1
             elif circuit_component_type_number==1: # resistor
-                abs_max_num_points = 5
+                abs_max_num_points = 2
             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
                 tmp = 100.0 / 0.2 * max_I + 5.0
                 abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil

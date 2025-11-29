@@ -88,6 +88,7 @@ void interp_monotonic_inc(
         for (int j = 0; j < m; ++j) {
             yq[j] = (additive ? yq[j] : 0.0) + xq[j]*slope;
         }
+        return;
     }
     int j_left = 0;
     // --- Left extrapolation: xq <= x[0] ---
