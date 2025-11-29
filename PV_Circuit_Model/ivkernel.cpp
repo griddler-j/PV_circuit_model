@@ -608,20 +608,13 @@ double combine_iv_job(int connection,
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
     if (max_num_points > 2 && Vs.size() > max_num_points) { 
-        int num_inflection_points = int(max_num_points*0.8);
-        int x_range_points = int(max_num_points*0.1);
-        int y_range_points = max_num_points - num_inflection_points - x_range_points;
         int mpp_points = 0;
         if (refine_mode==1) mpp_points = max_num_points*0.1;
 
         int n = static_cast<int>(Vs.size());
         std::vector<double> accum_abs_dir_change(n-1); 
         std::vector<double> accum_abs_dir_change_near_mpp(n-1); 
-        std::vector<double> accum_x_change(n-1); 
-        std::vector<double> accum_y_change(n-1); 
         accum_abs_dir_change.push_back(0.0);
-        accum_x_change.push_back(0.0);
-        accum_y_change.push_back(0.0);
         double V_range = Vs[Vs.size()-1];
         double left_V = 0.05*Vs[0];
         double right_V = 0.05*Vs[Vs.size()-1];
@@ -671,8 +664,6 @@ double combine_iv_job(int connection,
                 if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
                 double change = std::sqrt(dx*dx + dy*dy);
                 accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
-                accum_x_change[i] = accum_x_change[i-1] + std::abs(Vs[i]-Vs[i-1]);
-                accum_y_change[i] = accum_y_change[i-1] + std::abs(Is[i]-Is[i-1]);
                 if (refine_mode==1 && std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) {
                     accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change;
                 }
@@ -680,17 +671,13 @@ double combine_iv_job(int connection,
             last_unit_vector_x = unit_vector_x;
             last_unit_vector_y = unit_vector_y;
         }
-        double variation_segment = accum_abs_dir_change[n-2]/(num_inflection_points-2);
+        double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
         double variation_segment_mpp;
         if (refine_mode==1) accum_abs_dir_change_near_mpp[n-2]/(mpp_points);
-        double x_segment = accum_x_change[n-2]/x_range_points;
-        double y_segment = accum_y_change[n-2]/y_range_points;
         std::vector<int> idx;
         idx.reserve(max_num_points+100+mpp_points);
         idx.push_back(0);
         int count = 1;
-        int countx = 1;
-        int county = 1;
         int countmpp = 1;
         for (int i = 1; i < n - 1; ++i) {
             if (accum_abs_dir_change[i] >= count * variation_segment) {
@@ -703,12 +690,6 @@ double combine_iv_job(int connection,
                     idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
                 idx.push_back(i);
                 ++count;
-            } else if (accum_x_change[i] >= countx * x_segment) {
-                idx.push_back(i);
-                ++countx;
-            } else if (accum_y_change[i] >= county * y_segment) {
-                idx.push_back(i);
-                ++county;
             } else if (refine_mode==1 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
                 idx.push_back(i);
                 ++countmpp;
