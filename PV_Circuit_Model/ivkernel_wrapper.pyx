@@ -1,4 +1,5 @@
 # cython: language_level=3
+# cython: boundscheck=False, wraparound=False, nonecheck=False, initializedcheck=False
 # distutils: language = c++
 # distutils: sources = ivkernel.cpp
 
@@ -24,6 +25,7 @@ cdef extern from "ivkernel.h":
         int n_children
         const IVView* children_IVs
         const IVView* children_pc_IVs
+        int has_photon_coupling
         double op_pt_V
         int refine_mode
         int max_num_points
@@ -65,7 +67,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef int* c_out_len_all = <int*>&mv_out_len[0]
 
     # keep output IV arrays alive
-    out_IV_list = [None] * n_jobs
+    out_V_list = [None] * n_jobs
+    out_I_list = [None] * n_jobs
 
     # ---- count total children / pc-children to allocate IVView buffers ----
     cdef Py_ssize_t total_children = 0
@@ -73,7 +76,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
     for i in range(n_jobs):
         circuit_component = components[i]
-        if hasattr(circuit_component, "subgroups"):
+        if circuit_component._type_number>=5:
             total_children += len(circuit_component.subgroups)
 
     cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))
@@ -104,7 +107,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef int n_children, Ni
     cdef int abs_max_num_points
     cdef double area
-    cdef int max_num_points
 
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
@@ -113,17 +115,26 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
     try:
         t1 = time.time()
+        timer1a = 0
+        timer1b = 0
+        timer2 = 0
+        timer3 = 0
+        timer4 = 0
+        timer5 = 0
         for i in range(n_jobs):
+            t0=time.time()
             circuit_component = components[i]
-            subgroups = getattr(circuit_component,"subgroups",None)
+            subgroups = None
+            if circuit_component._type_number>=5:
+                subgroups = circuit_component.subgroups
             circuit_component_type_number = circuit_component._type_number  # default CircuitGroup
 
             # ----- build circuit_element_parameters (matches your C++ expectations) -----
-            max_I = 0.2
             mv_params = mv_params_all[i]  # shape (PARAMS_LEN,)
             jobs_c[i].circuit_element_parameters = &mv_params[0]
-            if hasattr(circuit_component, "max_I"):
-                max_I = circuit_component.max_I
+            max_I = circuit_component.max_I
+            if not max_I:
+                max_I = 0.2
             if circuit_component_type_number == 0:      # CurrentSource
                 mv_params[0] = circuit_component.IL
             elif circuit_component_type_number == 1:    # Resistor
@@ -153,19 +164,22 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 # CircuitGroup or unknown
                 pass 
 
+            timer1a += time.time()-t0
+            t0 = time.time()
+
             # ----- scalar fields -----
             area = 1.0
-            if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
+            if circuit_component._type_number==6 and circuit_component.area is not None:
                 area = circuit_component.area
-            max_num_points = -1
-            if hasattr(circuit_component,"max_num_points"):
-                max_num_points = circuit_component.max_num_points if circuit_component.max_num_points is not None else -1
-
+            max_num_points = circuit_component.max_num_points
+            if not max_num_points:
+                max_num_points = -1
             # ----- fill IVJobDesc scalars -----
             jobs_c[i].connection = -1
-            if hasattr(circuit_component, "connection"):
+            if circuit_component._type_number >= 5:
+                connection = circuit_component.connection
                 jobs_c[i].connection = 0  # series default
-                if circuit_component.connection == "parallel":
+                if connection == "parallel":
                     jobs_c[i].connection = 1
 
             jobs_c[i].circuit_component_type_number = circuit_component_type_number
@@ -176,6 +190,9 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 jobs_c[i].refine_mode = 1
             else:
                 jobs_c[i].refine_mode = 0
+
+            timer1b += time.time()-t0
+            t0 = time.time()
 
             # ----- children_IVs → IVView[] (zero-copy views) -----
             abs_max_num_points = 0
@@ -190,16 +207,14 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 jobs_c[i].children_IVs = <IVView*> 0
 
             for j in range(n_children):
-                type_number = subgroups[j]._type_number
+                element = subgroups[j]
+                type_number = element._type_number
 
                 children_views[child_base + j].type_number = type_number
                 # ensure IV_table is C-contiguous float64 (2, Ni)
-                arr = subgroups[j].IV_table
-                if arr.dtype != np.float64 or arr.ndim != 2 or arr.shape[0] != 2 or arr.strides[1] != arr.itemsize:
-                    assert(1==0)
-                mv_child_v = arr[0,:]
-                mv_child_i = arr[1,:]
-                Ni = arr.shape[1]
+                mv_child_v = element.IV_V
+                mv_child_i = element.IV_I
+                Ni = mv_child_v.shape[0]
                 abs_max_num_points += Ni
                 children_views[child_base + j].V           = &mv_child_v[0]
                 children_views[child_base + j].I           = &mv_child_i[0]
@@ -216,26 +231,28 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 element_area = 0
                 element = subgroups[j]
                 Ni = 0
-                photon_coupling_diodes = getattr(element,"photon_coupling_diodes",None)
-                if photon_coupling_diodes and len(photon_coupling_diodes)>0:
-                    abs_max_num_points_multipier += 1
-                    # ensure IV_table is C-contiguous float64 (2, Ni)
-                    arr = photon_coupling_diodes[0].IV_table
-                    if arr.dtype != np.float64 or arr.ndim != 2 or arr.shape[0] != 2 or arr.strides[1] != arr.itemsize:
-                        assert(1==0)
-                    mv_child_pc_v = arr[0,:]
-                    mv_child_pc_i = arr[1,:]
-                    element_area = element.area
-                    Ni = arr.shape[1]
-                if Ni > 0:
-                    pc_children_views[child_base + j].V      = &mv_child_pc_v[0]
-                    pc_children_views[child_base + j].I      = &mv_child_pc_i[0]
-                    pc_children_views[child_base + j].length = Ni
-                else:
-                    pc_children_views[child_base + j].V      = <const double*> 0
-                    pc_children_views[child_base + j].I      = <const double*> 0
-                    pc_children_views[child_base + j].length = 0
-                pc_children_views[child_base + j].scale       = element_area
+                if element._type_number == 6: # cell
+                    photon_coupling_diodes = element.photon_coupling_diodes
+                    if photon_coupling_diodes and len(photon_coupling_diodes)>0:
+                        abs_max_num_points_multipier += 1
+                        mv_child_pc_v = photon_coupling_diodes[0].IV_V
+                        mv_child_pc_i = photon_coupling_diodes[0].IV_I
+                        element_area = element.area
+                        Ni = mv_child_pc_v.shape[0]
+                    if Ni > 0:
+                        pc_children_views[child_base + j].V      = &mv_child_pc_v[0]
+                        pc_children_views[child_base + j].I      = &mv_child_pc_i[0]
+                        pc_children_views[child_base + j].length = Ni
+                    else:
+                        pc_children_views[child_base + j].V      = <const double*> 0
+                        pc_children_views[child_base + j].I      = <const double*> 0
+                        pc_children_views[child_base + j].length = 0
+                    pc_children_views[child_base + j].scale       = element_area
+
+            if abs_max_num_points_multipier == 1:
+                jobs_c[i].has_photon_coupling = 0;
+            else:
+                jobs_c[i].has_photon_coupling = 1;
 
             abs_max_num_points = abs_max_num_points_multipier*abs_max_num_points
 
@@ -254,19 +271,27 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
             jobs_c[i].abs_max_num_points = abs_max_num_points
             op_pt_V = 0
-            if hasattr(circuit_component,"operating_point") and circuit_component.operating_point is not None:
-                op_pt_V = circuit_component.operating_point[0]
+            op_pt = circuit_component.operating_point
+            if op_pt:
+                op_pt_V = op_pt[0]
             jobs_c[i].op_pt_V = op_pt_V 
 
+            timer2 += time.time()-t0
+            t0 = time.time()
+
             # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
-            out_IV = np.empty((2, abs_max_num_points), dtype=np.float64)
-            out_IV_list[i] = out_IV
-            mv_outV = out_IV[0]
-            mv_outI = out_IV[1]
+            out_V = np.empty((abs_max_num_points,), dtype=np.float64)
+            out_I = np.empty((abs_max_num_points,), dtype=np.float64)
+            out_V_list[i] = out_V
+            out_I_list[i] = out_I
+            mv_outV = out_V
+            mv_outI = out_I
 
             jobs_c[i].out_V   = &mv_outV[0]
             jobs_c[i].out_I   = &mv_outI[0]
             jobs_c[i].out_len = &c_out_len_all[i]
+
+            timer3 += time.time()-t0
 
         packing_time = time.time()-t1
         # ----- call C++ batched kernel (no Python inside) -----
@@ -280,7 +305,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             olen = c_out_len_all[i]
             if olen < 0:
                 raise ValueError(f"Negative out_len for job {i}")
-            circuit_component.IV_table = out_IV_list[i][:, :olen]
+            circuit_component.IV_V = out_V_list[i][:olen]
+            circuit_component.IV_I = out_I_list[i][:olen]
         unpacking_time = time.time()-t1
 
     finally:
@@ -288,5 +314,5 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
         free(children_views)
         free(pc_children_views)
 
-    return kernel_ms, packing_time, unpacking_time
+    return kernel_ms, packing_time, unpacking_time, timer1a, timer1b, timer2, timer3
 

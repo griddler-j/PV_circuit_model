@@ -3,6 +3,7 @@ from PV_Circuit_Model.circuit_model import *
 from PV_Circuit_Model.cell import *
 
 class MultiJunctionCell(CircuitGroup):
+    _type_number = 7
     def __init__(self,subcells,Rs=0.1,location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
         self.area = subcells[0].area

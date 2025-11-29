@@ -408,13 +408,21 @@ double combine_iv_job(int connection,
     int n_children,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
+    int has_photon_coupling,
     int max_num_points,
     double area,
     int abs_max_num_points,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
-    int* out_len) {
+    int* out_len,
+    int parallel) {
+
+    int num_threads = 1;
+    if (parallel==1 && connection != -1 && n_children > 1) {
+        num_threads = 8;
+        if (n_children > 8) num_threads = 16;
+    }
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -503,20 +511,46 @@ double combine_iv_job(int connection,
     }
     // --- parallel connection branch (connection == 1) ---
     else if (connection == 1) {
+        // auto t0a = std::chrono::high_resolution_clock::now();
+        
         // add current
         int pos = 0;
         double left_limit = -100;
         double right_limit = 100;
+        if (num_threads > 1) {
+            std::vector<int> child_offsets(n_children);
+            int pos = 0;
+            for (int i = 0; i < n_children; ++i) {
+                child_offsets[i] = pos;
+                pos += children_IVs[i].length;
+            }
+            #pragma omp parallel for num_threads(num_threads)
+            for (int i = 0; i < n_children; ++i) {
+                int Ni = children_IVs[i].length;
+                if (Ni > 0) 
+                    memcpy(Vs.data() + child_offsets[i], children_IVs[i].V, Ni * sizeof(double));
+            }
+        } else {
+            for (int i=0; i < n_children; i++) {
+                int Ni = children_IVs[i].length;
+                memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
+                pos += Ni;
+            }
+        }
         for (int i=0; i < n_children; i++) {
             int Ni = children_IVs[i].length;
-            memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
             if (Ni > 0) {
                 left_limit = std::min(left_limit, children_IVs[i].V[0]-100);
                 right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
             }
-            pos += Ni;
         }
+        // auto t1a = std::chrono::high_resolution_clock::now();
+        // double ms1 = std::chrono::duration<double, std::milli>(t1a - t0a).count();
+
+        // auto t0b = std::chrono::high_resolution_clock::now();
         std::sort(Vs.begin(), Vs.end());
+        
+
         for (int i=0; i < n_children; ++i) {
             const double* IV_table_V = children_IVs[i].V;
             int len = children_IVs[i].length;
@@ -531,14 +565,45 @@ double combine_iv_job(int connection,
         Vs.erase(new_end, Vs.end());
 
         Is.assign(Vs.size(), 0.0);
-        for (int i = 0; i < n_children; ++i) {  
-            int len = children_IVs[i].length;
-            if (len > 0) {
-                const double* IV_table_V = children_IVs[i].V;
-                const double* IV_table_I = children_IVs[i].I;
-                interp_monotonic_inc(IV_table_V, IV_table_I, len, Vs.data(), (int)Vs.size(), Is.data(), true); // keeps adding 
+
+        // auto t1b = std::chrono::high_resolution_clock::now();
+        // double ms2 = std::chrono::duration<double, std::milli>(t1b - t0b).count();
+        // auto t0c = std::chrono::high_resolution_clock::now();
+        if (num_threads > 1) {
+            #pragma omp parallel num_threads(num_threads) 
+            {
+                std::vector<double> local_Is(Vs.size());  
+                #pragma omp for nowait
+                for (int i = 0; i < n_children; ++i) {
+                    int len = children_IVs[i].length;
+                    if (len > 0) {
+                        interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs.data(), (int)Vs.size(), local_Is.data(), true); // keeps adding 
+                    }
+                }    
+                #pragma omp critical
+                for (int j = 0; j < Vs.size(); ++j) {
+                    Is[j] += local_Is[j];
+                }
             }
-        }    
+        }
+        else 
+            for (int i = 0; i < n_children; ++i) {  
+                int len = children_IVs[i].length;
+                if (len > 0) {
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs.data(), (int)Vs.size(), Is.data(), true); // keeps adding 
+                }
+            }  
+
+        // auto t1c = std::chrono::high_resolution_clock::now();
+        // double ms3 = std::chrono::duration<double, std::milli>(t1c - t0c).count();
+
+        // if (n_children==40) {
+        //     std::printf("cpp: combine_iv_job: took %e, %e, %e seconds\n",ms1,ms2,ms3);
+        //     std::fflush(stdout);
+        // }
+
+
+
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
     if (max_num_points > 2 && Vs.size() > max_num_points) { 
@@ -689,13 +754,15 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.n_children,
                 job.children_IVs,
                 job.children_pc_IVs,
+                job.has_photon_coupling,
                 job.max_num_points,
                 job.area,
                 job.abs_max_num_points,
                 job.circuit_element_parameters,
                 job.out_V,
                 job.out_I,
-                job.out_len
+                job.out_len,
+                0
             );
         }
     }
@@ -710,13 +777,15 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.n_children,
                 job.children_IVs,
                 job.children_pc_IVs,
+                job.has_photon_coupling,
                 job.max_num_points,
                 job.area,
                 job.abs_max_num_points,
                 job.circuit_element_parameters,
                 job.out_V,
                 job.out_I,
-                job.out_len
+                job.out_len,
+                parallel
             );
         }
 

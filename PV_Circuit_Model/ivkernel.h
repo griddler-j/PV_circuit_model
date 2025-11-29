@@ -19,6 +19,7 @@ struct IVJobDesc {
     int n_children;
     const IVView* children_IVs;
     const IVView* children_pc_IVs;
+    int has_photon_coupling;
     double op_pt_V;
     int refine_mode;
     int max_num_points;

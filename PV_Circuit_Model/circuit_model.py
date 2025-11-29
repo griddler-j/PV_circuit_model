@@ -20,19 +20,46 @@ def get_ni(temperature):
     return 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
     
 class CircuitComponent:
+    max_I = None
+    max_num_points = None
     def __init__(self,tag=None):
-        self.IV_table = None
+        self.IV_V = None  # 1D float64
+        self.IV_I = None  # 1D float64
         self.operating_point = None #V,I
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
-        if tag:
-            self.tag = tag
+        self.tag = tag
+
+    @property
+    def IV_table(self):
+        if self.IV_V is None or self.IV_I is None:
+            return None
+        # This allocates a fresh 2xN array for user-land / plotting.
+        return np.stack([self.IV_V, self.IV_I], axis=0)
+
+    @IV_table.setter
+    def IV_table(self, value):
+        # Allow clearing with None
+        if value is None:
+            self.IV_V = None
+            self.IV_I = None
+            return
+
+        value = np.ascontiguousarray(value, dtype=np.float64)
+        if value.ndim != 2 or value.shape[0] != 2:
+            raise ValueError("IV_table must be shape (2, N)")
+
+        # Copy rows into 1D contiguous arrays
+        self.IV_V = value[0, :].copy()
+        self.IV_I = value[1, :].copy()
+
     def null_IV(self):
         self.refined_IV = False
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
-        self.IV_table = None
+        self.IV_V = None
+        self.IV_I = None
         if self.parent is not None:
             self.parent.null_IV()
     def build_IV(self):
@@ -42,18 +69,11 @@ class CircuitComponent:
         self.job_heap.run_IV()
 
 class CircuitElement(CircuitComponent):
-    def __init__(self,tag=None):
-        self.IV_table = None
-        self.tag = tag
-        self.operating_point = None #V,I
-        self.circuit_diagram_extent = [0, 0.8]
-        self.parent = None
-        self.aux = {}
     def set_operating_point(self,V=None,I=None):
         if V is not None:
-            I = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+            I = interp_(V,self.IV_V,self.IV_I)
         elif I is not None:
-            V = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+            V = interp_(I,self.IV_I,self.IV_V)
         self.operating_point = [V,I]
     def get_value_text(self):
         pass
@@ -76,8 +96,6 @@ class CurrentSource(CircuitElement):
     _type_number = 0
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
         super().__init__(tag=tag)
-        if np.isnan(IL):
-            assert(1==0)
         self.IL = IL
         self.refSuns = Suns
         self.Suns = Suns
@@ -252,6 +270,7 @@ class CircuitGroup(CircuitComponent):
     _type_number = 5
     def __init__(self,subgroups,connection="series",name=None,location=None,
                  rotation=0,x_mirror=1,y_mirror=1,extent=None):
+        super().__init__()
         self.connection = connection
         self.subgroups = subgroups
         for element in self.subgroups:
@@ -259,8 +278,6 @@ class CircuitGroup(CircuitComponent):
         cells = self.findElementType("Cell")
         if len(cells) > 10:
             self.max_num_points = int(1000*np.sqrt(len(cells)))
-        self.parent = None
-        self.IV_table = None
         self.name = name
         if location is None:
             self.location = np.array([0,0])
@@ -274,8 +291,6 @@ class CircuitGroup(CircuitComponent):
         else:
             self.extent = get_extent(subgroups)
         self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
-        self.operating_point = None #V,I
-        self.aux = {}
         self.is_circuit_group = True
 
     def add_element(self,element):
@@ -285,7 +300,8 @@ class CircuitGroup(CircuitComponent):
     def null_all_IV(self,max_num_pts_only=False):
         if max_num_pts_only and (not hasattr(self,"max_num_points") or self.max_num_points is None):
             return
-        self.IV_table = None
+        self.IV_V = None
+        self.IV_I = None
         if hasattr(self,"refined_IV") and self.refined_IV:
             self.refined_IV = False
         if hasattr(self,"IV_parameters"):
@@ -293,7 +309,8 @@ class CircuitGroup(CircuitComponent):
         for element in self.subgroups:
             if isinstance(element,CircuitElement):
                 if not max_num_pts_only:
-                    element.IV_table = None
+                    element.IV_V = None
+                    element.IV_I = None
             else:
                 element.null_all_IV(max_num_pts_only=max_num_pts_only)
 
@@ -308,13 +325,13 @@ class CircuitGroup(CircuitComponent):
         refine_IV_ = refine_IV
         if hasattr(self,"refined_IV") and self.refined_IV:
             refine_IV_ = False
-        if self.IV_table is None:
+        if self.IV_V is None:
             self.build_IV()
         if V is not None:
-            I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+            I_ = interp_(V,self.IV_V,self.IV_I)
             V_ = V
         elif I is not None:
-            V_ = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+            V_ = interp_(I,self.IV_I,self.IV_V)
             I_ = I
         for element in self.subgroups:
             if self.connection == "series": # then all elements have same current
@@ -330,10 +347,10 @@ class CircuitGroup(CircuitComponent):
             self.null_all_IV(max_num_pts_only=True)
             self.job_heap.refine_IV()
             if V is not None:
-                I_ = interp_(V,self.IV_table[0,:],self.IV_table[1,:])
+                I_ = interp_(V,self.IV_V,self.IV_I)
                 V_ = V
             elif I is not None:
-                V_ = interp_(I,self.IV_table[1,:],self.IV_table[0,:])
+                V_ = interp_(I,self.IV_I,self.IV_V)
                 I_ = I
         # if refine_op_point_:
         #     assign_nodes(self)

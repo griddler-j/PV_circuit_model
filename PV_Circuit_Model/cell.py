@@ -125,6 +125,8 @@ class Intrinsic_Si_diode(ForwardDiode):
         return V
 
 class Cell(CircuitGroup):
+    _type_number = 6
+    photon_coupling_diodes = None
     def __init__(self,components,connection="series",area=None,location=None,
                  rotation=0,shape=None,name=None,temperature=25,Suns=1.0):
         x_extent = 0.0

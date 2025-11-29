@@ -9,7 +9,7 @@ def get_Voc(argument):
     if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Voc" in argument.IV_parameters:
         return argument.IV_parameters["Voc"]
     if isinstance(argument,CircuitGroup):
-        if argument.IV_table is None:
+        if argument.IV_V is None:
             argument.build_IV()
         IV_curve = argument.IV_table
     else:
@@ -26,7 +26,7 @@ def get_Isc(argument):
     if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Isc" in argument.IV_parameters:
         return argument.IV_parameters["Isc"]
     if isinstance(argument,CircuitGroup):
-        if argument.IV_table is None:
+        if argument.IV_V is None:
             argument.build_IV()
         IV_curve = argument.IV_table
     else:
@@ -55,7 +55,7 @@ def get_Pmax(argument, return_op_point=False, refine_IV=False):
             if return_op_point:
                 return Pmax, Vmp, Imp
             return Pmax
-        if argument.IV_table is None:
+        if argument.IV_V is None:
             argument.build_IV()
         IV_curve = argument.IV_table
     else:
@@ -74,13 +74,12 @@ def get_Pmax(argument, return_op_point=False, refine_IV=False):
     Pmax = power[index]
     if isinstance(argument,CircuitGroup) and refine_IV:
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
-        IV_curve = argument.IV_table
-        V = IV_curve[0,:]
-        I = IV_curve[1,:]
-        power = -V*I
+        IV_V = argument.IV_V
+        IV_I = argument.IV_I
+        power = -IV_V*IV_I
         index = np.argmax(power)
-        V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
-        I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+        V = np.linspace(IV_V[index-1],IV_I[index+1],1000)
+        I = interp_(V,IV_V,IV_I)
         power = -V*I
         index = np.argmax(power)
         Vmp = V[index]
@@ -222,7 +221,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         Isc = self.get_Isc()
         FF = self.get_FF()
     if fourth_quadrant and isinstance(self,CircuitGroup):
-        plt.plot(self.IV_table[0,:],-self.IV_table[1,:])
+        plt.plot(self.IV_V,-self.IV_I)
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],-self.operating_point[1],marker='o')
             # if len(self.operating_point)==3:
@@ -230,7 +229,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:
-        plt.plot(self.IV_table[0,:],self.IV_table[1,:])
+        plt.plot(self.IV_V,self.IV_I)
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
             if len(self.operating_point)==3:
