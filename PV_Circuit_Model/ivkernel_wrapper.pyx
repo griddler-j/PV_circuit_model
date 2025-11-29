@@ -43,7 +43,7 @@ cdef extern from "ivkernel.h":
 def pin_to_p_cores_only_():
     pin_to_p_cores_only()
 
-def run_multiple_jobs(components,refine_mode=False,parallel=True):
+def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
     parallel_ = 0
     if parallel: parallel_ = 1
