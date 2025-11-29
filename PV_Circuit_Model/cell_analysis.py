@@ -220,6 +220,8 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         Voc = self.get_Voc()
         Isc = self.get_Isc()
         FF = self.get_FF()
+    if self.IV_V is None:
+        self.build_IV()
     if fourth_quadrant and isinstance(self,CircuitGroup):
         plt.plot(self.IV_V,-self.IV_I)
         if self.operating_point is not None:
