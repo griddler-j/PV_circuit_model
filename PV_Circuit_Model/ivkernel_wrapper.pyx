@@ -34,14 +34,17 @@ cdef extern from "ivkernel.h":
         double* out_I
         int* out_len
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
 
     void pin_to_p_cores_only()
 
 def pin_to_p_cores_only_():
     pin_to_p_cores_only()
 
-def run_multiple_jobs(components,refine_mode=False):
+def run_multiple_jobs(components,refine_mode=False,parallel=False):
+
+    parallel_ = 0
+    if parallel: parallel_ = 1
     cdef Py_ssize_t n_jobs = len(components)
     if n_jobs == 0:
         return [], 0.0
@@ -107,11 +110,6 @@ def run_multiple_jobs(components,refine_mode=False):
     cdef double kernel_ms
     cdef int olen
     cdef double tmp
-    cdef int num_threads = 1
-    if n_jobs >= 16:
-        num_threads = 16
-    elif n_jobs >= 8:
-        num_threads = 8
 
     try:
         t1 = time.time()
@@ -273,7 +271,7 @@ def run_multiple_jobs(components,refine_mode=False):
         packing_time = time.time()-t1
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, num_threads)
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_)
 
         # ----- unpack outputs -----
         t1 = time.time()

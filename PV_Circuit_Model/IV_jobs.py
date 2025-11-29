@@ -49,7 +49,7 @@ def run_iv_jobs(components, children_job_ids, refine_mode=False):
     while job_done_index > 0:
         components_, min_index = get_runnable_iv_jobs(components, children_job_ids, job_done_index)
         if len(components_) > 0:
-            ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode)
+            ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=True)
         if pbar is not None:
             pbar.update(job_done_index-min_index)
         job_done_index = min_index

@@ -672,32 +672,58 @@ double combine_iv_job(int connection,
 
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     auto t0 = std::chrono::high_resolution_clock::now();
-    #pragma omp parallel for num_threads(num_threads)
-    for (int j = 0; j < n_jobs; ++j) {
-        IVJobDesc& job = jobs[j];
-        combine_iv_job(
-            job.connection,
-            job.circuit_component_type_number,
-            job.op_pt_V,
-            job.refine_mode,
-            job.n_children,
-            job.children_IVs,
-            job.children_pc_IVs,
-            job.max_num_points,
-            job.area,
-            job.abs_max_num_points,
-            job.circuit_element_parameters,
-            job.out_V,
-            job.out_I,
-            job.out_len
-        );
+    if (parallel==1 && n_jobs>1) {
+        int num_threads = 8;
+        if (n_jobs > 8) num_threads = 16;
+
+        #pragma omp parallel for num_threads(num_threads)
+        for (int j = 0; j < n_jobs; ++j) {
+            IVJobDesc& job = jobs[j];
+            combine_iv_job(
+                job.connection,
+                job.circuit_component_type_number,
+                job.op_pt_V,
+                job.refine_mode,
+                job.n_children,
+                job.children_IVs,
+                job.children_pc_IVs,
+                job.max_num_points,
+                job.area,
+                job.abs_max_num_points,
+                job.circuit_element_parameters,
+                job.out_V,
+                job.out_I,
+                job.out_len
+            );
+        }
     }
+    else 
+        for (int j = 0; j < n_jobs; ++j) {
+            IVJobDesc& job = jobs[j];
+            combine_iv_job(
+                job.connection,
+                job.circuit_component_type_number,
+                job.op_pt_V,
+                job.refine_mode,
+                job.n_children,
+                job.children_IVs,
+                job.children_pc_IVs,
+                job.max_num_points,
+                job.area,
+                job.abs_max_num_points,
+                job.circuit_element_parameters,
+                job.out_V,
+                job.out_I,
+                job.out_len
+            );
+        }
+
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return ms;
-
 }
+
 
 }// extern "C"
