@@ -42,9 +42,9 @@ void build_current_source_iv(
     int abs_max_num_points
 ) {
     double IL = circuit_element_parameters[0];
-    int n = 2;
+    int n = 1;
     for (int i=0; i < n; ++i) {
-        out_V[i] = -0.1 + i*0.2;
+        out_V[i] = 0;
         out_I[i] = -IL;
     }
     *out_len = n;
@@ -58,9 +58,9 @@ void build_resistor_iv(
     int abs_max_num_points
 ) {
     double cond = circuit_element_parameters[0];
-    int n = 5;
+    int n = 2;
     for (int i=0; i < n; ++i) {
-        out_V[i] = -0.1 + i*0.05;
+        out_V[i] = -0.1 + i*0.2;
         out_I[i] = cond*out_V[i];
     }
     *out_len = n;
@@ -77,11 +77,17 @@ void interp_monotonic_inc(
 ) {
     if (!x || !y || !xq || !yq || n <= 0 || m <= 0) return;
     if (n == 1) {
-        // Degenerate: constant function
+        // Degenerate: constant function (like IL)
         for (int j = 0; j < m; ++j) {
             yq[j] = (additive ? yq[j] : 0.0) + y[0];
         }
         return;
+    } else if (n==2) {
+        // Degenerate: slope (like R)
+        double slope = (y[1] - y[0])/(x[1] - x[0]);
+        for (int j = 0; j < m; ++j) {
+            yq[j] = (additive ? yq[j] : 0.0) + xq[j]*slope;
+        }
     }
     int j_left = 0;
     // --- Left extrapolation: xq <= x[0] ---
@@ -402,7 +408,6 @@ double combine_iv_job(int connection,
     int n_children,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
-    double total_IL,
     int max_num_points,
     double area,
     int abs_max_num_points,
@@ -534,7 +539,6 @@ double combine_iv_job(int connection,
                 interp_monotonic_inc(IV_table_V, IV_table_I, len, Vs.data(), (int)Vs.size(), Is.data(), true); // keeps adding 
             }
         }    
-        for (int k = 0; k < (int)Is.size(); ++k) Is[k] = Is[k] + total_IL;
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
     if (max_num_points > 2 && Vs.size() > max_num_points) { 
@@ -681,7 +685,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads) {
             job.n_children,
             job.children_IVs,
             job.children_pc_IVs,
-            job.total_IL,
             job.max_num_points,
             job.area,
             job.abs_max_num_points,

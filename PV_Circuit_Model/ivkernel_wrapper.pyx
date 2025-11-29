@@ -26,7 +26,6 @@ cdef extern from "ivkernel.h":
         const IVView* children_pc_IVs
         double op_pt_V
         int refine_mode
-        double total_IL
         int max_num_points
         double area
         int abs_max_num_points 
@@ -101,7 +100,7 @@ def run_multiple_jobs(components,refine_mode=False):
     cdef int circuit_component_type_number, type_number
     cdef int n_children, Ni
     cdef int abs_max_num_points
-    cdef double total_IL, area
+    cdef double area
     cdef int max_num_points
 
     cdef Py_ssize_t child_base = 0
@@ -157,7 +156,6 @@ def run_multiple_jobs(components,refine_mode=False):
                 pass 
 
             # ----- scalar fields -----
-            total_IL = 0.0
             area = 1.0
             if hasattr(circuit_component,"shape") and hasattr(circuit_component,"area") and circuit_component.area is not None:
                 area = circuit_component.area
@@ -197,25 +195,17 @@ def run_multiple_jobs(components,refine_mode=False):
                 type_number = subgroups[j]._type_number
 
                 children_views[child_base + j].type_number = type_number
-                if type_number==0: # current source
-                    total_IL -= subgroups[j].IL
-                    children_views[child_base + j].V      = <const double*> 0
-                    children_views[child_base + j].I      = <const double*> 0
-                    children_views[child_base + j].length = 0
-                else:
-                    # ensure IV_table is C-contiguous float64 (2, Ni)
-                    arr = subgroups[j].IV_table
-                    if arr.dtype != np.float64 or arr.ndim != 2 or arr.shape[0] != 2 or arr.strides[1] != arr.itemsize:
-                        assert(1==0)
-                    mv_child_v = arr[0,:]
-                    mv_child_i = arr[1,:]
-                    Ni = arr.shape[1]
-                    abs_max_num_points += Ni
-                    children_views[child_base + j].V           = &mv_child_v[0]
-                    children_views[child_base + j].I           = &mv_child_i[0]
-                    children_views[child_base + j].length      = Ni
-
-            jobs_c[i].total_IL = total_IL
+                # ensure IV_table is C-contiguous float64 (2, Ni)
+                arr = subgroups[j].IV_table
+                if arr.dtype != np.float64 or arr.ndim != 2 or arr.shape[0] != 2 or arr.strides[1] != arr.itemsize:
+                    assert(1==0)
+                mv_child_v = arr[0,:]
+                mv_child_i = arr[1,:]
+                Ni = arr.shape[1]
+                abs_max_num_points += Ni
+                children_views[child_base + j].V           = &mv_child_v[0]
+                children_views[child_base + j].I           = &mv_child_i[0]
+                children_views[child_base + j].length      = Ni
 
             # ----- photon-coupled children → IVView[] -----
             if n_children > 0:

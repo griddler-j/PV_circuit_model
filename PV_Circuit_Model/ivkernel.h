@@ -21,7 +21,6 @@ struct IVJobDesc {
     const IVView* children_pc_IVs;
     double op_pt_V;
     int refine_mode;
-    double total_IL;
     int max_num_points;
     double area;
     int abs_max_num_points;
