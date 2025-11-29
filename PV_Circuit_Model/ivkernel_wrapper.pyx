@@ -43,13 +43,11 @@ cdef extern from "ivkernel.h":
 def pin_to_p_cores_only_():
     pin_to_p_cores_only()
 
-def run_multiple_jobs(components,refine_mode=False,parallel=False):
+def run_multiple_jobs(components,refine_mode=False,parallel=True):
 
     parallel_ = 0
     if parallel: parallel_ = 1
     cdef Py_ssize_t n_jobs = len(components)
-    if n_jobs == 0:
-        return [], 0.0
 
     cdef int PARAMS_LEN = 8
     params_all = np.zeros((n_jobs, PARAMS_LEN), dtype=np.float64)
@@ -65,10 +63,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef np.ndarray[np.int32_t, ndim=1] out_len_array = np.empty(n_jobs, dtype=np.int32)
     cdef np.int32_t[::1] mv_out_len = out_len_array
     cdef int* c_out_len_all = <int*>&mv_out_len[0]
-
-    # keep output IV arrays alive
-    out_V_list = [None] * n_jobs
-    out_I_list = [None] * n_jobs
 
     # ---- count total children / pc-children to allocate IVView buffers ----
     cdef Py_ssize_t total_children = 0
@@ -112,17 +106,17 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef double kernel_ms
     cdef int olen
     cdef double tmp
+    cdef np.float64_t[::1] mv_big_v 
+    cdef np.float64_t[::1] mv_big_i 
+    cdef double* base 
+    cdef Py_ssize_t stride_job 
+    cdef Py_ssize_t offset
+    cdef int sum_abs_max_num_points
 
     try:
         t1 = time.time()
-        timer1a = 0
-        timer1b = 0
-        timer2 = 0
-        timer3 = 0
-        timer4 = 0
-        timer5 = 0
+        sum_abs_max_num_points = 0
         for i in range(n_jobs):
-            t0=time.time()
             circuit_component = components[i]
             subgroups = None
             if circuit_component._type_number>=5:
@@ -164,9 +158,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 # CircuitGroup or unknown
                 pass 
 
-            timer1a += time.time()-t0
-            t0 = time.time()
-
             # ----- scalar fields -----
             area = 1.0
             if circuit_component._type_number==6 and circuit_component.area is not None:
@@ -190,9 +181,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 jobs_c[i].refine_mode = 1
             else:
                 jobs_c[i].refine_mode = 0
-
-            timer1b += time.time()-t0
-            t0 = time.time()
 
             # ----- children_IVs → IVView[] (zero-copy views) -----
             abs_max_num_points = 0
@@ -276,22 +264,22 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 op_pt_V = op_pt[0]
             jobs_c[i].op_pt_V = op_pt_V 
 
-            timer2 += time.time()-t0
-            t0 = time.time()
-
             # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
-            out_V = np.empty((abs_max_num_points,), dtype=np.float64)
-            out_I = np.empty((abs_max_num_points,), dtype=np.float64)
-            out_V_list[i] = out_V
-            out_I_list[i] = out_I
-            mv_outV = out_V
-            mv_outI = out_I
+            sum_abs_max_num_points += abs_max_num_points
 
-            jobs_c[i].out_V   = &mv_outV[0]
-            jobs_c[i].out_I   = &mv_outI[0]
+        big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
+        big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
+        mv_big_v = big_out_V  # anchors the array
+        mv_big_i = big_out_I  # anchors the array
+        base_v = &mv_big_v[0]              # base pointer into contiguous buffer
+        base_i = &mv_big_i[0]              # base pointer into contiguous buffer
+
+        offset = 0
+        for i in range(n_jobs):
+            jobs_c[i].out_V   = base_v + offset
+            jobs_c[i].out_I   = base_i + offset 
             jobs_c[i].out_len = &c_out_len_all[i]
-
-            timer3 += time.time()-t0
+            offset += jobs_c[i].abs_max_num_points
 
         packing_time = time.time()-t1
         # ----- call C++ batched kernel (no Python inside) -----
@@ -300,13 +288,15 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
         # ----- unpack outputs -----
         t1 = time.time()
+        offset = 0
         for i in range(n_jobs):
             circuit_component = components[i]
             olen = c_out_len_all[i]
             if olen < 0:
                 raise ValueError(f"Negative out_len for job {i}")
-            circuit_component.IV_V = out_V_list[i][:olen]
-            circuit_component.IV_I = out_I_list[i][:olen]
+            circuit_component.IV_V = big_out_V[offset:offset+olen]
+            circuit_component.IV_I = big_out_I[offset:offset+olen]
+            offset += jobs_c[i].abs_max_num_points
         unpacking_time = time.time()-t1
 
     finally:
@@ -314,5 +304,5 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
         free(children_views)
         free(pc_children_views)
 
-    return kernel_ms, packing_time, unpacking_time, timer1a, timer1b, timer2, timer3
+    return kernel_ms, packing_time, unpacking_time
 
