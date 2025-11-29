@@ -70,10 +70,8 @@ def get_Pmax(argument, return_op_point=False, refine_IV=False):
     power = -V*I
     index = np.argmax(power)
     Vmp = V[index]
-    Imp = I[index]
-    Pmax = power[index]
+    argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
     if isinstance(argument,CircuitGroup) and refine_IV:
-        argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
         IV_V = argument.IV_V
         IV_I = argument.IV_I
         power = -IV_V*IV_I
@@ -82,8 +80,8 @@ def get_Pmax(argument, return_op_point=False, refine_IV=False):
         I = interp_(V,IV_V,IV_I)
         power = -V*I
         index = np.argmax(power)
-        Vmp = V[index]
-        Imp = I[index]
+    Vmp = V[index]
+    Imp = I[index]
     Pmax = power[index]
     if isinstance(argument,CircuitGroup):
         if not hasattr(argument,"IV_parameters"):
