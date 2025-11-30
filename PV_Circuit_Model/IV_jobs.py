@@ -1,11 +1,22 @@
-import time
-import PV_Circuit_Model.ivkernel as ivkernel  
 from tqdm import tqdm
+
+try:
+    from PV_Circuit_Model import ivkernel  # the compiled Cython extension
+    _HAVE_IVKERNEL = True
+except Exception as e:
+    _HAVE_IVKERNEL = False
+    ivkernel = None
+    import warnings
+    warnings.warn(
+        "The optimized C++/Cython extension 'ivkernel' could not be imported.\n"
+        "Falling back to pure-Python implementation (much slower).\n",
+        RuntimeWarning
+    )
+    from PV_Circuit_Model.ivkernal_python import build_component_IV_python
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
     def __init__(self,circuit_component):
-        t1 = time.time()
         self.components = []
         self.children_job_ids = []
         self.add(circuit_component) # now job_list has one
@@ -44,27 +55,20 @@ def run_iv_jobs(components, children_job_ids, refine_mode=False):
     ivkernel.pin_to_p_cores_only_()
     job_done_index = len(components)
     pbar = None
-    # t1s = 0
-    # t2s = 0
-    # t3s = 0
     if job_done_index > 100000:
         pbar = tqdm(total=job_done_index, desc="Processing the circuit hierarchy: ")
     while job_done_index > 0:
         components_, min_index = get_runnable_iv_jobs(components, children_job_ids, job_done_index)
         if len(components_) > 0:
-            t1, t2, t3 = ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=False)
-
-            # # print(f"{len(components_)}: {t2}, {t1/1000}, {t3}")
-            # t1s += t1
-            # t2s += t2
-            # t3s += t3
+            if _HAVE_IVKERNEL:
+                ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=False)
+            else:
+                for component in components_:
+                    build_component_IV_python(component,refine_mode=refine_mode)
         if pbar is not None:
             pbar.update(job_done_index-min_index)
         job_done_index = min_index
     if pbar is not None:
         pbar.close()
-    # print(f"all done: {t2s}, {t1s/1000}, {t3s}")
-    
-    # print(f"Dang, took {t2}s to get runnable iv jobs, {t2b}s to run them")
 
 
