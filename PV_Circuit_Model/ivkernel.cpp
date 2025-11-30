@@ -570,37 +570,46 @@ double combine_iv_job(int connection,
             auto new_end = std::unique(Is, Is + vs_len);
             vs_len = int(new_end - Is);
             std::fill(Vs, Vs + vs_len, 0.0);
-  
-            std::vector<double> this_V(vs_len);
-            // do reverse order to allow for photon coupling
-            for (int i = n_children-1; i >= 0; --i) {
-                int len = children_IVs[i].length;
-                if (len > 0) { 
-                    const double* IV_table_V = children_IVs[i].V;  
-                    const double* IV_table_I = children_IVs[i].I;  
-                    if (i<n_children-1 && children_pc_IVs[i+1].length>0 && children_IVs[i+1].length>0) {  // need to add the current transferred by the subcell above via pc                        
-                        const double* pc_IV_table_V = children_pc_IVs[i+1].V;  
-                        const double* pc_IV_table_I = children_pc_IVs[i+1].I; 
-                        double scale =  children_pc_IVs[i+1].scale;
-                        int pc_len = children_pc_IVs[i+1].length;
-                        std::vector<double> added_I(vs_len);
-                        // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
-                        // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
-                        interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false,-1,-1); 
-                        for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
-                        std::vector<double> xq(vs_len);
-                        std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
-                        interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false,-1,-1); 
-                        std::vector<double> new_points(vs_len);
-                        std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
-                        extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
-                    } else {
-                        interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false,-1,-1); 
+            if (has_photon_coupling==0) {
+                for (int i = 0; i < n_children; ++i) {  
+                    int len = children_IVs[i].length;
+                    if (len > 0) {
+                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true,-1,-1); // keeps adding
                     }
-                    std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
+                }  
+                break;
+            } else {
+                std::vector<double> this_V(vs_len);
+                // do reverse order to allow for photon coupling
+                for (int i = n_children-1; i >= 0; --i) {
+                    int len = children_IVs[i].length;
+                    if (len > 0) { 
+                        const double* IV_table_V = children_IVs[i].V;  
+                        const double* IV_table_I = children_IVs[i].I;  
+                        if (i<n_children-1 && children_pc_IVs[i+1].length>0 && children_IVs[i+1].length>0) {  // need to add the current transferred by the subcell above via pc                        
+                            const double* pc_IV_table_V = children_pc_IVs[i+1].V;  
+                            const double* pc_IV_table_I = children_pc_IVs[i+1].I; 
+                            double scale =  children_pc_IVs[i+1].scale;
+                            int pc_len = children_pc_IVs[i+1].length;
+                            std::vector<double> added_I(vs_len);
+                            // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
+                            // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
+                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false,-1,-1); 
+                            for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
+                            std::vector<double> xq(vs_len);
+                            std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false,-1,-1); 
+                            std::vector<double> new_points(vs_len);
+                            std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
+                            extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
+                        } else {
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false,-1,-1); 
+                        }
+                        std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
+                    }
                 }
+                if (extra_Is.empty()) break;
             }
-            if (extra_Is.empty()) break;
         }
     }
     // --- parallel connection branch (connection == 1) ---
