@@ -254,6 +254,10 @@ class CircuitComponent(ParamSerializable):
             del self.IV_parameters
         self.job_heap = IV_Job_Heap(self)
         self.job_heap.run_IV()
+    def refine_IV(self):
+        if not hasattr(self,"job_heap"):
+            self.job_heap = IV_Job_Heap(self)
+        self.job_heap.refine_IV()
 
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
@@ -532,7 +536,7 @@ class CircuitGroup(CircuitComponent):
         if refine_IV_:
             self.refined_IV = True
             self.null_all_IV(max_num_pts_only=True)
-            self.job_heap.refine_IV()
+            self.refine_IV()
             if V is not None:
                 I_ = interp_(V,self.IV_V,self.IV_I)
                 V_ = V
