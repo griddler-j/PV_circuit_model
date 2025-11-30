@@ -497,12 +497,6 @@ double combine_iv_job(int connection,
     int* out_len,
     int parallel) {
 
-    int num_threads = 1;
-    if (parallel==1 && connection != -1 && n_children > 1) {
-        num_threads = 8;
-        if (n_children > 8) num_threads = 16;
-    }
-
     auto t0 = std::chrono::high_resolution_clock::now();
 
     // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
@@ -511,6 +505,15 @@ double combine_iv_job(int connection,
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
+
+    int num_threads = 1;
+    if (parallel==1 && has_photon_coupling==0 && n_children > 1) {
+        int total_length = children_Vs_size*n_children;
+        num_threads = 32;
+        if (n_children < 16*4) num_threads = 16;
+        if (n_children < 8*4) num_threads = 8;
+        if (n_children < 8) num_threads = n_children;
+    }
 
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
        
@@ -571,12 +574,43 @@ double combine_iv_job(int connection,
             vs_len = int(new_end - Is);
             std::fill(Vs, Vs + vs_len, 0.0);
             if (has_photon_coupling==0) {
-                for (int i = 0; i < n_children; ++i) {  
-                    int len = children_IVs[i].length;
-                    if (len > 0) {
-                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true,-1,-1); // keeps adding
+
+                if (num_threads>1) {
+                    std::vector<double> all_local(num_threads * vs_len, 0.0);
+                    #pragma omp parallel num_threads(num_threads)
+                    {
+                        int tid = omp_get_thread_num();
+                        double* local_Vs = all_local.data() + (size_t)tid * vs_len;
+
+                        #pragma omp for schedule(static)
+                        for (int i = 0; i < n_children; ++i) {
+                            int len = children_IVs[i].length;
+                            if (len > 0) {
+                                // simple version: no blocks, just whole Vs
+                                interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len,
+                                                    Is, vs_len,
+                                                    local_Vs, true, -1, -1);
+                            }
+                        }
+
+                        #pragma omp barrier
+
+                        #pragma omp for schedule(static)
+                        for (int j = 0; j < vs_len; ++j) {
+                            double sum = 0.0;
+                            for (int t = 0; t < num_threads; ++t) {
+                                sum += all_local[(size_t)t * vs_len + j];
+                            }
+                            Vs[j] = sum;
+                        }
                     }
-                }  
+                } else
+                    for (int i = 0; i < n_children; ++i) {  
+                        int len = children_IVs[i].length;
+                        if (len > 0) {
+                            interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true,-1,-1); // keeps adding
+                        }
+                    }  
                 break;
             } else {
                 std::vector<double> this_V(vs_len);
@@ -656,26 +690,33 @@ double combine_iv_job(int connection,
         vs_len = int(new_end - Vs);
 
         std::fill(Is, Is + vs_len, 0.0);
-        if (false) {
-            int chunk_size = (int)vs_len/10;
-            #pragma omp parallel num_threads(num_threads) 
+        if (num_threads>1) {
+            std::vector<double> all_local(num_threads * vs_len, 0.0);
+            #pragma omp parallel num_threads(num_threads)
             {
-                std::vector<double> local_Is(vs_len);  
-                #pragma omp for collapse(2) nowait
+                int tid = omp_get_thread_num();
+                double* local_Is = all_local.data() + (size_t)tid * vs_len;
+
+                #pragma omp for schedule(static)
                 for (int i = 0; i < n_children; ++i) {
                     int len = children_IVs[i].length;
                     if (len > 0) {
-                        for (int j = 0; j < 10; ++j) {
-                            int size_ = chunk_size;
-                            if (j==9)
-                                size_ = (int)vs_len-j*chunk_size;
-                            interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs+j*chunk_size, size_, local_Is.data()+j*chunk_size, true,-1,-1); // keeps adding 
-                        }
+                        // simple version: no blocks, just whole Vs
+                        interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len,
+                                            Vs, vs_len,
+                                            local_Is, true, -1, -1);
                     }
-                }    
-                #pragma omp critical
+                }
+
+                #pragma omp barrier
+
+                #pragma omp for schedule(static)
                 for (int j = 0; j < vs_len; ++j) {
-                    Is[j] += local_Is[j];
+                    double sum = 0.0;
+                    for (int t = 0; t < num_threads; ++t) {
+                        sum += all_local[(size_t)t * vs_len + j];
+                    }
+                    Is[j] = sum;
                 }
             }
         }
@@ -687,122 +728,132 @@ double combine_iv_job(int connection,
                 }
             }  
     }
-    // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
-    if (max_num_points > 2 && vs_len > max_num_points) { 
-        int mpp_points = 0;
-        if (refine_mode==1) mpp_points = max_num_points*0.1;
-
-        int n = static_cast<int>(vs_len);
-        std::vector<double> accum_abs_dir_change(n-1); 
-        std::vector<double> accum_abs_dir_change_near_mpp(n-1); 
-        accum_abs_dir_change.push_back(0.0);
-        double V_range = Vs[vs_len-1];
-        double left_V = 0.05*Vs[0];
-        double right_V = 0.05*Vs[vs_len-1];
-        double I_range = std::min(std::abs(Is[vs_len-1]),std::abs(Is[0]));
-        double V_closest_to_SC = 1000000;
-        int idx_V_closest_to_SC = 0;
-        double V_closest_to_SC_right = 1000000;
-        int idx_V_closest_to_SC_right = 0;
-        double V_closest_to_SC_left = 1000000;
-        int idx_V_closest_to_SC_left = 0;
-        double sqrt_half = std::sqrt(0.5);
-        double last_unit_vector_x, last_unit_vector_y;
-        for (int i = 0; i < n - 1; ++i) {
-            if (V_closest_to_SC > std::abs(Vs[i])) {
-                V_closest_to_SC = std::abs(Vs[i]);
-                idx_V_closest_to_SC = i;
-            }
-            double absdiff = std::abs(Vs[i]-right_V);
-            if (V_closest_to_SC_right > absdiff) {
-                V_closest_to_SC_right = absdiff;
-                idx_V_closest_to_SC_right = i;
-            }
-            absdiff = std::abs(Vs[i]-left_V);
-            if (V_closest_to_SC_left > absdiff) {
-                V_closest_to_SC_left = absdiff;
-                idx_V_closest_to_SC_left = i;
-            }
-            double unit_vector_x = (Vs[i+1] - Vs[i])/V_range;
-            double unit_vector_y = (Is[i+1] - Is[i])/I_range;
-            double mag = std::sqrt((unit_vector_x*unit_vector_x + unit_vector_y*unit_vector_y));
-            unit_vector_x /= mag;
-            unit_vector_y /= mag;
-            if (!std::isfinite(unit_vector_x) || !std::isfinite(unit_vector_y)) { // catches NaN, +inf, -inf
-                if (i==0) {
-                    unit_vector_x = sqrt_half;
-                    unit_vector_y = sqrt_half;
-                }
-                else {
-                    unit_vector_x = last_unit_vector_x;
-                    unit_vector_y = last_unit_vector_y;
-                }
-            }
-            if (i > 0) {
-                double dx = unit_vector_x - last_unit_vector_x;
-                double dy = unit_vector_y - last_unit_vector_y;
-                double fudge_factor1 = 1;
-                if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
-                double change = std::sqrt(dx*dx + dy*dy);
-                accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
-                if (refine_mode==1 && std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) {
-                    accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change;
-                }
-            }
-            last_unit_vector_x = unit_vector_x;
-            last_unit_vector_y = unit_vector_y;
-        }
-        double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
-        double variation_segment_mpp = 0.0;
-        if (refine_mode == 1 && mpp_points > 0) {
-            variation_segment_mpp =
-                accum_abs_dir_change_near_mpp[n - 2] / mpp_points;
-        }
-        std::vector<int> idx;
-        idx.reserve(max_num_points+100+mpp_points);
-        idx.push_back(0);
-        int count = 1;
-        int countmpp = 1;
-        for (int i = 1; i < n - 1; ++i) {
-            if (accum_abs_dir_change[i] >= count * variation_segment) {
-                int last_index = idx.size()-1;
-                if (i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index])
-                    idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
-                else if (i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index])
-                    idx.push_back(idx_V_closest_to_SC_left);  // just also capture points closest to SC to keep Isc accurate
-                else if (i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index])
-                    idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
-                idx.push_back(i);
-                ++count;
-            } else if (refine_mode==1 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
-                idx.push_back(i);
-                ++countmpp;
-            }
-        }
-        idx.push_back(n-1);
-
-        // remesh
-        int n_out = (int)idx.size();
-        for (int i = 0; i < n_out; ++i) {
-            int k = idx[i];
-            out_V[i] = Vs[k];
-            double I_val = Is[k];
-            if (area != 1) I_val *= area;
-            out_I[i] = I_val;
-        }
-        *out_len = n_out;
-    } else {
-        if (area != 1) {
-            for (int i=0; i<vs_len; i++) Is[i] *= area;
-        }
-        *out_len = vs_len;
+    
+    if (area != 1) {
+        for (int i=0; i<vs_len; i++) Is[i] *= area;
     }
+    *out_len = vs_len;
     
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return ms;
-
 } 
+
+double remesh_IV(
+    double op_pt_V,
+    int refine_mode,
+    int max_num_points,
+    double* out_V,
+    double* out_I,
+    int* out_len) {
+
+    double* Vs = out_V;
+    double* Is = out_I;
+    int *vs_len = out_len;
+    
+    int mpp_points = 0;
+    if (refine_mode==1) mpp_points = max_num_points*0.1;
+
+    int n = static_cast<int>(*vs_len);
+    std::vector<double> accum_abs_dir_change(n-1); 
+    std::vector<double> accum_abs_dir_change_near_mpp(n-1); 
+    accum_abs_dir_change.push_back(0.0);
+    double V_range = Vs[n-1];
+    double left_V = 0.05*Vs[0];
+    double right_V = 0.05*Vs[n-1];
+    double I_range = std::min(std::abs(Is[n-1]),std::abs(Is[0]));
+    double V_closest_to_SC = 1000000;
+    int idx_V_closest_to_SC = 0;
+    double V_closest_to_SC_right = 1000000;
+    int idx_V_closest_to_SC_right = 0;
+    double V_closest_to_SC_left = 1000000;
+    int idx_V_closest_to_SC_left = 0;
+    double sqrt_half = std::sqrt(0.5);
+    double last_unit_vector_x, last_unit_vector_y;
+    for (int i = 0; i < n - 1; ++i) {
+        if (V_closest_to_SC > std::abs(Vs[i])) {
+            V_closest_to_SC = std::abs(Vs[i]);
+            idx_V_closest_to_SC = i;
+        }
+        double absdiff = std::abs(Vs[i]-right_V);
+        if (V_closest_to_SC_right > absdiff) {
+            V_closest_to_SC_right = absdiff;
+            idx_V_closest_to_SC_right = i;
+        }
+        absdiff = std::abs(Vs[i]-left_V);
+        if (V_closest_to_SC_left > absdiff) {
+            V_closest_to_SC_left = absdiff;
+            idx_V_closest_to_SC_left = i;
+        }
+        double unit_vector_x = (Vs[i+1] - Vs[i])/V_range;
+        double unit_vector_y = (Is[i+1] - Is[i])/I_range;
+        double mag = std::sqrt((unit_vector_x*unit_vector_x + unit_vector_y*unit_vector_y));
+        unit_vector_x /= mag;
+        unit_vector_y /= mag;
+        if (!std::isfinite(unit_vector_x) || !std::isfinite(unit_vector_y)) { // catches NaN, +inf, -inf
+            if (i==0) {
+                unit_vector_x = sqrt_half;
+                unit_vector_y = sqrt_half;
+            }
+            else {
+                unit_vector_x = last_unit_vector_x;
+                unit_vector_y = last_unit_vector_y;
+            }
+        }
+        if (i > 0) {
+            double dx = unit_vector_x - last_unit_vector_x;
+            double dy = unit_vector_y - last_unit_vector_y;
+            double fudge_factor1 = 1;
+            if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
+            double change = std::sqrt(dx*dx + dy*dy);
+            accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
+            if (refine_mode==1 && std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) {
+                accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change;
+            }
+        }
+        last_unit_vector_x = unit_vector_x;
+        last_unit_vector_y = unit_vector_y;
+    }
+    double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
+    double variation_segment_mpp = 0.0;
+    if (refine_mode == 1 && mpp_points > 0) {
+        variation_segment_mpp =
+            accum_abs_dir_change_near_mpp[n - 2] / mpp_points;
+    }
+    std::vector<int> idx;
+    idx.reserve(max_num_points+100+mpp_points);
+    idx.push_back(0);
+    int count = 1;
+    int countmpp = 1;
+    for (int i = 1; i < n - 1; ++i) {
+        if (accum_abs_dir_change[i] >= count * variation_segment) {
+            int last_index = idx.size()-1;
+            if (i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index])
+                idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
+            else if (i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index])
+                idx.push_back(idx_V_closest_to_SC_left);  // just also capture points closest to SC to keep Isc accurate
+            else if (i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index])
+                idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
+            idx.push_back(i);
+            ++count;
+        } else if (refine_mode==1 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
+            idx.push_back(i);
+            ++countmpp;
+        }
+    }
+    idx.push_back(n-1);
+
+    // remesh
+    int n_out = (int)idx.size();
+    for (int i = 0; i < n_out; ++i) {
+        int k = idx[i];
+        out_V[i] = Vs[k];
+        double I_val = Is[k];
+        out_I[i] = I_val;
+    }
+    *out_len = n_out;
+} 
+
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     auto t0 = std::chrono::high_resolution_clock::now();
@@ -859,6 +910,49 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 parallel
             );
         }
+
+    int num_jobs_need_remesh = 0;
+    for (int j = 0; j < n_jobs; ++j) 
+        if (jobs[j].max_num_points > 2) 
+            num_jobs_need_remesh++;
+    if (num_jobs_need_remesh > 0) {
+        if (parallel==1 && num_jobs_need_remesh>1) {
+            int num_threads = 32;
+            if (num_jobs_need_remesh < 16*4) num_threads = 16;
+            if (num_jobs_need_remesh < 8*4) num_threads = 8;
+            if (num_jobs_need_remesh < 8) num_threads = num_jobs_need_remesh;
+            // if (n_jobs > 8) num_threads = 16;
+            // if (n_jobs > 16) num_threads = 32;
+
+            #pragma omp parallel for num_threads(num_threads)
+            for (int j = 0; j < n_jobs; ++j) {
+                IVJobDesc& job = jobs[j];
+                if (jobs[j].max_num_points > 2) 
+                    remesh_IV(
+                        job.op_pt_V,
+                        job.refine_mode,
+                        job.max_num_points,
+                        job.out_V,
+                        job.out_I,
+                        job.out_len
+                    );
+            }
+        }
+        else 
+            for (int j = 0; j < n_jobs; ++j) {
+                IVJobDesc& job = jobs[j];
+                if (jobs[j].max_num_points > 2) 
+                    remesh_IV(
+                        job.op_pt_V,
+                        job.refine_mode,
+                        job.max_num_points,
+                        job.out_V,
+                        job.out_I,
+                        job.out_len
+                    );
+            }
+    }
+    
 
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
