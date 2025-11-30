@@ -1,15 +1,25 @@
 import numpy as np
-import numbers
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
-import json
-from collections.abc import Mapping, Sequence
+from numbers import Number
 
 def interp_(x, xp, fp):
+    if xp.size==1:
+        return fp[0]*np.ones_like(x)
     if xp[-1] > xp[0]:
         y = np.interp(x, xp, fp)
     else:
         y = np.interp(-x, -xp, fp)
+    if isinstance(x,Number):
+        return y
+    if x[0] < xp[0]:
+        left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
+        find_ = np.where(x < xp[0])[0]
+        y[find_] = fp[0] + (x[find_]-xp[0])*left_slope
+    if x[-1] > xp[-1]:
+        right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
+        find_ = np.where(x > xp[-1])[0]
+        y[find_] = fp[-1] + (x[find_]-xp[-1])*right_slope
     return y
 
 def rotate_points(xy_pairs, origin, angle_deg):

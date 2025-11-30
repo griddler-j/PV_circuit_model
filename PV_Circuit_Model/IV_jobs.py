@@ -52,7 +52,8 @@ def get_runnable_iv_jobs(components, children_job_ids, job_done_index):
     return [components[j] for j in include_indices], 0
 
 def run_iv_jobs(components, children_job_ids, refine_mode=False):
-    ivkernel.pin_to_p_cores_only_()
+    if _HAVE_IVKERNEL:
+        ivkernel.pin_to_p_cores_only_()
     job_done_index = len(components)
     pbar = None
     if job_done_index > 100000:

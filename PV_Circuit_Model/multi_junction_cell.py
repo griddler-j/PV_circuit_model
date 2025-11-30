@@ -1,6 +1,7 @@
 import numpy as np
 from PV_Circuit_Model.circuit_model import *
 from PV_Circuit_Model.cell import *
+import numbers
 
 class MultiJunctionCell(CircuitGroup):
     _type_number = 7
