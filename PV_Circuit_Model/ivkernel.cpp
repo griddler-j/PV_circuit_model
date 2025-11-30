@@ -33,53 +33,52 @@ struct MergeNodeCmp {
     }
 };
 
-// Merge all children_IVs[i].V (each sorted) into out_Vs (sorted)
-void merge_children_kway_ptr(const IVView* children_IVs,int sort_V_or_I,
-                             int n_children,
-                             std::vector<double>& out_Vs)
-{
-    using PQ = std::priority_queue<MergeNode,
-                                   std::vector<MergeNode>,
-                                   MergeNodeCmp>;
-
-    // Compute total output length for reserve
-    size_t total_len = 0;
-    for (int i = 0; i < n_children; ++i) {
-        total_len += children_IVs[i].length;
-    }
-
-    out_Vs.clear();
-    out_Vs.reserve(total_len);
+void merge_children_kway_ptr(
+    const IVView* children_IVs,
+    int sort_V_or_I,
+    int n_children,
+    double* out_Vs,     // output buffer
+    int& out_len,       // number written
+    int capacity        // max capacity of out_Vs
+) {
+    using PQ = std::priority_queue<
+        MergeNode,
+        std::vector<MergeNode>,
+        MergeNodeCmp
+    >;
 
     PQ pq;
 
-    // Initialize heap with first element of each non-empty child
+    // Fill heap with the first element of each non-empty child
     for (int i = 0; i < n_children; ++i) {
         int len = children_IVs[i].length;
-        const double* vptr;
-        if (sort_V_or_I==0) vptr = children_IVs[i].V;
-        else vptr = children_IVs[i].I;
-        if (len > 0 && vptr != nullptr) {
-            MergeNode node;
-            node.cur = vptr;
-            node.end = vptr + len;
-            pq.push(node);
-        }
+        if (len == 0) continue;
+
+        const double* p =
+            (sort_V_or_I == 0)
+            ? children_IVs[i].V
+            : children_IVs[i].I;
+
+        MergeNode node{p, p + len};
+        pq.push(node);
     }
 
-    // Standard k-way merge
-    while (!pq.empty()) {
+    int count = 0;
+
+    // K-way merge
+    while (!pq.empty() && count < capacity) {
         MergeNode node = pq.top();
         pq.pop();
 
-        const double* cur = node.cur;
-        out_Vs.push_back(*cur);
+        out_Vs[count++] = *node.cur;
 
         ++node.cur;
         if (node.cur != node.end) {
             pq.push(node);
         }
     }
+
+    out_len = count;
 }
 
 void pin_to_p_cores_only() {
@@ -513,9 +512,6 @@ double combine_iv_job(int connection,
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
 
-    std::vector<double> Vs(children_Vs_size);
-    std::vector<double> Is(children_Vs_size);
-
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
        
         switch (circuit_component_type_number) {
@@ -540,35 +536,42 @@ double combine_iv_job(int connection,
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
         return ms;
     }
+
+    double* Vs = out_V;
+    double* Is = out_I;
+    int vs_len = children_Vs_size;
     // --- Series connection branch (connection == 0) ---
-    else if (connection == 0) {
+    if (connection == 0) {
         // add voltage
         if (children_Vs_size <= n_children*100) {
             int pos = 0;
             for (int i=0; i < n_children; i++) {
                 int Ni = children_IVs[i].length;
-                memcpy(Is.data() + pos, children_IVs[i].I, Ni * sizeof(double));
+                memcpy(Is + pos, children_IVs[i].I, Ni * sizeof(double));
                 pos += Ni;
             }
         }
         std::vector<double> extra_Is;
         for (int iteration = 0; iteration < 2; ++iteration) {
-            if (iteration == 1 && !extra_Is.empty()) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());   
+            if (iteration == 1 && !extra_Is.empty()) {
+                memcpy(Is + vs_len, extra_Is.data(), extra_Is.size() * sizeof(double));
+                vs_len += extra_Is.size();
+            }
             
             // auto t0 = std::chrono::high_resolution_clock::now();
             if (iteration==0) 
                 if (children_Vs_size > n_children*100) // found to be optimal 
-                    merge_children_kway_ptr(children_IVs, 1, n_children, Is);
+                    merge_children_kway_ptr(children_IVs, 1, n_children,Is,vs_len,abs_max_num_points);
                 else {
-                    std::sort(Is.begin(), Is.end()); 
+                    std::sort(Is, Is + vs_len);
                 }
             else
-                std::sort(Is.begin(), Is.end()); 
-            auto new_end = std::unique(Is.begin(), Is.end());
-            Is.erase(new_end, Is.end());
-
-            Vs.assign(Is.size(), 0.0);     
-            std::vector<double> this_V(Is.size());
+                std::sort(Is, Is + vs_len);
+            auto new_end = std::unique(Is, Is + vs_len);
+            vs_len = int(new_end - Is);
+            std::fill(Vs, Vs + vs_len, 0.0);
+  
+            std::vector<double> this_V(vs_len);
             // do reverse order to allow for photon coupling
             for (int i = n_children-1; i >= 0; --i) {
                 int len = children_IVs[i].length;
@@ -580,21 +583,21 @@ double combine_iv_job(int connection,
                         const double* pc_IV_table_I = children_pc_IVs[i+1].I; 
                         double scale =  children_pc_IVs[i+1].scale;
                         int pc_len = children_pc_IVs[i+1].length;
-                        std::vector<double> added_I(Is.size());
+                        std::vector<double> added_I(vs_len);
                         // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                         // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
                         interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false,-1,-1); 
                         for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
-                        std::vector<double> xq(Is.size());
-                        std::transform(Is.begin(), Is.end(),added_I.begin(),xq.begin(),std::minus<double>());
+                        std::vector<double> xq(vs_len);
+                        std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
                         interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false,-1,-1); 
-                        std::vector<double> new_points(Is.size());
-                        std::transform(Is.begin(), Is.end(),added_I.begin(),new_points.begin(),std::plus<double>());
+                        std::vector<double> new_points(vs_len);
+                        std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
                         extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
                     } else {
-                        interp_monotonic_inc(IV_table_I, IV_table_V, len, Is.data(), (int)Is.size(), this_V.data(), false,-1,-1); 
+                        interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false,-1,-1); 
                     }
-                    std::transform(Vs.begin(), Vs.end(),this_V.begin(),Vs.begin(),std::plus<double>());
+                    std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
                 }
             }
             if (extra_Is.empty()) break;
@@ -612,17 +615,16 @@ double combine_iv_job(int connection,
                 right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
             }
         }
-
         if (children_Vs_size > n_children*100) // found to be optimal 
-            merge_children_kway_ptr(children_IVs, 0, n_children, Vs);
+            merge_children_kway_ptr(children_IVs, 0, n_children, Vs,vs_len,abs_max_num_points);
         else {
             int pos = 0;
             for (int i=0; i < n_children; i++) {
                 int Ni = children_IVs[i].length;
-                memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
+                memcpy(Vs + pos, children_IVs[i].V, Ni * sizeof(double));
                 pos += Ni;
             }
-            std::sort(Vs.begin(), Vs.end()); // replace this with smart k way merge since children V's are each sorted 
+            std::sort(Vs, Vs+vs_len); // replace this with smart k way merge since children V's are each sorted 
         }
 
         for (int i=0; i < n_children; ++i) {
@@ -634,17 +636,22 @@ double combine_iv_job(int connection,
                 left_limit = std::max(left_limit, IV_table_V[0]);
             }
         }
-        Vs.erase(std::remove_if(Vs.begin(),Vs.end(),[left_limit, right_limit](double v) {return v < left_limit || v > right_limit;}),Vs.end());
-        auto new_end = std::unique(Vs.begin(), Vs.end());
-        Vs.erase(new_end, Vs.end());
+        double* new_end = std::remove_if(
+            Vs, Vs + vs_len,
+            [left_limit, right_limit](double v) {
+                return v < left_limit || v > right_limit;
+            }
+        );
+        vs_len = int(new_end - Vs);
+        new_end = std::unique(Vs, Vs+vs_len);
+        vs_len = int(new_end - Vs);
 
-        Is.assign(Vs.size(), 0.0);
-
+        std::fill(Is, Is + vs_len, 0.0);
         if (false) {
-            int chunk_size = (int)Vs.size()/10;
+            int chunk_size = (int)vs_len/10;
             #pragma omp parallel num_threads(num_threads) 
             {
-                std::vector<double> local_Is(Vs.size());  
+                std::vector<double> local_Is(vs_len);  
                 #pragma omp for collapse(2) nowait
                 for (int i = 0; i < n_children; ++i) {
                     int len = children_IVs[i].length;
@@ -652,13 +659,13 @@ double combine_iv_job(int connection,
                         for (int j = 0; j < 10; ++j) {
                             int size_ = chunk_size;
                             if (j==9)
-                                size_ = (int)Vs.size()-j*chunk_size;
-                            interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs.data()+j*chunk_size, size_, local_Is.data()+j*chunk_size, true,-1,-1); // keeps adding 
+                                size_ = (int)vs_len-j*chunk_size;
+                            interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs+j*chunk_size, size_, local_Is.data()+j*chunk_size, true,-1,-1); // keeps adding 
                         }
                     }
                 }    
                 #pragma omp critical
-                for (int j = 0; j < Vs.size(); ++j) {
+                for (int j = 0; j < vs_len; ++j) {
                     Is[j] += local_Is[j];
                 }
             }
@@ -667,23 +674,23 @@ double combine_iv_job(int connection,
             for (int i = 0; i < n_children; ++i) {  
                 int len = children_IVs[i].length;
                 if (len > 0) {
-                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs.data(), (int)Vs.size(), Is.data(), true,-1,-1); // keeps adding 
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true,-1,-1); // keeps adding 
                 }
             }  
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
-    if (max_num_points > 2 && Vs.size() > max_num_points) { 
+    if (max_num_points > 2 && vs_len > max_num_points) { 
         int mpp_points = 0;
         if (refine_mode==1) mpp_points = max_num_points*0.1;
 
-        int n = static_cast<int>(Vs.size());
+        int n = static_cast<int>(vs_len);
         std::vector<double> accum_abs_dir_change(n-1); 
         std::vector<double> accum_abs_dir_change_near_mpp(n-1); 
         accum_abs_dir_change.push_back(0.0);
-        double V_range = Vs[Vs.size()-1];
+        double V_range = Vs[vs_len-1];
         double left_V = 0.05*Vs[0];
-        double right_V = 0.05*Vs[Vs.size()-1];
-        double I_range = std::min(std::abs(Is[Is.size()-1]),std::abs(Is[0]));
+        double right_V = 0.05*Vs[vs_len-1];
+        double I_range = std::min(std::abs(Is[vs_len-1]),std::abs(Is[0]));
         double V_closest_to_SC = 1000000;
         int idx_V_closest_to_SC = 0;
         double V_closest_to_SC_right = 1000000;
@@ -737,8 +744,11 @@ double combine_iv_job(int connection,
             last_unit_vector_y = unit_vector_y;
         }
         double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
-        double variation_segment_mpp;
-        if (refine_mode==1) accum_abs_dir_change_near_mpp[n-2]/(mpp_points);
+        double variation_segment_mpp = 0.0;
+        if (refine_mode == 1 && mpp_points > 0) {
+            variation_segment_mpp =
+                accum_abs_dir_change_near_mpp[n - 2] / mpp_points;
+        }
         std::vector<int> idx;
         idx.reserve(max_num_points+100+mpp_points);
         idx.push_back(0);
@@ -774,13 +784,9 @@ double combine_iv_job(int connection,
         *out_len = n_out;
     } else {
         if (area != 1) {
-            for (int i=0; i<Is.size(); i++) Is[i] *= area;
+            for (int i=0; i<vs_len; i++) Is[i] *= area;
         }
-
-        int n_out = (int)Vs.size();
-        std::memcpy(out_V, Vs.data(), n_out * sizeof(double));
-        std::memcpy(out_I, Is.data(), n_out * sizeof(double));
-        *out_len = n_out;
+        *out_len = vs_len;
     }
     
     auto t1 = std::chrono::high_resolution_clock::now();
