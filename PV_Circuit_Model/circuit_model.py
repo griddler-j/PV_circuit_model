@@ -5,6 +5,12 @@ from PV_Circuit_Model.iterative_solver import assign_nodes, iterative_solve
 import copy
 from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
+import json
+import pickle
+import numpy as np
+import importlib
+import inspect
+import bson
 
 pbar = None
 x_spacing = 1.5
@@ -18,8 +24,189 @@ def get_VT(temperature):
 
 def get_ni(temperature):
     return 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
+
+class ParamSerializable:
+    # fields that should NOT go into params (derived or runtime-only)
+    _transient_fields = {"IV_V", "IV_I", "job_heap", "operating_point", "parent", "refined_IV","cells"}
+
+    # --------- PUBLIC API: JSON ---------
+
+    def save_toParams(self):
+        """
+        Convert this object into a JSON-ready dict.
+        """
+        data = {
+            "__class__": f"{self.__class__.__module__}.{self.__class__.__name__}"
+        }
+        for name, value in self.__dict__.items():
+            if name in self._transient_fields:
+                continue
+            data[name] = self._save_value(value)
+        return data
+
+    def save_to_json(self, path, *, indent=2):
+        """
+        Save object to a JSON file.
+        """
+        params = self.save_toParams()
+        with open(path, "w") as f:
+            json.dump(params, f, indent=indent)
+        return path
+
+    @staticmethod
+    def restore_from_json(path):
+        """
+        Restore an object from a JSON file previously written by save_to_json().
+        """
+        with open(path, "r") as f:
+            params = json.load(f)
+        return ParamSerializable.Restore_fromParams(params)
     
-class CircuitComponent:
+    def save_to_bson(self, path):
+        """
+        Save this object as BSON.
+        """
+        params = self.save_toParams()
+        data = bson.dumps(params)
+        with open(path, "wb") as f:
+            f.write(data)
+        return path
+
+    @staticmethod
+    def restore_from_bson(path):
+        """
+        Restore object from a BSON file created by save_to_bson().
+        """
+        with open(path, "rb") as f:
+            params = bson.loads(f.read())
+        return ParamSerializable.Restore_fromParams(params)
+
+    # --------- PUBLIC API: PICKLE ---------
+
+    def save_to_pickle(self, path):
+        """
+        Save this object via pickle (faster, exact object graph).
+        """
+        with open(path, "wb") as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+        return path
+
+    @staticmethod
+    def restore_from_pickle(path):
+        """
+        Restore an object saved via save_to_pickle().
+        """
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    # --------- INTERNAL RESTORE API ---------
+
+    @staticmethod
+    def Restore_fromParams(params):
+        """
+        Generic entry point for JSON-based deserialization.
+        """
+        return ParamSerializable._restore_value(params)
+
+    # --------- INTERNAL SAVE HELPERS ---------
+
+    @staticmethod
+    def _save_value(value):
+        if isinstance(value, ParamSerializable):
+            return value.save_toParams()
+
+        if isinstance(value, (list, tuple)):
+            return [ParamSerializable._save_value(v) for v in value]
+
+        if isinstance(value, dict):
+            return {k: ParamSerializable._save_value(v) for k, v in value.items()}
+
+        if isinstance(value, np.ndarray):
+            return {
+                "__ndarray__": value.tolist(),
+                "dtype": str(value.dtype),
+                "shape": value.shape,
+            }
+
+        return value
+
+    # --------- INTERNAL RESTORE HELPERS ---------
+
+    @staticmethod
+    def _restore_value(value):
+        # numpy array
+        if isinstance(value, dict) and "__ndarray__" in value:
+            arr = np.array(value["__ndarray__"], dtype=value["dtype"])
+            return arr.reshape(value["shape"])
+
+        # nested ParamSerializable subclass (or any class we serialized)
+        if isinstance(value, dict) and "__class__" in value:
+            cls_path = value["__class__"]
+            module_name, class_name = cls_path.rsplit(".", 1)
+
+            # dynamic import trick
+            mod = importlib.import_module(module_name)
+            cls = getattr(mod, class_name)
+
+            # recursively restore all fields except __class__
+            raw_kwargs = {
+                k: ParamSerializable._restore_value(v)
+                for k, v in value.items()
+                if k != "__class__"
+            }
+
+            # Look at __init__ signature
+            sig = inspect.signature(cls.__init__)
+            params = sig.parameters
+
+            # If class accepts **kwargs, just pass everything
+            accepts_var_kw = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD
+                for p in params.values()
+            )
+            if accepts_var_kw:
+                return cls(**raw_kwargs)
+
+            # Otherwise, split into "constructor args" and "extra attrs"
+            allowed_names = {
+                name
+                for name, p in params.items()
+                if name != "self"
+                and p.kind in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY,
+                )
+            }
+
+            init_kwargs = {k: v for k, v in raw_kwargs.items() if k in allowed_names}
+            extra_kwargs = {k: v for k, v in raw_kwargs.items() if k not in allowed_names}
+
+            # Instantiate with the allowed kwargs
+            obj = cls(**init_kwargs)
+
+            # Attach any extra fields as attributes
+            for k, v in extra_kwargs.items():
+                setattr(obj, k, v)
+
+            return obj
+
+        # list
+        if isinstance(value, list):
+            return [ParamSerializable._restore_value(v) for v in value]
+
+        # regular dict
+        if isinstance(value, dict):
+            return {k: ParamSerializable._restore_value(v) for k, v in value.items()}
+
+        # primitives
+        return value
+
+
+    
+
+
+      
+class CircuitComponent(ParamSerializable):
     max_I = None
     max_num_points = None
     def __init__(self,tag=None):

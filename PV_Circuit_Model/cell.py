@@ -127,14 +127,14 @@ class Intrinsic_Si_diode(ForwardDiode):
 class Cell(CircuitGroup):
     _type_number = 6
     photon_coupling_diodes = None
-    def __init__(self,components,connection="series",area=None,location=None,
+    def __init__(self,subgroups,connection="series",area=None,location=None,
                  rotation=0,shape=None,name=None,temperature=25,Suns=1.0):
         x_extent = 0.0
         y_extent = 0.0
         if shape is not None:
             x_extent = np.max(shape[:,0])-np.min(shape[:,0])
             y_extent = np.max(shape[:,1])-np.min(shape[:,1])
-        super().__init__(components, connection,location=location,rotation=rotation,
+        super().__init__(subgroups, connection,location=location,rotation=rotation,
                          name=name,extent=np.array([x_extent,y_extent]).astype(float))
         self.area = area
         self.is_cell = True
