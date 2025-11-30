@@ -698,24 +698,25 @@ double combine_iv_job(int connection,
         idx.push_back(n-1);
 
         // remesh
-        std::vector<double> new_Vs(idx.size());
-        std::vector<double> new_Is(idx.size());
-        for (std::size_t i = 0; i < idx.size(); ++i) {
-            new_Vs[i] = Vs[idx[i]];
-            new_Is[i] = Is[idx[i]];
+        int n_out = (int)idx.size();
+        for (int i = 0; i < n_out; ++i) {
+            int k = idx[i];
+            out_V[i] = Vs[k];
+            double I_val = Is[k];
+            if (area != 1) I_val *= area;
+            out_I[i] = I_val;
+        }
+        *out_len = n_out;
+    } else {
+        if (area != 1) {
+            for (int i=0; i<Is.size(); i++) Is[i] *= area;
         }
 
-        Vs.swap(new_Vs);
-        Is.swap(new_Is);
+        int n_out = (int)Vs.size();
+        std::memcpy(out_V, Vs.data(), n_out * sizeof(double));
+        std::memcpy(out_I, Is.data(), n_out * sizeof(double));
+        *out_len = n_out;
     }
-    if (area != 1) {
-        for (int i=0; i<Is.size(); i++) Is[i] *= area;
-    }
-
-    int n_out = (int)Vs.size();
-    std::memcpy(out_V, Vs.data(), n_out * sizeof(double));
-    std::memcpy(out_I, Is.data(), n_out * sizeof(double));
-    *out_len = n_out;
     
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
