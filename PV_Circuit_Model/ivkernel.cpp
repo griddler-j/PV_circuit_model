@@ -16,9 +16,71 @@
 #include <chrono>
 #include "ivkernel.h"
 #include <numeric>
+#include <queue>
 
 
 extern "C" {
+
+    struct MergeNode {
+    const double* cur;  // pointer to current element in this child
+    const double* end;  // one-past-last pointer
+};
+
+struct MergeNodeCmp {
+    bool operator()(const MergeNode& a, const MergeNode& b) const {
+        // priority_queue is max-heap; flip for min-heap
+        return *(a.cur) > *(b.cur);
+    }
+};
+
+// Merge all children_IVs[i].V (each sorted) into out_Vs (sorted)
+void merge_children_kway_ptr(const IVView* children_IVs,int sort_V_or_I,
+                             int n_children,
+                             std::vector<double>& out_Vs)
+{
+    using PQ = std::priority_queue<MergeNode,
+                                   std::vector<MergeNode>,
+                                   MergeNodeCmp>;
+
+    // Compute total output length for reserve
+    size_t total_len = 0;
+    for (int i = 0; i < n_children; ++i) {
+        total_len += children_IVs[i].length;
+    }
+
+    out_Vs.clear();
+    out_Vs.reserve(total_len);
+
+    PQ pq;
+
+    // Initialize heap with first element of each non-empty child
+    for (int i = 0; i < n_children; ++i) {
+        int len = children_IVs[i].length;
+        const double* vptr;
+        if (sort_V_or_I==0) vptr = children_IVs[i].V;
+        else vptr = children_IVs[i].I;
+        if (len > 0 && vptr != nullptr) {
+            MergeNode node;
+            node.cur = vptr;
+            node.end = vptr + len;
+            pq.push(node);
+        }
+    }
+
+    // Standard k-way merge
+    while (!pq.empty()) {
+        MergeNode node = pq.top();
+        pq.pop();
+
+        const double* cur = node.cur;
+        out_Vs.push_back(*cur);
+
+        ++node.cur;
+        if (node.cur != node.end) {
+            pq.push(node);
+        }
+    }
+}
 
 void pin_to_p_cores_only() {
     // Example mask: use logical CPUs 0–15 (P-cores)
@@ -265,14 +327,12 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
 
     std::vector<double> V;
     int N = (int)std::floor(max_num_points_);
-    V.reserve(N + 5);
+    V.reserve(N + 3);
 
     // First 5 fixed points
     V.push_back(V_shift - 1.1);
     V.push_back(V_shift - 1.0);
     V.push_back(V_shift);
-    V.push_back(V_shift + 0.02);
-    V.push_back(V_shift + 0.08);
 
     // Now generate the log-spaced part
     // Python: np.arange(1, max_num_points)
@@ -380,28 +440,6 @@ void build_Si_intrinsic_diode_iv(
     *out_len = outN;
 }
 
-
-/**
- * Helper to thin a sorted grid using tolerance-based quantization
- */
-static void thin_grid_by_quantization(std::vector<double>& xs, double tol)
-{
-    std::vector<long long> quant(xs.size());
-    for (size_t i = 0; i < xs.size(); ++i) {
-        quant[i] = static_cast<long long>(std::llround(xs[i] / tol));
-    }
-    std::vector<double> out;
-    out.reserve(xs.size());
-    long long last = std::numeric_limits<long long>::min();
-    for (size_t i = 0; i < xs.size(); ++i) {
-        if (i == 0 || quant[i] != last) {
-            out.push_back(xs[i]);
-            last = quant[i];
-        }
-    }
-    xs.swap(out);
-}
-
 double combine_iv_job(int connection,
     int circuit_component_type_number,
     double op_pt_V,
@@ -464,16 +502,27 @@ double combine_iv_job(int connection,
     // --- Series connection branch (connection == 0) ---
     else if (connection == 0) {
         // add voltage
-        int pos = 0;
-        for (int i=0; i < n_children; i++) {
-            int Ni = children_IVs[i].length;
-            memcpy(Is.data() + pos, children_IVs[i].I, Ni * sizeof(double));
-            pos += Ni;
+        if (children_Vs_size <= n_children*100) {
+            int pos = 0;
+            for (int i=0; i < n_children; i++) {
+                int Ni = children_IVs[i].length;
+                memcpy(Is.data() + pos, children_IVs[i].I, Ni * sizeof(double));
+                pos += Ni;
+            }
         }
         std::vector<double> extra_Is;
         for (int iteration = 0; iteration < 2; ++iteration) {
-            if (iteration == 1 && !extra_Is.empty()) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());       
-            std::sort(Is.begin(), Is.end());
+            if (iteration == 1 && !extra_Is.empty()) Is.insert(Is.end(), extra_Is.begin(), extra_Is.end());   
+            
+            // auto t0 = std::chrono::high_resolution_clock::now();
+            if (iteration==0) 
+                if (children_Vs_size > n_children*100) // found to be optimal 
+                    merge_children_kway_ptr(children_IVs, 1, n_children, Is);
+                else {
+                    std::sort(Is.begin(), Is.end()); 
+                }
+            else
+                std::sort(Is.begin(), Is.end()); 
             auto new_end = std::unique(Is.begin(), Is.end());
             Is.erase(new_end, Is.end());
 
@@ -512,32 +561,9 @@ double combine_iv_job(int connection,
     }
     // --- parallel connection branch (connection == 1) ---
     else if (connection == 1) {
-        // auto t0a = std::chrono::high_resolution_clock::now();
-        
         // add current
-        int pos = 0;
         double left_limit = -100;
         double right_limit = 100;
-        if (num_threads > 1) {
-            std::vector<int> child_offsets(n_children);
-            int pos = 0;
-            for (int i = 0; i < n_children; ++i) {
-                child_offsets[i] = pos;
-                pos += children_IVs[i].length;
-            }
-            #pragma omp parallel for num_threads(num_threads)
-            for (int i = 0; i < n_children; ++i) {
-                int Ni = children_IVs[i].length;
-                if (Ni > 0) 
-                    memcpy(Vs.data() + child_offsets[i], children_IVs[i].V, Ni * sizeof(double));
-            }
-        } else {
-            for (int i=0; i < n_children; i++) {
-                int Ni = children_IVs[i].length;
-                memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
-                pos += Ni;
-            }
-        }
         for (int i=0; i < n_children; i++) {
             int Ni = children_IVs[i].length;
             if (Ni > 0) {
@@ -545,12 +571,18 @@ double combine_iv_job(int connection,
                 right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
             }
         }
-        // auto t1a = std::chrono::high_resolution_clock::now();
-        // double ms1 = std::chrono::duration<double, std::milli>(t1a - t0a).count();
 
-        // auto t0b = std::chrono::high_resolution_clock::now();
-        std::sort(Vs.begin(), Vs.end());
-        
+        if (children_Vs_size > n_children*100) // found to be optimal 
+            merge_children_kway_ptr(children_IVs, 0, n_children, Vs);
+        else {
+            int pos = 0;
+            for (int i=0; i < n_children; i++) {
+                int Ni = children_IVs[i].length;
+                memcpy(Vs.data() + pos, children_IVs[i].V, Ni * sizeof(double));
+                pos += Ni;
+            }
+            std::sort(Vs.begin(), Vs.end()); // replace this with smart k way merge since children V's are each sorted 
+        }
 
         for (int i=0; i < n_children; ++i) {
             const double* IV_table_V = children_IVs[i].V;
@@ -567,9 +599,6 @@ double combine_iv_job(int connection,
 
         Is.assign(Vs.size(), 0.0);
 
-        // auto t1b = std::chrono::high_resolution_clock::now();
-        // double ms2 = std::chrono::duration<double, std::milli>(t1b - t0b).count();
-        // auto t0c = std::chrono::high_resolution_clock::now();
         if (num_threads > 1) {
             #pragma omp parallel num_threads(num_threads) 
             {
@@ -594,17 +623,6 @@ double combine_iv_job(int connection,
                     interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs.data(), (int)Vs.size(), Is.data(), true); // keeps adding 
                 }
             }  
-
-        // auto t1c = std::chrono::high_resolution_clock::now();
-        // double ms3 = std::chrono::duration<double, std::milli>(t1c - t0c).count();
-
-        // if (n_children==40) {
-        //     std::printf("cpp: combine_iv_job: took %e, %e, %e seconds\n",ms1,ms2,ms3);
-        //     std::fflush(stdout);
-        // }
-
-
-
     }
     // remesh strategy - prioritize inflection points (no longer prioritize equal length segments)
     if (max_num_points > 2 && Vs.size() > max_num_points) { 
@@ -726,6 +744,7 @@ double combine_iv_job(int connection,
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     auto t0 = std::chrono::high_resolution_clock::now();
+    double total_ms = 0;
     if (parallel==1 && n_jobs>1) {
         int num_threads = 8;
         if (n_jobs > 8) num_threads = 16;
@@ -756,7 +775,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     else 
         for (int j = 0; j < n_jobs; ++j) {
             IVJobDesc& job = jobs[j];
-            combine_iv_job(
+            double ms2 = combine_iv_job(
                 job.connection,
                 job.circuit_component_type_number,
                 job.op_pt_V,
@@ -774,12 +793,12 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.out_len,
                 parallel
             );
+            total_ms += ms2;
         }
 
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    return ms;
+    return total_ms;
 }
-
 
 }// extern "C"
