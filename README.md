@@ -11,5 +11,8 @@ Navigate to the package directory and run: `pip install -r requirements.txt`
 
 1. Install the package in development mode: `pip install -e .`
 
+1. Build the Cython/C++ extension (ivkernel).  The high-performance I-V engine is implemented as a Cython wrapper around a C++ kernel.
+It must be compiled before use. Command line: navigate to PV_Circuit_Module and run “python setup.py build_ext --inplace” 
+
 1. Run example code
 You can test the package functionality by executing the example script inside the examples/ directory:
