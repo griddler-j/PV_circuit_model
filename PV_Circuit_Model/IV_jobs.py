@@ -1,18 +1,87 @@
 from tqdm import tqdm
+import warnings
+import sys
+from pathlib import Path
 
-try:
-    from PV_Circuit_Model import ivkernel  # the compiled Cython extension
-    _HAVE_IVKERNEL = True
-except Exception as e:
-    _HAVE_IVKERNEL = False
-    ivkernel = None
-    import warnings
+_HAVE_IVKERNEL = False
+
+def _try_import_ivkernel():
+    """Try importing the fast extension."""
+    try:
+        from PV_Circuit_Model import ivkernel
+        return ivkernel
+    except Exception:
+        return None
+
+def _try_autobuild_extension(package_root):
+    """
+    Programmatically run: python setup.py build_ext --inplace
+    """
+    setup_py = Path(package_root) / "setup.py"
+    if not setup_py.exists():
+        warnings.warn("No setup.py found, cannot auto-build ivkernel.", RuntimeWarning)
+        return False
+
+    # Temporarily modify sys.argv as if running: setup.py build_ext --inplace
+    old_argv = sys.argv
+    sys.argv = [str(setup_py), "build_ext", "--inplace"]
+
+    try:
+        # Running setup() loads setup.py, runs build_ext, writes the .pyd
+        with setup_py.open("r") as f:
+            code = compile(f.read(), str(setup_py), "exec")
+            exec(
+                code,
+                {
+                    "__name__": "__main__",
+                    "__file__": str(setup_py),
+                },
+            )
+        return True
+
+    except Exception as e:
+        warnings.warn(f"Programmatic build_ext failed: {e}", RuntimeWarning)
+        return False
+
+    finally:
+        sys.argv = old_argv
+
+
+# ---------------------------------------------------------------------
+# 1) Try normal import
+# ---------------------------------------------------------------------
+ivkernel = _try_import_ivkernel()
+
+# ---------------------------------------------------------------------
+# 2) If missing, try auto-build
+# ---------------------------------------------------------------------
+if ivkernel is None:
     warnings.warn(
-        "The optimized C++/Cython extension 'ivkernel' could not be imported.\n"
-        "Falling back to pure-Python implementation (much slower).\n",
+        "Building C++/Cython extension 'ivkernel' (need to be done only once)...",
         RuntimeWarning
     )
-    from PV_Circuit_Model.ivkernal_python import build_component_IV_python
+    pkg_root = Path(__file__).resolve().parent
+    if _try_autobuild_extension(pkg_root):
+        # Try import again
+        ivkernel = _try_import_ivkernel()
+        if ivkernel is not None:
+            print("\n\n\nSucceeded building C++/Cython extension 'ivkernel'!")
+
+# ---------------------------------------------------------------------
+# 3) If still missing, fall back to Python
+# ---------------------------------------------------------------------
+if ivkernel is None:
+    warnings.warn(
+        "The optimized C++/Cython extension 'ivkernel' could not be imported, "
+        "even after attempting automatic build.\n"
+        "Falling back to pure-Python implementation (much slower and has a tiny numerical difference).",
+        RuntimeWarning
+    )
+    from PV_Circuit_Model.ivkernel_python import build_component_IV_python
+    _HAVE_IVKERNEL = False
+else:
+    _HAVE_IVKERNEL = True
+
 
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
@@ -62,7 +131,7 @@ def run_iv_jobs(components, children_job_ids, refine_mode=False):
         components_, min_index = get_runnable_iv_jobs(components, children_job_ids, job_done_index)
         if len(components_) > 0:
             if _HAVE_IVKERNEL:
-                ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=False)
+                ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=True)
             else:
                 for component in components_:
                     build_component_IV_python(component,refine_mode=refine_mode)
