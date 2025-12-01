@@ -468,7 +468,7 @@ class CircuitGroup(CircuitComponent):
             element.parent = self
         cells = self.findElementType("Cell")
         if len(cells) > 10:
-            self.max_num_points = int(1000*np.sqrt(len(cells)))
+            self.max_num_points = int(400*np.sqrt(len(cells)))
         self.name = name
         if location is None:
             self.location = np.array([0,0])

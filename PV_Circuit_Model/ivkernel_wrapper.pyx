@@ -254,7 +254,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 tmp = 100.0 / 0.2 * max_I + 5.0
                 abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil
 
-            abs_max_num_points = max(abs_max_num_points, max_num_points)
             abs_max_num_points = int(abs_max_num_points)
 
             jobs_c[i].abs_max_num_points = abs_max_num_points

@@ -17,6 +17,8 @@
 #include "ivkernel.h"
 #include <numeric>
 #include <queue>
+#include <intrin.h>
+#include <fstream>
 
 
 extern "C" {
@@ -507,13 +509,14 @@ double combine_iv_job(int connection,
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
 
     int num_threads = 1;
-    if (parallel==1 && has_photon_coupling==0 && n_children > 1) {
-        int total_length = children_Vs_size*n_children;
-        num_threads = 32;
-        if (n_children < 16*4) num_threads = 16;
-        if (n_children < 8*4) num_threads = 8;
-        if (n_children < 8) num_threads = n_children;
-    }
+    // 2025-12-01 DON'T PARALLELIZE HERE - THERE IS A TINY NUMERIC DIFFERENCE THAN NOT PARALLELIZING! AND NO PRACTICAL SPEED INCREASE
+    // if (parallel==1 && has_photon_coupling==0 && n_children > 1) {
+    //     int total_length = children_Vs_size*n_children;
+    //     num_threads = 32;
+    //     if (n_children < 16*4) num_threads = 16;
+    //     if (n_children < 8*4) num_threads = 8;
+    //     if (n_children < 8) num_threads = n_children;
+    // }
 
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
        
@@ -545,6 +548,12 @@ double combine_iv_job(int connection,
     int vs_len = children_Vs_size;
     // --- Series connection branch (connection == 0) ---
     if (connection == 0) {
+        double I_range = 0;
+        for (int i=0; i < n_children; i++) {
+            int Ni = children_IVs[i].length;
+            double sub_I_range = children_IVs[i].I[Ni-1]-children_IVs[i].I[0];
+            if (sub_I_range > I_range) I_range = sub_I_range;
+        }
         // add voltage
         if (children_Vs_size <= n_children*100) {
             int pos = 0;
@@ -570,8 +579,14 @@ double combine_iv_job(int connection,
                 }
             else
                 std::sort(Is, Is + vs_len);
-            auto new_end = std::unique(Is, Is + vs_len);
+
+            double eps = I_range/1e8;
+            auto new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
+                return std::fabs(a - b) < eps;
+            });
+            // auto new_end = std::unique(Is, Is + vs_len);
             vs_len = int(new_end - Is);
+
             std::fill(Vs, Vs + vs_len, 0.0);
             if (has_photon_coupling==0) {
 
@@ -686,7 +701,11 @@ double combine_iv_job(int connection,
             }
         );
         vs_len = int(new_end - Vs);
-        new_end = std::unique(Vs, Vs+vs_len);
+        double eps = 1e-6; // microvolt
+        new_end = std::unique(Vs, Vs+vs_len, [eps](double a, double b) {
+            return std::fabs(a - b) < eps;
+        });
+        // new_end = std::unique(Vs, Vs+vs_len);
         vs_len = int(new_end - Vs);
 
         std::fill(Is, Is + vs_len, 0.0);
@@ -739,7 +758,10 @@ double combine_iv_job(int connection,
     return ms;
 } 
 
-double remesh_IV(
+// change remesh_IV to doing individual points
+
+
+void remesh_IV(
     double op_pt_V,
     int refine_mode,
     int max_num_points,
@@ -750,6 +772,9 @@ double remesh_IV(
     double* Vs = out_V;
     double* Is = out_I;
     int *vs_len = out_len;
+
+    if (*vs_len <= max_num_points)
+        return;
     
     int mpp_points = 0;
     if (refine_mode==1) mpp_points = max_num_points*0.1;
@@ -790,22 +815,22 @@ double remesh_IV(
         double mag = std::sqrt((unit_vector_x*unit_vector_x + unit_vector_y*unit_vector_y));
         unit_vector_x /= mag;
         unit_vector_y /= mag;
+        int bad_point = false;
         if (!std::isfinite(unit_vector_x) || !std::isfinite(unit_vector_y)) { // catches NaN, +inf, -inf
-            if (i==0) {
-                unit_vector_x = sqrt_half;
-                unit_vector_y = sqrt_half;
-            }
-            else {
-                unit_vector_x = last_unit_vector_x;
-                unit_vector_y = last_unit_vector_y;
-            }
+            bad_point = true;
+            unit_vector_x = sqrt_half;
+            unit_vector_y = sqrt_half;
         }
         if (i > 0) {
-            double dx = unit_vector_x - last_unit_vector_x;
-            double dy = unit_vector_y - last_unit_vector_y;
+            double change = 0;
             double fudge_factor1 = 1;
-            if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
-            double change = std::sqrt(dx*dx + dy*dy);
+            if (!bad_point) {
+                double dx = unit_vector_x - last_unit_vector_x;
+                double dy = unit_vector_y - last_unit_vector_y;
+                fudge_factor1 = 1;
+                if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
+                change = std::sqrt(dx*dx + dy*dy);
+            }
             accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
             if (refine_mode==1 && std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) {
                 accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change;
@@ -828,17 +853,19 @@ double remesh_IV(
     for (int i = 1; i < n - 1; ++i) {
         if (accum_abs_dir_change[i] >= count * variation_segment) {
             int last_index = idx.size()-1;
-            if (i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index])
-                idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
-            else if (i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index])
+            if (last_index >= 0 && i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index]) 
                 idx.push_back(idx_V_closest_to_SC_left);  // just also capture points closest to SC to keep Isc accurate
-            else if (i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index])
+            if (last_index >= 0 && i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index]) 
+                idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
+            if (last_index >= 0 && i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index]) 
                 idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
             idx.push_back(i);
-            ++count;
+            while (accum_abs_dir_change[i] >= count * variation_segment)
+                ++count;
         } else if (refine_mode==1 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
             idx.push_back(i);
-            ++countmpp;
+            while (accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp)
+                ++countmpp;
         }
     }
     idx.push_back(n-1);

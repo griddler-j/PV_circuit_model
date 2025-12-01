@@ -81,6 +81,9 @@ def build_component_IV_python(component,refine_mode=False):
         return
          
     if component.connection=="series":
+        I_range = 0
+        for element in component.subgroups:
+            I_range = max(I_range, element.IV_I[-1]-element.IV_I[0])
         extra_Is = []
         for iteration in [0,1]: # goes to 1 only if there is PC diode
             # add voltage
@@ -90,7 +93,13 @@ def build_component_IV_python(component,refine_mode=False):
             if iteration==1:
                 Is.extend(extra_Is)
             Is = np.sort(np.array(Is))
-            Is = np.unique(Is)
+            eps = I_range/1e8
+
+            I_diff = np.abs(Is[1:] - Is[:-1])
+            indices = np.where(I_diff > eps)[0]
+            indices = np.concatenate(([0], indices + 1))
+            Is = Is[indices]
+            # Is = np.unique(Is)
             Vs = np.zeros_like(Is)
             # do reverse order to allow for photon coupling
             pc_IVs = []
@@ -138,7 +147,13 @@ def build_component_IV_python(component,refine_mode=False):
         if right_limit is not None:
             find_ = np.where(Vs <= right_limit)[0]
             Vs = Vs[find_]
-        Vs = np.unique(Vs)
+        # Vs = np.unique(Vs)
+        eps = 1e-6
+        V_diff = np.abs(Vs[1:] - Vs[:-1])
+        indices = np.where(V_diff > eps)[0]
+        indices = np.concatenate(([0], indices + 1))
+        Vs = Vs[indices]
+
         Is = np.zeros_like(Vs)
         for element in component.subgroups:
             Is += interp_(Vs,element.IV_V,element.IV_I)
@@ -151,11 +166,12 @@ def build_component_IV_python(component,refine_mode=False):
 
     #remesh
     max_num_points = getattr(component,"max_num_points",None)
-    if max_num_points is None or max_num_points <= 2:
+    if max_num_points is None or max_num_points <= 2 or max_num_points >= component.IV_V.size:
         return
 
     Vs = component.IV_V
-    Is = component.IV_I
+    Vs, idx = np.unique(Vs, return_index=True)
+    Is = component.IV_I[idx]
     mpp_points = int(max_num_points * 0.1) if refine_mode == 1 else 0
     V_range = Vs[-1]
     left_V = 0.05 * Vs[0]
@@ -203,12 +219,10 @@ def build_component_IV_python(component,refine_mode=False):
     # ---- variation segment for global curve ----
     # C++ used accum_abs_dir_change[n-2] / (max_num_points-2)
     total_variation = accum_abs_dir_change[-1] if Vs.size > 1 else 0.0
-    denom = max_num_points - 2
-    if denom <= 0:
-        denom = 1  # avoid division by zero
-    variation_segment = total_variation / denom
+    variation_segment = total_variation / (max_num_points - 2)
     ideal_points = variation_segment*np.arange(1,max_num_points-1)
-    idx = list(np.searchsorted(accum_abs_dir_change, ideal_points, side='right')-1)
+    idx = list(np.searchsorted(accum_abs_dir_change, ideal_points, side='right'))
+    idx[-1] = min(idx[-1],Vs.size-2)
     idx.append(0)
     idx.append(Vs.size-1)
     idx.append(idx_V_closest_to_SC)
@@ -216,8 +230,11 @@ def build_component_IV_python(component,refine_mode=False):
     idx.append(idx_V_closest_to_SC_right)
     if variation_segment_mpp is not None:
         ideal_points = variation_segment_mpp*np.arange(mpp_points)
-        idx2 = list(np.searchsorted(accum_abs_dir_change_near_mpp, ideal_points, side='right')-1)
+        idx2 = list(np.searchsorted(accum_abs_dir_change_near_mpp, ideal_points, side='right'))
+        idx2[-1] = min(idx2[-1],Vs.size-2)
         idx.extend(idx2)
     idx = np.array(sorted(set(idx)), dtype=int)  # ensure unique + sorted (optional)
+
     component.IV_V = component.IV_V[idx]
     component.IV_I = component.IV_I[idx]
+

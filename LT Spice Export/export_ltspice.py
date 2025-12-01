@@ -25,6 +25,7 @@ from typing import Dict, Tuple, Set
 from PV_Circuit_Model.circuit_model import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.cell_analysis import *
+import time
 
 class _ExportState:
     """
