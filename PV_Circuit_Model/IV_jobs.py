@@ -82,7 +82,6 @@ if ivkernel is None:
 else:
     _HAVE_IVKERNEL = True
 
-
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
     def __init__(self,circuit_component):
@@ -121,6 +120,9 @@ def get_runnable_iv_jobs(components, children_job_ids, job_done_index):
     return [components[j] for j in include_indices], 0
 
 def run_iv_jobs(components, children_job_ids, refine_mode=False):
+    parallel = False
+    if components[0].max_num_points is not None:
+        parallel = True
     if _HAVE_IVKERNEL:
         ivkernel.pin_to_p_cores_only_()
     job_done_index = len(components)
@@ -131,7 +133,7 @@ def run_iv_jobs(components, children_job_ids, refine_mode=False):
         components_, min_index = get_runnable_iv_jobs(components, children_job_ids, job_done_index)
         if len(components_) > 0:
             if _HAVE_IVKERNEL:
-                ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=True)
+                ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=parallel)
             else:
                 for component in components_:
                     build_component_IV_python(component,refine_mode=refine_mode)

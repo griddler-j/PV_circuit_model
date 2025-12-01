@@ -885,12 +885,11 @@ void remesh_IV(
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     auto t0 = std::chrono::high_resolution_clock::now();
     if (parallel==1 && n_jobs>1) {
-        int num_threads = 32;
-        if (n_jobs < 16*4) num_threads = 16;
-        if (n_jobs < 8*4) num_threads = 8;
-        if (n_jobs < 8) num_threads = n_jobs;
-        // if (n_jobs > 8) num_threads = 16;
-        // if (n_jobs > 16) num_threads = 32;
+        int max_threads = omp_get_max_threads();
+        int num_threads = max_threads;
+        if (n_jobs < max_threads*2) num_threads = max_threads/2;
+        if (n_jobs < max_threads) num_threads = max_threads/4;
+        if (n_jobs < max_threads/4) num_threads = n_jobs;
 
         #pragma omp parallel for num_threads(num_threads)
         for (int j = 0; j < n_jobs; ++j) {
