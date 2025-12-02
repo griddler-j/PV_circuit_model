@@ -83,20 +83,6 @@ void merge_children_kway_ptr(
     out_len = count;
 }
 
-void pin_to_p_cores_only() {
-    // Example mask: use logical CPUs 0–15 (P-cores)
-    // Bit 0 = CPU0, bit 1 = CPU1, ...
-    DWORD_PTR mask = 0;
-    for (int i = 0; i < 16; ++i) {
-        mask |= (DWORD_PTR(1) << i);
-    }
-
-    HANDLE hProcess = GetCurrentProcess();
-    if (!SetProcessAffinityMask(hProcess, mask)) {
-        std::cerr << "Failed to set process affinity mask\n";
-    }
-}
-
 void build_current_source_iv(
     const double* circuit_element_parameters,
     double* out_V,

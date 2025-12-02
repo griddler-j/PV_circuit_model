@@ -85,14 +85,10 @@ else:
 # A heap structure to store I-V jobs
 class IV_Job_Heap:
     def __init__(self,circuit_component):
-        self.components = []
-        self.children_job_ids = []
-        self.add(circuit_component) # now job_list has one
+        self.components = [circuit_component]
+        self.children_job_ids = [[]]
+        self.job_done_index = len(self.components)
         self.build()
-    def add(self,circuit_component):
-        self.components.append(circuit_component)
-        self.children_job_ids.append([])
-        return len(self.components)-1
     def build(self):
         pos = 0
         while pos < len(self.components):
@@ -101,46 +97,72 @@ class IV_Job_Heap:
             if subgroups:
                 for element in subgroups:
                     if element.IV_V is None:
-                        new_job_id = self.add(element)
-                        self.children_job_ids[pos].append(new_job_id)
+                        self.components.append(element)
+                        self.children_job_ids.append([])
+                        self.children_job_ids[pos].append(len(self.components)-1)
             pos += 1
-    def run_IV(self):
-        run_iv_jobs(self.components,self.children_job_ids)
-    def refine_IV(self):
-        run_iv_jobs(self.components,self.children_job_ids, refine_mode=True)
-
-def get_runnable_iv_jobs(components, children_job_ids, job_done_index):
-    include_indices = []
-    for i in range(job_done_index-1,-1,-1):
-        ids = children_job_ids[i]
-        if len(ids)>0 and min(ids)<job_done_index:
-            return [components[j] for j in include_indices], i+1
-        if components[i].IV_V is None:
-            include_indices.append(i)
-    return [components[j] for j in include_indices], 0
-
-def run_iv_jobs(components, children_job_ids, refine_mode=False):
-    parallel = False
-    if components[0].max_num_points is not None:
-        parallel = True
-    if _HAVE_IVKERNEL:
-        ivkernel.pin_to_p_cores_only_()
-    job_done_index = len(components)
-    pbar = None
-    if job_done_index > 100000:
-        pbar = tqdm(total=job_done_index, desc="Processing the circuit hierarchy: ")
-    while job_done_index > 0:
-        components_, min_index = get_runnable_iv_jobs(components, children_job_ids, job_done_index)
-        if len(components_) > 0:
-            if _HAVE_IVKERNEL:
-                ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=parallel)
-            else:
-                for component in components_:
-                    build_component_IV_python(component,refine_mode=refine_mode)
+    def get_runnable_iv_jobs(self):
+        include_indices = []
+        for i in range(self.job_done_index-1,-1,-1):
+            ids = self.children_job_ids[i]
+            if len(ids)>0 and min(ids)<self.job_done_index:
+                self.job_done_index = i+1
+                return [self.components[j] for j in include_indices]
+            if self.components[i].IV_V is None:
+                include_indices.append(i)
+        self.job_done_index = 0
+        return [self.components[j] for j in include_indices]
+    def run_IV(self, refine_mode=False):
+        parallel = False
+        if self.components[0].max_num_points is not None:
+            parallel = True
+        self.job_done_index = len(self.components)
+        pbar = None
+        if self.job_done_index > 100000:
+            pbar = tqdm(total=self.job_done_index, desc="Processing the circuit hierarchy: ")
+        while self.job_done_index > 0:
+            job_done_index_before = self.job_done_index
+            components_ = self.get_runnable_iv_jobs()
+            if len(components_) > 0:
+                if _HAVE_IVKERNEL:
+                    ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=parallel)
+                else:
+                    for component in components_:
+                        build_component_IV_python(component,refine_mode=refine_mode)
+            if pbar is not None:
+                pbar.update(job_done_index_before-self.job_done_index)
         if pbar is not None:
-            pbar.update(job_done_index-min_index)
-        job_done_index = min_index
-    if pbar is not None:
-        pbar.close()
+            pbar.close()
+    def refine_IV(self):
+        self.run_IV(refine_mode=True)
 
 
+# Collects a list of job heaps for parallel processing
+class IV_Job_Pool():
+    def __init__(self,heap_list):
+        self.heap_list = heap_list
+    def get_runnable_iv_jobs(self):
+        grand_list = []
+        for heap in self.heap_list:
+            grand_list.extend(heap.get_runnable_iv_jobs())
+        return grand_list
+    def run_IV(self, refine_mode=False):
+        self.job_done_index = len(self.components)
+        pbar = None
+        if self.job_done_index > 100000:
+            pbar = tqdm(total=self.job_done_index, desc="Processing the circuit hierarchy: ")
+        while self.job_done_index > 0:
+            job_done_index_before = self.job_done_index
+            components_ = self.get_runnable_iv_jobs()
+            if len(components_) > 0:
+                if _HAVE_IVKERNEL:
+                    ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=parallel)
+                else:
+                    for component in components_:
+                        build_component_IV_python(component,refine_mode=refine_mode)
+            if pbar is not None:
+                pbar.update(job_done_index_before-self.job_done_index)
+        if pbar is not None:
+            pbar.close()
+    def refine_IV(self):
+        self.run_IV(refine_mode=True)

@@ -38,11 +38,6 @@ cdef extern from "ivkernel.h":
 
     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
 
-    void pin_to_p_cores_only()
-
-def pin_to_p_cores_only_():
-    pin_to_p_cores_only()
-
 def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
     parallel_ = 0

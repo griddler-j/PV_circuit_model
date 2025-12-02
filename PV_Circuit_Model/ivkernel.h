@@ -33,8 +33,6 @@ struct IVJobDesc {
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads);
 
-void pin_to_p_cores_only();
-
 #ifdef __cplusplus
 }
 #endif
