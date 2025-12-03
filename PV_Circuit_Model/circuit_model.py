@@ -2,7 +2,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.iterative_solver import assign_nodes, iterative_solve
-import copy
 from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
 import json
@@ -11,6 +10,7 @@ import numpy as np
 import importlib
 import inspect
 import bson
+import gc
 
 pbar = None
 x_spacing = 1.5
@@ -27,10 +27,40 @@ def get_ni(temperature):
 
 class ParamSerializable:
     # fields that should NOT go into params (derived or runtime-only)
-    _transient_fields = {"IV_V", "IV_I", "job_heap", "operating_point", "parent", "refined_IV","cells"}
+    _transient_fields = {"IV_V", "IV_I", "job_heap", "refined_IV","operating_point"}
+
+    def clone(self,parent=None):    
+        new = self.__class__.__new__(self.__class__)
+        subgroups = getattr(self,"subgroups",[])
+        if subgroups:
+            subgroups_clone = [item.clone(new) for item in subgroups]
+            new.__init__(subgroups=subgroups_clone)
+        new.parent = parent
+        d = {}
+        for k, v in self.__dict__.items():
+            if k=="subgroups": # already done, skip
+                continue 
+            if k=="parent": # already done, skip
+                continue 
+            if isinstance(v,ParamSerializable):
+                pass
+            elif isinstance(v, list):
+                if len(v)>0 and isinstance(v[0],ParamSerializable):
+                    pass
+                else:
+                    d[k] = v[:]  # shallow list copy
+            elif k=="IV_V" or k=="IV_I":
+                d[k] = None # just null all the IVs
+            elif hasattr(v, "copy"):  # NumPy array or similar
+                d[k] = v.copy()
+            elif isinstance(v, dict):
+                d[k] = v.copy()
+            else:
+                d[k] = v  # assume immutable or shared
+        new.__dict__.update(d)
+        return new
 
     # --------- PUBLIC API: JSON ---------
-
     def save_toParams(self):
         """
         Convert this object into a JSON-ready dict.
@@ -41,7 +71,9 @@ class ParamSerializable:
         for name, value in self.__dict__.items():
             if name in self._transient_fields:
                 continue
-            data[name] = self._save_value(value)
+            output = self._save_value(name,value)
+            if output is not None:
+                data[name] = output
         return data
 
     def save_to_json(self, path, *, indent=2):
@@ -111,15 +143,19 @@ class ParamSerializable:
     # --------- INTERNAL SAVE HELPERS ---------
 
     @staticmethod
-    def _save_value(value):
-        if isinstance(value, ParamSerializable):
+    def _save_value(field_name,value):
+        if isinstance(value, ParamSerializable): # we don't store any references to other ParamSerializables, except those found in subgroups
+            if field_name != "subgroups":
+                return None
             return value.save_toParams()
 
-        if isinstance(value, (list, tuple)):
-            return [ParamSerializable._save_value(v) for v in value]
+        if isinstance(value, (list, tuple)): # we don't store any references to other ParamSerializables, except those found in subgroups
+            if field_name != "subgroups":
+                return None
+            return [ParamSerializable._save_value(field_name, v) for v in value]
 
         if isinstance(value, dict):
-            return {k: ParamSerializable._save_value(v) for k, v in value.items()}
+            return {k: ParamSerializable._save_value("generic",v) for k, v in value.items()}
 
         if isinstance(value, np.ndarray):
             return {
@@ -250,10 +286,12 @@ class CircuitComponent(ParamSerializable):
         if self.parent is not None:
             self.parent.null_IV()
     def build_IV(self):
+        gc.disable()
         if hasattr(self,"IV_parameters"):
             del self.IV_parameters
         self.job_heap = IV_Job_Heap(self)
         self.job_heap.run_IV()
+        gc.enable()
     def refine_IV(self):
         if not hasattr(self,"job_heap"):
             self.job_heap = IV_Job_Heap(self)
@@ -753,9 +791,7 @@ def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn
             
 
 def circuit_deepcopy(circuit_group):
-    circuit_group2 = copy.deepcopy(circuit_group)
-    circuit_group2.reassign_parents()
-    return circuit_group2
+    return circuit_group.clone()
 
 def find_subgroups_by_name(circuit_group, target_name):
     result = []
@@ -774,3 +810,15 @@ def find_subgroups_by_tag(circuit_group, tag):
         if isinstance(element, CircuitGroup):
             result.extend(find_subgroups_by_name(element, tag))
     return result
+
+def build_IV_parallel(circuit_components):
+    gc.disable()
+    list_ = []
+    for component in circuit_components:
+        if hasattr(component,"IV_parameters"):
+            del component.IV_parameters
+        component.job_heap = IV_Job_Heap(component)
+        list_.append(component.job_heap)
+    job_pool = IV_Job_Pool(list_)
+    job_pool.run_IV()
+    gc.enable()

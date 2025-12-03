@@ -112,11 +112,13 @@ class IV_Job_Heap:
                 include_indices.append(i)
         self.job_done_index = 0
         return [self.components[j] for j in include_indices]
+    def reset(self):
+        self.job_done_index = len(self.components)
     def run_IV(self, refine_mode=False):
         parallel = False
         if self.components[0].max_num_points is not None:
             parallel = True
-        self.job_done_index = len(self.components)
+        self.reset()
         pbar = None
         if self.job_done_index > 100000:
             pbar = tqdm(total=self.job_done_index, desc="Processing the circuit hierarchy: ")
@@ -146,22 +148,32 @@ class IV_Job_Pool():
         for heap in self.heap_list:
             grand_list.extend(heap.get_runnable_iv_jobs())
         return grand_list
+    def get_total_unfinished_jobs(self):
+        total_unfinished_jobs = 0
+        for heap in self.heap_list:
+            total_unfinished_jobs += heap.job_done_index
+        return total_unfinished_jobs
+    def reset(self):
+        for heap in self.heap_list:
+            heap.reset()
     def run_IV(self, refine_mode=False):
-        self.job_done_index = len(self.components)
+        self.reset()
+        total_unfinished_jobs = self.get_total_unfinished_jobs()
         pbar = None
-        if self.job_done_index > 100000:
-            pbar = tqdm(total=self.job_done_index, desc="Processing the circuit hierarchy: ")
-        while self.job_done_index > 0:
-            job_done_index_before = self.job_done_index
+        if total_unfinished_jobs > 100000:
+            pbar = tqdm(total=total_unfinished_jobs, desc="Processing the circuit hierarchy: ")
+        while total_unfinished_jobs > 0:
+            job_done_index_before = total_unfinished_jobs
             components_ = self.get_runnable_iv_jobs()
             if len(components_) > 0:
                 if _HAVE_IVKERNEL:
-                    ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=parallel)
+                    ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=True)
                 else:
                     for component in components_:
                         build_component_IV_python(component,refine_mode=refine_mode)
+            total_unfinished_jobs = self.get_total_unfinished_jobs()
             if pbar is not None:
-                pbar.update(job_done_index_before-self.job_done_index)
+                pbar.update(job_done_index_before-total_unfinished_jobs)
         if pbar is not None:
             pbar.close()
     def refine_IV(self):
