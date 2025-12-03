@@ -122,9 +122,7 @@ void interp_monotonic_inc(
     const double* xq,  // size m, increasing
     int m,
     double* yq,         // size m, output
-    bool additive,        // true: adds to yq
-    int left_most_index_guess,
-    int initial_search_stride
+    bool additive        // true: adds to yq
 ) {
     if (!x || !y || !xq || !yq || n <= 0 || m <= 0) return;
     if (n == 1) {
@@ -165,44 +163,6 @@ void interp_monotonic_inc(
     int i = 0; // segment index for x
     int prev_i = -1;
     double slope;
-
-    if (j_left==0 && left_most_index_guess>=0 && initial_search_stride>0) {
-        double xj = xq[j_left];
-        i = left_most_index_guess;
-        int stride = initial_search_stride; 
-        int left_limit;
-        int right_limit;
-        if (x[i] < xj) { // look right
-            while (i + stride < n - 1 && x[i+stride] < xj) 
-                i += stride;
-            left_limit = i;
-            right_limit = std::min(i+stride,n-2);
-        } else {
-            while (i - stride > 0 && x[i-stride] >= xj) 
-                i -= stride;
-            left_limit = std::max(i-stride,1);
-            right_limit = i;
-            i += 1;
-        }
-        if (stride>1) { // bindary search
-            while (true) {
-                i = 0.5*(left_limit+right_limit);
-                if (x[i] < xj) {
-                    if (right_limit - i <= 1) {
-                        break;
-                    } else 
-                        left_limit = i;
-                } else {
-                    if (i - left_limit <= 1) {
-                        i = left_limit;
-                        break;
-                    } else
-                        right_limit = i;
-                }
-            }
-        }
-    }
-
     for (int j = j_left; j <= j_right; ++j) {
         double xj = xq[j];
         // Advance i until x[i] <= xj <= x[i+1]
@@ -294,8 +254,7 @@ void calc_intrinsic_Si_I(
         delta_n.data(),
         n_V,
         BGN.data(),
-        false,        // overwrite
-        -1,-1
+        false        // overwrite
     );
 
     double termA = 2.5e-31 * geeh * n0;
@@ -482,8 +441,7 @@ double combine_iv_job(int connection,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
-    int* out_len,
-    int parallel) {
+    int* out_len) {
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -493,16 +451,6 @@ double combine_iv_job(int connection,
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
-
-    int num_threads = 1;
-    // 2025-12-01 DON'T PARALLELIZE HERE - THERE IS A TINY NUMERIC DIFFERENCE THAN NOT PARALLELIZING! AND NO PRACTICAL SPEED INCREASE
-    // if (parallel==1 && has_photon_coupling==0 && n_children > 1) {
-    //     int total_length = children_Vs_size*n_children;
-    //     num_threads = 32;
-    //     if (n_children < 16*4) num_threads = 16;
-    //     if (n_children < 8*4) num_threads = 8;
-    //     if (n_children < 8) num_threads = n_children;
-    // }
 
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
        
@@ -575,43 +523,12 @@ double combine_iv_job(int connection,
 
             std::fill(Vs, Vs + vs_len, 0.0);
             if (has_photon_coupling==0) {
-
-                if (num_threads>1) {
-                    std::vector<double> all_local(num_threads * vs_len, 0.0);
-                    #pragma omp parallel num_threads(num_threads)
-                    {
-                        int tid = omp_get_thread_num();
-                        double* local_Vs = all_local.data() + (size_t)tid * vs_len;
-
-                        #pragma omp for schedule(static)
-                        for (int i = 0; i < n_children; ++i) {
-                            int len = children_IVs[i].length;
-                            if (len > 0) {
-                                // simple version: no blocks, just whole Vs
-                                interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len,
-                                                    Is, vs_len,
-                                                    local_Vs, true, -1, -1);
-                            }
-                        }
-
-                        #pragma omp barrier
-
-                        #pragma omp for schedule(static)
-                        for (int j = 0; j < vs_len; ++j) {
-                            double sum = 0.0;
-                            for (int t = 0; t < num_threads; ++t) {
-                                sum += all_local[(size_t)t * vs_len + j];
-                            }
-                            Vs[j] = sum;
-                        }
+                for (int i = 0; i < n_children; ++i) {  
+                    int len = children_IVs[i].length;
+                    if (len > 0) {
+                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true); // keeps adding
                     }
-                } else
-                    for (int i = 0; i < n_children; ++i) {  
-                        int len = children_IVs[i].length;
-                        if (len > 0) {
-                            interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true,-1,-1); // keeps adding
-                        }
-                    }  
+                }  
                 break;
             } else {
                 std::vector<double> this_V(vs_len);
@@ -629,16 +546,16 @@ double combine_iv_job(int connection,
                             std::vector<double> added_I(vs_len);
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
-                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false,-1,-1); 
+                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
                             for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false,-1,-1); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false); 
                             std::vector<double> new_points(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
                             extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
                         } else {
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false,-1,-1); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false); 
                         }
                         std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
                     }
@@ -695,43 +612,12 @@ double combine_iv_job(int connection,
         vs_len = int(new_end - Vs);
 
         std::fill(Is, Is + vs_len, 0.0);
-        if (num_threads>1) {
-            std::vector<double> all_local(num_threads * vs_len, 0.0);
-            #pragma omp parallel num_threads(num_threads)
-            {
-                int tid = omp_get_thread_num();
-                double* local_Is = all_local.data() + (size_t)tid * vs_len;
-
-                #pragma omp for schedule(static)
-                for (int i = 0; i < n_children; ++i) {
-                    int len = children_IVs[i].length;
-                    if (len > 0) {
-                        // simple version: no blocks, just whole Vs
-                        interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len,
-                                            Vs, vs_len,
-                                            local_Is, true, -1, -1);
-                    }
-                }
-
-                #pragma omp barrier
-
-                #pragma omp for schedule(static)
-                for (int j = 0; j < vs_len; ++j) {
-                    double sum = 0.0;
-                    for (int t = 0; t < num_threads; ++t) {
-                        sum += all_local[(size_t)t * vs_len + j];
-                    }
-                    Is[j] = sum;
-                }
+        for (int i = 0; i < n_children; ++i) {  
+            int len = children_IVs[i].length;
+            if (len > 0) {
+                interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true); // keeps adding 
             }
-        }
-        else 
-            for (int i = 0; i < n_children; ++i) {  
-                int len = children_IVs[i].length;
-                if (len > 0) {
-                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true,-1,-1); // keeps adding 
-                }
-            }  
+        }  
     }
     
     if (area != 1) {
@@ -895,8 +781,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.circuit_element_parameters,
                 job.out_V,
                 job.out_I,
-                job.out_len,
-                0
+                job.out_len
             );
         }
     }
@@ -918,8 +803,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.circuit_element_parameters,
                 job.out_V,
                 job.out_I,
-                job.out_len,
-                parallel
+                job.out_len
             );
         }
 

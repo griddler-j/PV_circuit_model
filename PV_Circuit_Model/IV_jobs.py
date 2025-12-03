@@ -108,14 +108,14 @@ class IV_Job_Heap:
             pos += 1
     def get_runnable_iv_jobs(self):
         include_indices = []
-        for i in range(self.job_done_index-1,-1,-1):
+        start_job_index = self.job_done_index
+        for i in reversed(range(start_job_index)):
             ids = self.children_job_ids[i]
-            if len(ids)>0 and min(ids)<self.job_done_index:
-                self.job_done_index = i+1
-                return [self.components[j] for j in include_indices]
+            if len(ids)>0 and min(ids)<start_job_index:
+                break
+            self.job_done_index = i
             if self.components[i].IV_V is None:
                 include_indices.append(i)
-        self.job_done_index = 0
         return [self.components[j] for j in include_indices]
     def reset(self):
         self.job_done_index = len(self.components)
