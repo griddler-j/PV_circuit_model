@@ -4,6 +4,11 @@ import sys
 from pathlib import Path
 
 _HAVE_IVKERNEL = False
+_PARALLEL_MODE = True
+
+def set_parallel_mode(enabled: bool):
+    global _PARALLEL_MODE
+    _PARALLEL_MODE = bool(enabled)
 
 def _try_import_ivkernel():
     """Try importing the fast extension."""
@@ -116,7 +121,7 @@ class IV_Job_Heap:
         self.job_done_index = len(self.components)
     def run_IV(self, refine_mode=False):
         parallel = False
-        if self.components[0].max_num_points is not None:
+        if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
         self.reset()
         pbar = None
