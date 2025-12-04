@@ -18,6 +18,7 @@ cdef extern from "ivkernel.h":
         int length           # Ni
         double scale
         int type_number
+        double element_params[5]
 
     cdef struct IVJobDesc:
         int connection
@@ -212,6 +213,21 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 children_views[child_base + j].V           = &mv_child_v[0]
                 children_views[child_base + j].I           = &mv_child_i[0]
                 children_views[child_base + j].length      = Ni
+
+                if type_number in (2, 3):  # diodes
+                    children_views[child_base + j].element_params[0] = element.I0
+                    children_views[child_base + j].element_params[1] = element.n
+                    children_views[child_base + j].element_params[2] = element.VT
+                    children_views[child_base + j].element_params[3] = element.V_shift
+                elif type_number == 4:    # Intrinsic_Si_diode
+                    base_type_number = 0.0  # p
+                    if element.base_type == "n":
+                        base_type_number = 1.0
+                    children_views[child_base + j].element_params[0] = element.base_doping
+                    children_views[child_base + j].element_params[1] = element.VT
+                    children_views[child_base + j].element_params[2] = element.base_thickness
+                    children_views[child_base + j].element_params[3] = element.ni
+                    children_views[child_base + j].element_params[4] = base_type_number
 
             # ----- photon-coupled children → IVView[] -----
             if n_children > 0:

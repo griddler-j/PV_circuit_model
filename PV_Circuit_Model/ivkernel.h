@@ -10,7 +10,8 @@ struct IVView {
     const double* I;   // pointer to I array
     int length;        // Ni
     double scale;  
-    int type_number; 
+    int type_number;
+    double element_params[5];
 };
 
 struct IVJobDesc {

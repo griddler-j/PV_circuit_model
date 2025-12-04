@@ -322,7 +322,8 @@ void calc_intrinsic_Si_I(
     int base_type_number,   // 0-p, 1-n
     double base_thickness,
     double area,               // area is actually always 1
-    double* out_I             // output: I(V) or dI/dV, length n_V
+    double* out_I,             // output: I(V) or dI/dV, length n_V
+    bool additive
 ) {
     const double q = 1.602e-19;
     double N_doping = base_doping;
@@ -407,7 +408,7 @@ void calc_intrinsic_Si_I(
         double intrinsic_recomb = (pn[i] - ni_eff*ni_eff) * coeff;
 
         // I(V) = q * intrinsic_recomb * thickness * area
-        out_I[i] = q * intrinsic_recomb * base_thickness * area;
+        out_I[i] = (additive? out_I[i]:0.0) + q * intrinsic_recomb * base_thickness * area;
     }
 }
 
@@ -436,7 +437,7 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
                 int base_type_number = static_cast<int>(circuit_element_parameters[6]);
                 double base_doping = circuit_element_parameters[0];
                 double base_thickness = circuit_element_parameters[3];
-                calc_intrinsic_Si_I(V.data(),V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
+                calc_intrinsic_Si_I(V.data(),V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data(),false);
                 if (I[0] >= max_I && I[0] <= max_I*1.1) break;
                 Voc += VT*std::log(max_I/I[0]);
             }
@@ -468,6 +469,14 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
     return V;
 }
 
+double calc_forward_diode_I(double I0, double n, double VT, double V_shift, double V) {
+    return I0 * (std::exp((V - V_shift) / (n * VT)) - 1.0);
+}
+
+double calc_reverse_diode_I(double I0, double n, double VT, double V_shift, double V) {
+    return -I0 * std::exp((-V - V_shift) / (n * VT));
+}
+
 void build_forward_diode_iv(
     const double* circuit_element_parameters,
     int max_num_points,
@@ -484,13 +493,9 @@ void build_forward_diode_iv(
     double V_shift = circuit_element_parameters[3];
 
     std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,false);
-
-    // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
-    for (size_t i = 0; i < V.size(); ++i) {
-        double dv = (V[i] - V_shift) / (n * VT);
-        I[i] = I0 * (std::exp(dv) - 1.0);
-    }
+    for (size_t i = 0; i < V.size(); ++i) 
+        I[i] = calc_forward_diode_I(I0, n, VT, V_shift, V[i]);
 
     // Write to output buffer
     int outN = (int)V.size();
@@ -499,9 +504,7 @@ void build_forward_diode_iv(
         out_I[i] = I[i];
     }
     *out_len = outN;
-
 }
-
 
 void build_reverse_diode_iv(
     const double* circuit_element_parameters,
@@ -519,19 +522,17 @@ void build_reverse_diode_iv(
     double V_shift = circuit_element_parameters[3];
 
     std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,true);
-
-    // Now compute diode I = I0*(exp((V-V_shift)/(n*VT)) - 1)
     std::vector<double> I(V.size());
     for (size_t i = 0; i < V.size(); ++i) {
-        double dv = (V[i] - V_shift) / (n * VT);
-        I[i] = I0 * std::exp(dv);
+        V[i] *= -1;
+        I[i] = calc_reverse_diode_I(I0, n, VT, V_shift, V[i]);
     }
 
     // Write to output buffer
     int outN = (int)V.size();
     for (int i = 0; i < outN; ++i) {
-        out_V[i] = -V[outN-i-1];
-        out_I[i] = -I[outN-i-1];
+        out_V[i] = V[outN-i-1];
+        out_I[i] = I[outN-i-1];
     }
     *out_len = outN;
 }
@@ -552,7 +553,7 @@ void build_Si_intrinsic_diode_iv(
     double base_doping = circuit_element_parameters[0];
     double base_thickness = circuit_element_parameters[3];
     double VT = circuit_element_parameters[2];
-    calc_intrinsic_Si_I(V.data(),(int)V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data());
+    calc_intrinsic_Si_I(V.data(),(int)V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data(),false);
 
     // Write to output buffer
     int outN = (int)V.size();
@@ -750,7 +751,26 @@ double combine_iv_job(int connection,
         for (int i = 0; i < n_children; ++i) {  
             int len = children_IVs[i].length;
             if (len > 0) {
-                interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true); // keeps adding 
+                if (children_IVs[i].type_number==2 || children_IVs[i].type_number==3) { // diode
+                    double I0 = children_IVs[i].element_params[0];
+                    double n = children_IVs[i].element_params[1];
+                    double VT = children_IVs[i].element_params[2];
+                    double V_shift = children_IVs[i].element_params[3];
+                    for (int k = 0; k < vs_len; ++k) 
+                        if (children_IVs[i].type_number==2) 
+                            Is[k] += calc_forward_diode_I(I0,n,VT,V_shift,Vs[k]); // forward diode
+                        else
+                            Is[k] += calc_reverse_diode_I(I0,n,VT,V_shift,Vs[k]); // reverse diode
+                } else if (children_IVs[i].type_number==4) { // intrinsic silicon diode
+                    double base_doping = children_IVs[i].element_params[0];
+                    double VT = children_IVs[i].element_params[1];
+                    double base_thickness = children_IVs[i].element_params[2];
+                    double ni = children_IVs[i].element_params[3];
+                    double base_type_number = children_IVs[i].element_params[4];
+                    calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true);
+                }
+                else
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true); // keeps adding 
             }
         }  
     }
@@ -764,9 +784,6 @@ double combine_iv_job(int connection,
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return ms;
 } 
-
-// change remesh_IV to doing individual points
-
 
 void remesh_IV(
     double op_pt_V,
@@ -889,7 +906,6 @@ void remesh_IV(
     }
     *out_len = n_out;
 } 
-
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     auto t0 = std::chrono::high_resolution_clock::now();
