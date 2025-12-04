@@ -550,47 +550,54 @@ class CircuitGroup(CircuitComponent):
                 element.reassign_parents()
 
     def set_operating_point(self,V=None,I=None,refine_IV=False):
-        # refine_op_point_ = top_level and not refine_IV and refine_op_point
-        refine_IV_ = refine_IV
-        if hasattr(self,"refined_IV") and self.refined_IV:
-            refine_IV_ = False
-        if self.IV_V is None:
-            self.build_IV()
-        if V is not None:
-            I_ = interp_(V,self.IV_V,self.IV_I)
-            V_ = V
-        elif I is not None:
-            V_ = interp_(I,self.IV_I,self.IV_V)
-            I_ = I
-        for element in self.subgroups:
-            if self.connection == "series": # then all elements have same current
-                target_I = I_
-                # solar cell needs to scale IV table by area
-                if hasattr(self,"shape") and self.area is not None:
-                    target_I /= self.area
-                element.set_operating_point(V=None,I=target_I)
-            else: # then all elements have same voltage
-                element.set_operating_point(V=V_,I=None)
-        if refine_IV_:
-            self.refined_IV = True
-            self.null_all_IV(max_num_pts_only=True)
-            self.refine_IV()
-            if V is not None:
-                I_ = interp_(V,self.IV_V,self.IV_I)
-                V_ = V
-            elif I is not None:
-                V_ = interp_(I,self.IV_I,self.IV_V)
-                I_ = I
-        # if refine_op_point_:
-        #     assign_nodes(self)
-        #     op_point = iterative_solve(self,V=V,I=I)
-        #     V_ = op_point[0]
-        #     I_ = op_point[1]
+        if self.IV_V is None or not hasattr(self,"job_heap"):
+            self.job_heap.run_IV()
+        gc.disable()
+        self.job_heap.set_operating_point(V,I)
+        gc.enable()
+
+        
+        # # refine_op_point_ = top_level and not refine_IV and refine_op_point
+        # refine_IV_ = refine_IV
+        # if hasattr(self,"refined_IV") and self.refined_IV:
+        #     refine_IV_ = False
+        # if self.IV_V is None:
+        #     self.build_IV()
+        # if V is not None:
+        #     I_ = interp_(V,self.IV_V,self.IV_I)
+        #     V_ = V
+        # elif I is not None:
+        #     V_ = interp_(I,self.IV_I,self.IV_V)
+        #     I_ = I
+        # for element in self.subgroups:
+        #     if self.connection == "series": # then all elements have same current
+        #         target_I = I_
+        #         # solar cell needs to scale IV table by area
+        #         if hasattr(self,"shape") and self.area is not None:
+        #             target_I /= self.area
+        #         element.set_operating_point(V=None,I=target_I)
+        #     else: # then all elements have same voltage
+        #         element.set_operating_point(V=V_,I=None)
+        # if refine_IV_:
+        #     self.refined_IV = True
+        #     self.null_all_IV(max_num_pts_only=True)
+        #     self.refine_IV()
+        #     if V is not None:
+        #         I_ = interp_(V,self.IV_V,self.IV_I)
+        #         V_ = V
+        #     elif I is not None:
+        #         V_ = interp_(I,self.IV_I,self.IV_V)
+        #         I_ = I
+        # # if refine_op_point_:
+        # #     assign_nodes(self)
+        # #     op_point = iterative_solve(self,V=V,I=I)
+        # #     V_ = op_point[0]
+        # #     I_ = op_point[1]
             
-        self.operating_point = [V_,I_]
-        # cells also store Vint
-        if hasattr(self,"shape"):
-            self.operating_point.append(self.diode_branch.operating_point[0])
+        # self.operating_point = [V_,I_]
+        # # cells also store Vint
+        # if hasattr(self,"shape"):
+        #     self.operating_point.append(self.diode_branch.operating_point[0])
 
     def removeElementOfTag(self,tag):
         for element in self.subgroups[:]:

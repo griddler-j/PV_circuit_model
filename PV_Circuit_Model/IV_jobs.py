@@ -2,6 +2,7 @@ from tqdm import tqdm
 import warnings
 import sys
 from pathlib import Path
+from PV_Circuit_Model.utilities import interp_
 
 _HAVE_IVKERNEL = False
 _PARALLEL_MODE = True
@@ -52,6 +53,7 @@ def _try_autobuild_extension(package_root):
         sys.argv = old_argv
 
 
+ivkernel = None
 # ---------------------------------------------------------------------
 # 1) Try normal import
 # ---------------------------------------------------------------------
@@ -106,19 +108,72 @@ class IV_Job_Heap:
                         self.children_job_ids.append([])
                         self.children_job_ids[pos].append(len(self.components)-1)
             pos += 1
-    def get_runnable_iv_jobs(self):
+    def get_runnable_iv_jobs(self,forward=True):
         include_indices = []
         start_job_index = self.job_done_index
-        for i in reversed(range(start_job_index)):
-            ids = self.children_job_ids[i]
-            if len(ids)>0 and min(ids)<start_job_index:
-                break
-            self.job_done_index = i
-            if self.components[i].IV_V is None:
+        if forward:
+            for i in reversed(range(start_job_index)):
+                ids = self.children_job_ids[i]
+                if len(ids)>0 and min(ids)<start_job_index:
+                    break
+                self.job_done_index = i
+                if self.components[i].IV_V is None:
+                    include_indices.append(i)
+        else:
+            min_id = len(self.components) + 100
+            for i in range(start_job_index,len(self.components)):
+                if i >= min_id:
+                    break
+                ids = self.children_job_ids[i]
+                if len(ids)>0: min_id = min(min_id, min(ids))
+                self.job_done_index = i+1
                 include_indices.append(i)
         return [self.components[j] for j in include_indices]
-    def reset(self):
-        self.job_done_index = len(self.components)
+    def reset(self,forward=True):
+        if forward:
+            self.job_done_index = len(self.components)
+        else:
+            self.job_done_index = 0
+    def set_operating_point(self,V=None,I=None):
+        parallel = False
+        if _PARALLEL_MODE and self.components[0].max_num_points is not None:
+            parallel = True
+        self.reset(forward=False)
+        pbar = None
+        if V is not None:
+            self.components[0].operating_point = [V,None]
+        else:
+            self.components[0].operating_point = [None,I]
+        if len(self.components) > 100000:
+            pbar = tqdm(total=len(self.components), desc="Processing the circuit hierarchy: ")
+        while self.job_done_index < len(self.components):
+            job_done_index_before = self.job_done_index
+            components_ = self.get_runnable_iv_jobs(forward=False)
+            if len(components_) > 0:
+                if _HAVE_IVKERNEL:
+                    ivkernel.run_multiple_operating_points(components_, parallel=parallel)
+                else:
+                    for component in components_:
+                        V = component.operating_point[0]
+                        I = component.operating_point[1]
+                        if V is not None:
+                            component.operating_point[1] = interp_(V,component.IV_V,component.IV_I)
+                        elif I is not None:
+                            component.operating_point[0] = interp_(I,component.IV_I,component.IV_V)
+                        if component._type_number>=5:
+                            is_series = False
+                            if component.connection=="series":
+                                is_series = True
+                            for child in component.subgroups:
+                                if is_series:
+                                    child.operating_point = [None, component.operating_point[1]]
+                                else:
+                                    child.operating_point = [component.operating_point[0], None]
+            if pbar is not None:
+                pbar.update(self.job_done_index-job_done_index_before)
+        if pbar is not None:
+            pbar.close()
+
     def run_IV(self, refine_mode=False):
         parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:

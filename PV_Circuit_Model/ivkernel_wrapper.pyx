@@ -38,6 +38,16 @@ cdef extern from "ivkernel.h":
 
     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
 
+    void interp_monotonic_inc_scalar(
+        const double** xs,
+        const double** ys,
+        const int* ns,
+        const double* xqs,
+        double** yqs,
+        int n_jobs,
+        int parallel
+    ) nogil
+
 def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
     parallel_ = 0
@@ -300,3 +310,97 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
     return kernel_ms, packing_time, unpacking_time
 
+def run_multiple_operating_points(components, bint parallel=False):
+    cdef Py_ssize_t n_jobs = len(components)
+    if n_jobs == 0:
+        return np.empty(0, dtype=np.float64)
+
+    cdef int parallel_ = 1 if parallel else 0
+
+    # --------------------------------------------------------
+    # Allocate output array (one solved value per component)
+    # --------------------------------------------------------
+    cdef np.ndarray[np.float64_t, ndim=1] yqs_arr = np.empty(n_jobs, dtype=np.float64)
+    cdef double[:] yqs_mv = yqs_arr  # memoryview over output
+
+    # Query values
+    cdef np.ndarray[np.float64_t, ndim=1] xqs_arr = np.empty(n_jobs, dtype=np.float64)
+    cdef double[:] xqs_mv = xqs_arr
+
+    # Allocate C pointer tables
+    cdef const double** xs = <const double**> malloc(n_jobs * sizeof(const double*))
+    cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))
+    cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
+    cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))
+    cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))
+
+    if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:
+        if xs != NULL:       free(<void*> xs)
+        if ys != NULL:       free(<void*> ys)
+        if ns != NULL:       free(<void*> ns)
+        if yqs != NULL:      free(<void*> yqs)
+        if known_is_V != NULL: free(<void*> known_is_V)
+        raise MemoryError()
+
+    cdef Py_ssize_t i
+    cdef double[:] xmv, ymv
+
+    try:
+        # --------------------------------------------------------
+        # Build pointer lists for each job
+        # --------------------------------------------------------
+        for i in range(n_jobs):
+            circuit_component = components[i]
+
+            # Select which axis is X and which is Y
+            if circuit_component.operating_point[0] is not None:
+                # X = V, Y = I, query in V -> solve I(V)
+                known_is_V[i] = 1
+                xmv = circuit_component.IV_V
+                ymv = circuit_component.IV_I
+                xqs_mv[i] = <double> circuit_component.operating_point[0]
+            else:
+                # X = I, Y = V, query in I -> solve V(I)
+                known_is_V[i] = 0
+                xmv = circuit_component.IV_I
+                ymv = circuit_component.IV_V
+                xqs_mv[i] = <double> circuit_component.operating_point[1]
+
+            # Fill metadata for this job
+            ns[i]  = <int> xmv.shape[0]
+            xs[i]  = &xmv[0]
+            ys[i]  = &ymv[0]
+            yqs[i] = &yqs_mv[i]
+
+        with nogil:
+            interp_monotonic_inc_scalar(
+                xs, ys, ns,
+                &xqs_mv[0],
+                yqs,
+                <int> n_jobs,
+                parallel_
+            )
+
+        for i in range(n_jobs):
+            circuit_component = components[i]
+            operating_point = circuit_component.operating_point
+            if known_is_V[i]:
+                operating_point[1] = yqs_arr[i]
+            else:
+                operating_point[0] = yqs_arr[i]
+            if circuit_component._type_number >= 5: 
+                is_series = False
+                if circuit_component.connection=="series":
+                    is_series = True
+                for child in circuit_component.subgroups:
+                    if is_series:
+                        child.operating_point = [None, operating_point[1]]
+                    else:
+                        child.operating_point = [operating_point[0], None]
+
+    finally:
+        free(<void*> xs)
+        free(<void*> ys)
+        free(<void*> ns)
+        free(<void*> yqs)
+        free(<void*> known_is_V)

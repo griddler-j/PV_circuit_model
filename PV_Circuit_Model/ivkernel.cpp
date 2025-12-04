@@ -176,6 +176,80 @@ void interp_monotonic_inc(
     }
 }
 
+void interp_monotonic_inc_scalar(
+    const double** xs,   // size n, strictly increasing
+    const double** ys,   // size n
+    const int* ns,
+    const double* xqs,         // single query points
+    double** yqs,        // output (single values)
+    int n_jobs,
+    int parallel
+) {
+    int max_threads = omp_get_max_threads();
+    int num_threads = max_threads;
+    if (n_jobs < max_threads*2) num_threads = max_threads/2;
+    if (n_jobs < max_threads) num_threads = max_threads/4;
+    if (n_jobs < max_threads/4) num_threads = n_jobs;
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < n_jobs; i ++) {
+        const double* x = xs[i];
+        const double* y = ys[i];
+        int n = ns[i];
+        double xq = xqs[i];
+        double* yq = yqs[i];
+
+        if (!x || !y || !yq || n <= 0) continue;
+
+        // n == 1: constant function (like IL)
+        if (n == 1) {
+            *yq = y[0];
+            continue;
+        }
+
+        // n == 2: simple line (like R)
+        if (n == 2) {
+            double slope = (y[1] - y[0]) / (x[1] - x[0]);
+            *yq = (y[0] + (xq - x[0]) * slope);
+            continue;
+        }
+
+        // n >= 3 from here on
+
+        // --- Left extrapolation: xq <= x[0] ---
+        if (xq <= x[0]) {
+            double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
+            *yq = (y[0] + (xq - x[0]) * slope_left);
+            continue;
+        }
+
+        // --- Right extrapolation: xq >= x[n-1] ---
+        if (xq >= x[n-1]) {
+            double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
+            *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
+            continue;
+        }
+
+        // --- Main interpolation region: x[0] < xq < x[n-1] ---
+        // Binary search for i such that x[i] <= xq <= x[i+1]
+        int low = 0;
+        int high = n - 1;
+
+        // Invariant: x[low] <= xq < x[high]
+        while (high - low > 1) {
+            int mid = (low + high) / 2;
+            if (x[mid] <= xq) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        int j = low;
+        double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+        *yq = (y[j] + slope * (xq - x[j]));
+    }
+}
 
 void calc_intrinsic_Si_I(
     const double* V,          // input voltages, length n_V

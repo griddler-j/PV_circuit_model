@@ -33,6 +33,15 @@ struct IVJobDesc {
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads);
 
+void interp_monotonic_inc_scalar(
+    const double** xs,   // size n, strictly increasing
+    const double** ys,   // size n
+    const int* ns,
+    const double* xqs,         // single query points
+    double** yqs,        // output (single values)
+    int n_jobs,
+    int parallel);
+
 #ifdef __cplusplus
 }
 #endif

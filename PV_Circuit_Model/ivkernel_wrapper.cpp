@@ -2672,6 +2672,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 #define __Pyx_PyObject_SetAttrStr(o,n,v) PyObject_SetAttr(o,n,v)
 #endif
 
+#define __Pyx_BufPtrStrided1d(type, buf, i0, s0) (type)((char*)buf + i0 * s0)
 /* PyObject_GenericGetAttrNoDict.proto */
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name);
@@ -2968,6 +2969,9 @@ static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_dc_nn_
 /* ObjectToMemviewSlice.proto */
 static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(PyObject *, int writable_flag);
 
+/* ObjectToMemviewSlice.proto */
+static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_ds_double(PyObject *, int writable_flag);
+
 /* RealImag.proto */
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus
@@ -3223,6 +3227,7 @@ static PyObject *__pyx_unpickle_Enum__set_state(struct __pyx_MemviewEnum_obj *, 
 /* #### Code section: typeinfo ### */
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t = { "int32_t", NULL, sizeof(__pyx_t_5numpy_int32_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_int32_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_int32_t), 0 };
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t = { "float64_t", NULL, sizeof(__pyx_t_5numpy_float64_t), { 0 }, 0, 'R', 0, 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_double = { "double", NULL, sizeof(double), { 0 }, 0, 'R', 0, 0 };
 /* #### Code section: before_global_var ### */
 #define __Pyx_MODULE_NAME "PV_Circuit_Model.ivkernel"
 extern int __pyx_module_is_main_PV_Circuit_Model__ivkernel;
@@ -3261,8 +3266,11 @@ static const char __pyx_k_gc[] = "gc";
 static const char __pyx_k_id[] = "id";
 static const char __pyx_k_ni[] = "ni";
 static const char __pyx_k_np[] = "np";
+static const char __pyx_k_ns[] = "ns";
 static const char __pyx_k_t1[] = "t1";
-static const char __pyx_k__25[] = "?";
+static const char __pyx_k_xs[] = "xs";
+static const char __pyx_k_ys[] = "ys";
+static const char __pyx_k__28[] = "?";
 static const char __pyx_k_abc[] = "abc";
 static const char __pyx_k_and[] = " and ";
 static const char __pyx_k_got[] = " (got ";
@@ -3270,6 +3278,9 @@ static const char __pyx_k_new[] = "__new__";
 static const char __pyx_k_obj[] = "obj";
 static const char __pyx_k_sys[] = "sys";
 static const char __pyx_k_tmp[] = "tmp";
+static const char __pyx_k_xmv[] = "xmv";
+static const char __pyx_k_ymv[] = "ymv";
+static const char __pyx_k_yqs[] = "yqs";
 static const char __pyx_k_IV_I[] = "IV_I";
 static const char __pyx_k_IV_V[] = "IV_V";
 static const char __pyx_k_area[] = "area";
@@ -3289,6 +3300,7 @@ static const char __pyx_k_stop[] = "stop";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_time[] = "time";
 static const char __pyx_k_ASCII[] = "ASCII";
+static const char __pyx_k_child[] = "child";
 static const char __pyx_k_class[] = "__class__";
 static const char __pyx_k_count[] = "count";
 static const char __pyx_k_dtype[] = "dtype";
@@ -3316,9 +3328,12 @@ static const char __pyx_k_name_2[] = "__name__";
 static const char __pyx_k_offset[] = "offset";
 static const char __pyx_k_pickle[] = "pickle";
 static const char __pyx_k_reduce[] = "__reduce__";
+static const char __pyx_k_series[] = "series";
 static const char __pyx_k_struct[] = "struct";
 static const char __pyx_k_unpack[] = "unpack";
 static const char __pyx_k_update[] = "update";
+static const char __pyx_k_xqs_mv[] = "xqs_mv";
+static const char __pyx_k_yqs_mv[] = "yqs_mv";
 static const char __pyx_k_V_shift[] = "V_shift";
 static const char __pyx_k_disable[] = "disable";
 static const char __pyx_k_element[] = "element";
@@ -3328,6 +3343,8 @@ static const char __pyx_k_memview[] = "memview";
 static const char __pyx_k_mv_outI[] = "mv_outI";
 static const char __pyx_k_mv_outV[] = "mv_outV";
 static const char __pyx_k_op_pt_V[] = "op_pt_V";
+static const char __pyx_k_xqs_arr[] = "xqs_arr";
+static const char __pyx_k_yqs_arr[] = "yqs_arr";
 static const char __pyx_k_Ellipsis[] = "Ellipsis";
 static const char __pyx_k_Sequence[] = "Sequence";
 static const char __pyx_k_getstate[] = "__getstate__";
@@ -3343,6 +3360,7 @@ static const char __pyx_k_base_type[] = "base_type";
 static const char __pyx_k_big_out_I[] = "big_out_I";
 static const char __pyx_k_big_out_V[] = "big_out_V";
 static const char __pyx_k_enumerate[] = "enumerate";
+static const char __pyx_k_is_series[] = "is_series";
 static const char __pyx_k_isenabled[] = "isenabled";
 static const char __pyx_k_kernel_ms[] = "kernel_ms";
 static const char __pyx_k_mv_params[] = "mv_params";
@@ -3355,6 +3373,7 @@ static const char __pyx_k_ValueError[] = "ValueError";
 static const char __pyx_k_child_base[] = "child_base";
 static const char __pyx_k_components[] = "components";
 static const char __pyx_k_connection[] = "connection";
+static const char __pyx_k_known_is_V[] = "known_is_V";
 static const char __pyx_k_mv_child_i[] = "mv_child_i";
 static const char __pyx_k_mv_child_v[] = "mv_child_v";
 static const char __pyx_k_mv_out_len[] = "mv_out_len";
@@ -3426,6 +3445,7 @@ static const char __pyx_k_Step_may_not_be_zero_axis_d[] = "Step may not be zero 
 static const char __pyx_k_itemsize_0_for_cython_array[] = "itemsize <= 0 for cython.array";
 static const char __pyx_k_abs_max_num_points_multipier[] = "abs_max_num_points_multipier";
 static const char __pyx_k_circuit_component_type_number[] = "circuit_component_type_number";
+static const char __pyx_k_run_multiple_operating_points[] = "run_multiple_operating_points";
 static const char __pyx_k_unable_to_allocate_array_data[] = "unable to allocate array data.";
 static const char __pyx_k_strided_and_direct_or_indirect[] = "<strided and direct or indirect>";
 static const char __pyx_k_numpy_core_multiarray_failed_to[] = "numpy.core.multiarray failed to import";
@@ -3489,6 +3509,7 @@ static PyObject *__pyx_pf___pyx_memoryviewslice___reduce_cython__(CYTHON_UNUSED 
 static PyObject *__pyx_pf___pyx_memoryviewslice_2__setstate_cython__(CYTHON_UNUSED struct __pyx_memoryviewslice_obj *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
 static PyObject *__pyx_pf_15View_dot_MemoryView___pyx_unpickle_Enum(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
 static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_components, PyObject *__pyx_v_refine_mode, PyObject *__pyx_v_parallel); /* proto */
+static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_2run_multiple_operating_points(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_components, int __pyx_v_parallel); /* proto */
 static PyObject *__pyx_tp_new_array(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_Enum(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_memoryview(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
@@ -3611,7 +3632,7 @@ typedef struct {
   PyObject *__pyx_n_s_ValueError;
   PyObject *__pyx_n_s_View_MemoryView;
   PyObject *__pyx_kp_u__2;
-  PyObject *__pyx_n_s__25;
+  PyObject *__pyx_n_s__28;
   PyObject *__pyx_n_s__3;
   PyObject *__pyx_kp_u__6;
   PyObject *__pyx_kp_u__7;
@@ -3634,6 +3655,7 @@ typedef struct {
   PyObject *__pyx_n_s_c;
   PyObject *__pyx_n_u_c;
   PyObject *__pyx_n_s_c_out_len_all;
+  PyObject *__pyx_n_s_child;
   PyObject *__pyx_n_s_child_base;
   PyObject *__pyx_n_s_children_views;
   PyObject *__pyx_n_s_circuit_component;
@@ -3676,12 +3698,14 @@ typedef struct {
   PyObject *__pyx_n_s_initializing;
   PyObject *__pyx_n_s_int32;
   PyObject *__pyx_n_s_is_coroutine;
+  PyObject *__pyx_n_s_is_series;
   PyObject *__pyx_kp_u_isenabled;
   PyObject *__pyx_n_s_itemsize;
   PyObject *__pyx_kp_s_itemsize_0_for_cython_array;
   PyObject *__pyx_n_s_j;
   PyObject *__pyx_n_s_jobs_c;
   PyObject *__pyx_n_s_kernel_ms;
+  PyObject *__pyx_n_s_known_is_V;
   PyObject *__pyx_n_s_main;
   PyObject *__pyx_n_s_max_I;
   PyObject *__pyx_n_s_max_num_points;
@@ -3709,6 +3733,7 @@ typedef struct {
   PyObject *__pyx_n_s_ni;
   PyObject *__pyx_kp_s_no_default___reduce___due_to_non;
   PyObject *__pyx_n_s_np;
+  PyObject *__pyx_n_s_ns;
   PyObject *__pyx_n_s_numpy;
   PyObject *__pyx_kp_u_numpy_core_multiarray_failed_to;
   PyObject *__pyx_kp_u_numpy_core_umath_failed_to_impor;
@@ -3742,6 +3767,8 @@ typedef struct {
   PyObject *__pyx_n_s_refine_mode;
   PyObject *__pyx_n_s_register;
   PyObject *__pyx_n_s_run_multiple_jobs;
+  PyObject *__pyx_n_s_run_multiple_operating_points;
+  PyObject *__pyx_n_u_series;
   PyObject *__pyx_n_s_setstate;
   PyObject *__pyx_n_s_setstate_cython;
   PyObject *__pyx_n_s_shape;
@@ -3772,6 +3799,15 @@ typedef struct {
   PyObject *__pyx_n_s_unpacking_time;
   PyObject *__pyx_n_s_update;
   PyObject *__pyx_n_s_version_info;
+  PyObject *__pyx_n_s_xmv;
+  PyObject *__pyx_n_s_xqs_arr;
+  PyObject *__pyx_n_s_xqs_mv;
+  PyObject *__pyx_n_s_xs;
+  PyObject *__pyx_n_s_ymv;
+  PyObject *__pyx_n_s_yqs;
+  PyObject *__pyx_n_s_yqs_arr;
+  PyObject *__pyx_n_s_yqs_mv;
+  PyObject *__pyx_n_s_ys;
   PyObject *__pyx_n_s_zeros;
   PyObject *__pyx_float_0_2;
   PyObject *__pyx_float_5_0;
@@ -3799,10 +3835,13 @@ typedef struct {
   PyObject *__pyx_tuple__18;
   PyObject *__pyx_tuple__19;
   PyObject *__pyx_tuple__20;
-  PyObject *__pyx_tuple__22;
-  PyObject *__pyx_tuple__24;
-  PyObject *__pyx_codeobj__21;
-  PyObject *__pyx_codeobj__23;
+  PyObject *__pyx_tuple__21;
+  PyObject *__pyx_tuple__23;
+  PyObject *__pyx_tuple__25;
+  PyObject *__pyx_tuple__26;
+  PyObject *__pyx_codeobj__22;
+  PyObject *__pyx_codeobj__24;
+  PyObject *__pyx_codeobj__27;
 } __pyx_mstate;
 
 #if CYTHON_USE_MODULE_STATE
@@ -3914,7 +3953,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_ValueError);
   Py_CLEAR(clear_module_state->__pyx_n_s_View_MemoryView);
   Py_CLEAR(clear_module_state->__pyx_kp_u__2);
-  Py_CLEAR(clear_module_state->__pyx_n_s__25);
+  Py_CLEAR(clear_module_state->__pyx_n_s__28);
   Py_CLEAR(clear_module_state->__pyx_n_s__3);
   Py_CLEAR(clear_module_state->__pyx_kp_u__6);
   Py_CLEAR(clear_module_state->__pyx_kp_u__7);
@@ -3937,6 +3976,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_c);
   Py_CLEAR(clear_module_state->__pyx_n_u_c);
   Py_CLEAR(clear_module_state->__pyx_n_s_c_out_len_all);
+  Py_CLEAR(clear_module_state->__pyx_n_s_child);
   Py_CLEAR(clear_module_state->__pyx_n_s_child_base);
   Py_CLEAR(clear_module_state->__pyx_n_s_children_views);
   Py_CLEAR(clear_module_state->__pyx_n_s_circuit_component);
@@ -3979,12 +4019,14 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_initializing);
   Py_CLEAR(clear_module_state->__pyx_n_s_int32);
   Py_CLEAR(clear_module_state->__pyx_n_s_is_coroutine);
+  Py_CLEAR(clear_module_state->__pyx_n_s_is_series);
   Py_CLEAR(clear_module_state->__pyx_kp_u_isenabled);
   Py_CLEAR(clear_module_state->__pyx_n_s_itemsize);
   Py_CLEAR(clear_module_state->__pyx_kp_s_itemsize_0_for_cython_array);
   Py_CLEAR(clear_module_state->__pyx_n_s_j);
   Py_CLEAR(clear_module_state->__pyx_n_s_jobs_c);
   Py_CLEAR(clear_module_state->__pyx_n_s_kernel_ms);
+  Py_CLEAR(clear_module_state->__pyx_n_s_known_is_V);
   Py_CLEAR(clear_module_state->__pyx_n_s_main);
   Py_CLEAR(clear_module_state->__pyx_n_s_max_I);
   Py_CLEAR(clear_module_state->__pyx_n_s_max_num_points);
@@ -4012,6 +4054,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_ni);
   Py_CLEAR(clear_module_state->__pyx_kp_s_no_default___reduce___due_to_non);
   Py_CLEAR(clear_module_state->__pyx_n_s_np);
+  Py_CLEAR(clear_module_state->__pyx_n_s_ns);
   Py_CLEAR(clear_module_state->__pyx_n_s_numpy);
   Py_CLEAR(clear_module_state->__pyx_kp_u_numpy_core_multiarray_failed_to);
   Py_CLEAR(clear_module_state->__pyx_kp_u_numpy_core_umath_failed_to_impor);
@@ -4045,6 +4088,8 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_refine_mode);
   Py_CLEAR(clear_module_state->__pyx_n_s_register);
   Py_CLEAR(clear_module_state->__pyx_n_s_run_multiple_jobs);
+  Py_CLEAR(clear_module_state->__pyx_n_s_run_multiple_operating_points);
+  Py_CLEAR(clear_module_state->__pyx_n_u_series);
   Py_CLEAR(clear_module_state->__pyx_n_s_setstate);
   Py_CLEAR(clear_module_state->__pyx_n_s_setstate_cython);
   Py_CLEAR(clear_module_state->__pyx_n_s_shape);
@@ -4075,6 +4120,15 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_unpacking_time);
   Py_CLEAR(clear_module_state->__pyx_n_s_update);
   Py_CLEAR(clear_module_state->__pyx_n_s_version_info);
+  Py_CLEAR(clear_module_state->__pyx_n_s_xmv);
+  Py_CLEAR(clear_module_state->__pyx_n_s_xqs_arr);
+  Py_CLEAR(clear_module_state->__pyx_n_s_xqs_mv);
+  Py_CLEAR(clear_module_state->__pyx_n_s_xs);
+  Py_CLEAR(clear_module_state->__pyx_n_s_ymv);
+  Py_CLEAR(clear_module_state->__pyx_n_s_yqs);
+  Py_CLEAR(clear_module_state->__pyx_n_s_yqs_arr);
+  Py_CLEAR(clear_module_state->__pyx_n_s_yqs_mv);
+  Py_CLEAR(clear_module_state->__pyx_n_s_ys);
   Py_CLEAR(clear_module_state->__pyx_n_s_zeros);
   Py_CLEAR(clear_module_state->__pyx_float_0_2);
   Py_CLEAR(clear_module_state->__pyx_float_5_0);
@@ -4102,10 +4156,13 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_tuple__18);
   Py_CLEAR(clear_module_state->__pyx_tuple__19);
   Py_CLEAR(clear_module_state->__pyx_tuple__20);
-  Py_CLEAR(clear_module_state->__pyx_tuple__22);
-  Py_CLEAR(clear_module_state->__pyx_tuple__24);
-  Py_CLEAR(clear_module_state->__pyx_codeobj__21);
-  Py_CLEAR(clear_module_state->__pyx_codeobj__23);
+  Py_CLEAR(clear_module_state->__pyx_tuple__21);
+  Py_CLEAR(clear_module_state->__pyx_tuple__23);
+  Py_CLEAR(clear_module_state->__pyx_tuple__25);
+  Py_CLEAR(clear_module_state->__pyx_tuple__26);
+  Py_CLEAR(clear_module_state->__pyx_codeobj__22);
+  Py_CLEAR(clear_module_state->__pyx_codeobj__24);
+  Py_CLEAR(clear_module_state->__pyx_codeobj__27);
   return 0;
 }
 #endif
@@ -4195,7 +4252,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_ValueError);
   Py_VISIT(traverse_module_state->__pyx_n_s_View_MemoryView);
   Py_VISIT(traverse_module_state->__pyx_kp_u__2);
-  Py_VISIT(traverse_module_state->__pyx_n_s__25);
+  Py_VISIT(traverse_module_state->__pyx_n_s__28);
   Py_VISIT(traverse_module_state->__pyx_n_s__3);
   Py_VISIT(traverse_module_state->__pyx_kp_u__6);
   Py_VISIT(traverse_module_state->__pyx_kp_u__7);
@@ -4218,6 +4275,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_c);
   Py_VISIT(traverse_module_state->__pyx_n_u_c);
   Py_VISIT(traverse_module_state->__pyx_n_s_c_out_len_all);
+  Py_VISIT(traverse_module_state->__pyx_n_s_child);
   Py_VISIT(traverse_module_state->__pyx_n_s_child_base);
   Py_VISIT(traverse_module_state->__pyx_n_s_children_views);
   Py_VISIT(traverse_module_state->__pyx_n_s_circuit_component);
@@ -4260,12 +4318,14 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_initializing);
   Py_VISIT(traverse_module_state->__pyx_n_s_int32);
   Py_VISIT(traverse_module_state->__pyx_n_s_is_coroutine);
+  Py_VISIT(traverse_module_state->__pyx_n_s_is_series);
   Py_VISIT(traverse_module_state->__pyx_kp_u_isenabled);
   Py_VISIT(traverse_module_state->__pyx_n_s_itemsize);
   Py_VISIT(traverse_module_state->__pyx_kp_s_itemsize_0_for_cython_array);
   Py_VISIT(traverse_module_state->__pyx_n_s_j);
   Py_VISIT(traverse_module_state->__pyx_n_s_jobs_c);
   Py_VISIT(traverse_module_state->__pyx_n_s_kernel_ms);
+  Py_VISIT(traverse_module_state->__pyx_n_s_known_is_V);
   Py_VISIT(traverse_module_state->__pyx_n_s_main);
   Py_VISIT(traverse_module_state->__pyx_n_s_max_I);
   Py_VISIT(traverse_module_state->__pyx_n_s_max_num_points);
@@ -4293,6 +4353,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_ni);
   Py_VISIT(traverse_module_state->__pyx_kp_s_no_default___reduce___due_to_non);
   Py_VISIT(traverse_module_state->__pyx_n_s_np);
+  Py_VISIT(traverse_module_state->__pyx_n_s_ns);
   Py_VISIT(traverse_module_state->__pyx_n_s_numpy);
   Py_VISIT(traverse_module_state->__pyx_kp_u_numpy_core_multiarray_failed_to);
   Py_VISIT(traverse_module_state->__pyx_kp_u_numpy_core_umath_failed_to_impor);
@@ -4326,6 +4387,8 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_refine_mode);
   Py_VISIT(traverse_module_state->__pyx_n_s_register);
   Py_VISIT(traverse_module_state->__pyx_n_s_run_multiple_jobs);
+  Py_VISIT(traverse_module_state->__pyx_n_s_run_multiple_operating_points);
+  Py_VISIT(traverse_module_state->__pyx_n_u_series);
   Py_VISIT(traverse_module_state->__pyx_n_s_setstate);
   Py_VISIT(traverse_module_state->__pyx_n_s_setstate_cython);
   Py_VISIT(traverse_module_state->__pyx_n_s_shape);
@@ -4356,6 +4419,15 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_unpacking_time);
   Py_VISIT(traverse_module_state->__pyx_n_s_update);
   Py_VISIT(traverse_module_state->__pyx_n_s_version_info);
+  Py_VISIT(traverse_module_state->__pyx_n_s_xmv);
+  Py_VISIT(traverse_module_state->__pyx_n_s_xqs_arr);
+  Py_VISIT(traverse_module_state->__pyx_n_s_xqs_mv);
+  Py_VISIT(traverse_module_state->__pyx_n_s_xs);
+  Py_VISIT(traverse_module_state->__pyx_n_s_ymv);
+  Py_VISIT(traverse_module_state->__pyx_n_s_yqs);
+  Py_VISIT(traverse_module_state->__pyx_n_s_yqs_arr);
+  Py_VISIT(traverse_module_state->__pyx_n_s_yqs_mv);
+  Py_VISIT(traverse_module_state->__pyx_n_s_ys);
   Py_VISIT(traverse_module_state->__pyx_n_s_zeros);
   Py_VISIT(traverse_module_state->__pyx_float_0_2);
   Py_VISIT(traverse_module_state->__pyx_float_5_0);
@@ -4383,10 +4455,13 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_tuple__18);
   Py_VISIT(traverse_module_state->__pyx_tuple__19);
   Py_VISIT(traverse_module_state->__pyx_tuple__20);
-  Py_VISIT(traverse_module_state->__pyx_tuple__22);
-  Py_VISIT(traverse_module_state->__pyx_tuple__24);
-  Py_VISIT(traverse_module_state->__pyx_codeobj__21);
-  Py_VISIT(traverse_module_state->__pyx_codeobj__23);
+  Py_VISIT(traverse_module_state->__pyx_tuple__21);
+  Py_VISIT(traverse_module_state->__pyx_tuple__23);
+  Py_VISIT(traverse_module_state->__pyx_tuple__25);
+  Py_VISIT(traverse_module_state->__pyx_tuple__26);
+  Py_VISIT(traverse_module_state->__pyx_codeobj__22);
+  Py_VISIT(traverse_module_state->__pyx_codeobj__24);
+  Py_VISIT(traverse_module_state->__pyx_codeobj__27);
   return 0;
 }
 #endif
@@ -4506,7 +4581,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_ValueError __pyx_mstate_global->__pyx_n_s_ValueError
 #define __pyx_n_s_View_MemoryView __pyx_mstate_global->__pyx_n_s_View_MemoryView
 #define __pyx_kp_u__2 __pyx_mstate_global->__pyx_kp_u__2
-#define __pyx_n_s__25 __pyx_mstate_global->__pyx_n_s__25
+#define __pyx_n_s__28 __pyx_mstate_global->__pyx_n_s__28
 #define __pyx_n_s__3 __pyx_mstate_global->__pyx_n_s__3
 #define __pyx_kp_u__6 __pyx_mstate_global->__pyx_kp_u__6
 #define __pyx_kp_u__7 __pyx_mstate_global->__pyx_kp_u__7
@@ -4529,6 +4604,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_c __pyx_mstate_global->__pyx_n_s_c
 #define __pyx_n_u_c __pyx_mstate_global->__pyx_n_u_c
 #define __pyx_n_s_c_out_len_all __pyx_mstate_global->__pyx_n_s_c_out_len_all
+#define __pyx_n_s_child __pyx_mstate_global->__pyx_n_s_child
 #define __pyx_n_s_child_base __pyx_mstate_global->__pyx_n_s_child_base
 #define __pyx_n_s_children_views __pyx_mstate_global->__pyx_n_s_children_views
 #define __pyx_n_s_circuit_component __pyx_mstate_global->__pyx_n_s_circuit_component
@@ -4571,12 +4647,14 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_initializing __pyx_mstate_global->__pyx_n_s_initializing
 #define __pyx_n_s_int32 __pyx_mstate_global->__pyx_n_s_int32
 #define __pyx_n_s_is_coroutine __pyx_mstate_global->__pyx_n_s_is_coroutine
+#define __pyx_n_s_is_series __pyx_mstate_global->__pyx_n_s_is_series
 #define __pyx_kp_u_isenabled __pyx_mstate_global->__pyx_kp_u_isenabled
 #define __pyx_n_s_itemsize __pyx_mstate_global->__pyx_n_s_itemsize
 #define __pyx_kp_s_itemsize_0_for_cython_array __pyx_mstate_global->__pyx_kp_s_itemsize_0_for_cython_array
 #define __pyx_n_s_j __pyx_mstate_global->__pyx_n_s_j
 #define __pyx_n_s_jobs_c __pyx_mstate_global->__pyx_n_s_jobs_c
 #define __pyx_n_s_kernel_ms __pyx_mstate_global->__pyx_n_s_kernel_ms
+#define __pyx_n_s_known_is_V __pyx_mstate_global->__pyx_n_s_known_is_V
 #define __pyx_n_s_main __pyx_mstate_global->__pyx_n_s_main
 #define __pyx_n_s_max_I __pyx_mstate_global->__pyx_n_s_max_I
 #define __pyx_n_s_max_num_points __pyx_mstate_global->__pyx_n_s_max_num_points
@@ -4604,6 +4682,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_ni __pyx_mstate_global->__pyx_n_s_ni
 #define __pyx_kp_s_no_default___reduce___due_to_non __pyx_mstate_global->__pyx_kp_s_no_default___reduce___due_to_non
 #define __pyx_n_s_np __pyx_mstate_global->__pyx_n_s_np
+#define __pyx_n_s_ns __pyx_mstate_global->__pyx_n_s_ns
 #define __pyx_n_s_numpy __pyx_mstate_global->__pyx_n_s_numpy
 #define __pyx_kp_u_numpy_core_multiarray_failed_to __pyx_mstate_global->__pyx_kp_u_numpy_core_multiarray_failed_to
 #define __pyx_kp_u_numpy_core_umath_failed_to_impor __pyx_mstate_global->__pyx_kp_u_numpy_core_umath_failed_to_impor
@@ -4637,6 +4716,8 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_refine_mode __pyx_mstate_global->__pyx_n_s_refine_mode
 #define __pyx_n_s_register __pyx_mstate_global->__pyx_n_s_register
 #define __pyx_n_s_run_multiple_jobs __pyx_mstate_global->__pyx_n_s_run_multiple_jobs
+#define __pyx_n_s_run_multiple_operating_points __pyx_mstate_global->__pyx_n_s_run_multiple_operating_points
+#define __pyx_n_u_series __pyx_mstate_global->__pyx_n_u_series
 #define __pyx_n_s_setstate __pyx_mstate_global->__pyx_n_s_setstate
 #define __pyx_n_s_setstate_cython __pyx_mstate_global->__pyx_n_s_setstate_cython
 #define __pyx_n_s_shape __pyx_mstate_global->__pyx_n_s_shape
@@ -4667,6 +4748,15 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_unpacking_time __pyx_mstate_global->__pyx_n_s_unpacking_time
 #define __pyx_n_s_update __pyx_mstate_global->__pyx_n_s_update
 #define __pyx_n_s_version_info __pyx_mstate_global->__pyx_n_s_version_info
+#define __pyx_n_s_xmv __pyx_mstate_global->__pyx_n_s_xmv
+#define __pyx_n_s_xqs_arr __pyx_mstate_global->__pyx_n_s_xqs_arr
+#define __pyx_n_s_xqs_mv __pyx_mstate_global->__pyx_n_s_xqs_mv
+#define __pyx_n_s_xs __pyx_mstate_global->__pyx_n_s_xs
+#define __pyx_n_s_ymv __pyx_mstate_global->__pyx_n_s_ymv
+#define __pyx_n_s_yqs __pyx_mstate_global->__pyx_n_s_yqs
+#define __pyx_n_s_yqs_arr __pyx_mstate_global->__pyx_n_s_yqs_arr
+#define __pyx_n_s_yqs_mv __pyx_mstate_global->__pyx_n_s_yqs_mv
+#define __pyx_n_s_ys __pyx_mstate_global->__pyx_n_s_ys
 #define __pyx_n_s_zeros __pyx_mstate_global->__pyx_n_s_zeros
 #define __pyx_float_0_2 __pyx_mstate_global->__pyx_float_0_2
 #define __pyx_float_5_0 __pyx_mstate_global->__pyx_float_5_0
@@ -4694,10 +4784,13 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_tuple__18 __pyx_mstate_global->__pyx_tuple__18
 #define __pyx_tuple__19 __pyx_mstate_global->__pyx_tuple__19
 #define __pyx_tuple__20 __pyx_mstate_global->__pyx_tuple__20
-#define __pyx_tuple__22 __pyx_mstate_global->__pyx_tuple__22
-#define __pyx_tuple__24 __pyx_mstate_global->__pyx_tuple__24
-#define __pyx_codeobj__21 __pyx_mstate_global->__pyx_codeobj__21
-#define __pyx_codeobj__23 __pyx_mstate_global->__pyx_codeobj__23
+#define __pyx_tuple__21 __pyx_mstate_global->__pyx_tuple__21
+#define __pyx_tuple__23 __pyx_mstate_global->__pyx_tuple__23
+#define __pyx_tuple__25 __pyx_mstate_global->__pyx_tuple__25
+#define __pyx_tuple__26 __pyx_mstate_global->__pyx_tuple__26
+#define __pyx_codeobj__22 __pyx_mstate_global->__pyx_codeobj__22
+#define __pyx_codeobj__24 __pyx_mstate_global->__pyx_codeobj__24
+#define __pyx_codeobj__27 __pyx_mstate_global->__pyx_codeobj__27
 /* #### Code section: module_code ### */
 
 /* "View.MemoryView":131
@@ -19588,8 +19681,8 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/ivkernel_wrapper.pyx":41
- *     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
+/* "PV_Circuit_Model/ivkernel_wrapper.pyx":51
+ *     ) nogil
  * 
  * def run_multiple_jobs(components,refine_mode=False,parallel=False):             # <<<<<<<<<<<<<<
  * 
@@ -19657,26 +19750,26 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 41, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 51, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_refine_mode);
           if (value) { values[1] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 41, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 51, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_parallel);
           if (value) { values[2] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 41, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 51, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "run_multiple_jobs") < 0)) __PYX_ERR(0, 41, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "run_multiple_jobs") < 0)) __PYX_ERR(0, 51, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -19695,7 +19788,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("run_multiple_jobs", 0, 1, 3, __pyx_nargs); __PYX_ERR(0, 41, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("run_multiple_jobs", 0, 1, 3, __pyx_nargs); __PYX_ERR(0, 51, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -19817,7 +19910,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_pybuffernd_out_len_array.data = NULL;
   __pyx_pybuffernd_out_len_array.rcbuffer = &__pyx_pybuffer_out_len_array;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":43
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":53
  * def run_multiple_jobs(components,refine_mode=False,parallel=False):
  * 
  *     parallel_ = 0             # <<<<<<<<<<<<<<
@@ -19826,29 +19919,29 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_parallel_ = 0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":44
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":54
  * 
  *     parallel_ = 0
  *     if parallel: parallel_ = 1             # <<<<<<<<<<<<<<
  *     cdef Py_ssize_t n_jobs = len(components)
  * 
  */
-  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_parallel); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 44, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_parallel); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 54, __pyx_L1_error)
   if (__pyx_t_1) {
     __pyx_v_parallel_ = 1;
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":45
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":55
  *     parallel_ = 0
  *     if parallel: parallel_ = 1
  *     cdef Py_ssize_t n_jobs = len(components)             # <<<<<<<<<<<<<<
  * 
  *     cdef int PARAMS_LEN = 8
  */
-  __pyx_t_2 = PyObject_Length(__pyx_v_components); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 45, __pyx_L1_error)
+  __pyx_t_2 = PyObject_Length(__pyx_v_components); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 55, __pyx_L1_error)
   __pyx_v_n_jobs = __pyx_t_2;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":47
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":57
  *     cdef Py_ssize_t n_jobs = len(components)
  * 
  *     cdef int PARAMS_LEN = 8             # <<<<<<<<<<<<<<
@@ -19857,45 +19950,45 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_PARAMS_LEN = 8;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":48
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":58
  * 
  *     cdef int PARAMS_LEN = 8
  *     params_all = np.zeros((n_jobs, PARAMS_LEN), dtype=np.float64)             # <<<<<<<<<<<<<<
  *     cdef np.float64_t[:, ::1] mv_params_all = params_all
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_zeros); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_zeros); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_n_jobs); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_n_jobs); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_PARAMS_LEN); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_PARAMS_LEN); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_GIVEREF(__pyx_t_3);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_3)) __PYX_ERR(0, 48, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error);
   __Pyx_GIVEREF(__pyx_t_5);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_5)) __PYX_ERR(0, 48, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_5)) __PYX_ERR(0, 58, __pyx_L1_error);
   __pyx_t_3 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_6);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_6)) __PYX_ERR(0, 48, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_6)) __PYX_ERR(0, 58, __pyx_L1_error);
   __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_float64); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_float64); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_7) < 0) __PYX_ERR(0, 48, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_7) < 0) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-  __pyx_t_7 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_5, __pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_5, __pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 58, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
@@ -19903,19 +19996,19 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_v_params_all = __pyx_t_7;
   __pyx_t_7 = 0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":49
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":59
  *     cdef int PARAMS_LEN = 8
  *     params_all = np.zeros((n_jobs, PARAMS_LEN), dtype=np.float64)
  *     cdef np.float64_t[:, ::1] mv_params_all = params_all             # <<<<<<<<<<<<<<
  * 
  *     # --- allocate IVJobDesc array ---
  */
-  __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_5numpy_float64_t(__pyx_v_params_all, PyBUF_WRITABLE); if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_5numpy_float64_t(__pyx_v_params_all, PyBUF_WRITABLE); if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 59, __pyx_L1_error)
   __pyx_v_mv_params_all = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":52
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":62
  * 
  *     # --- allocate IVJobDesc array ---
  *     cdef IVJobDesc* jobs_c = <IVJobDesc*> malloc(n_jobs * sizeof(IVJobDesc))             # <<<<<<<<<<<<<<
@@ -19924,7 +20017,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_jobs_c = ((struct IVJobDesc *)malloc((__pyx_v_n_jobs * (sizeof(struct IVJobDesc)))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":53
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":63
  *     # --- allocate IVJobDesc array ---
  *     cdef IVJobDesc* jobs_c = <IVJobDesc*> malloc(n_jobs * sizeof(IVJobDesc))
  *     if jobs_c == NULL:             # <<<<<<<<<<<<<<
@@ -19934,16 +20027,16 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_t_1 = (__pyx_v_jobs_c == NULL);
   if (unlikely(__pyx_t_1)) {
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":54
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":64
  *     cdef IVJobDesc* jobs_c = <IVJobDesc*> malloc(n_jobs * sizeof(IVJobDesc))
  *     if jobs_c == NULL:
  *         raise MemoryError()             # <<<<<<<<<<<<<<
  *     memset(jobs_c, 0, n_jobs * sizeof(IVJobDesc))
  * 
  */
-    PyErr_NoMemory(); __PYX_ERR(0, 54, __pyx_L1_error)
+    PyErr_NoMemory(); __PYX_ERR(0, 64, __pyx_L1_error)
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":53
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":63
  *     # --- allocate IVJobDesc array ---
  *     cdef IVJobDesc* jobs_c = <IVJobDesc*> malloc(n_jobs * sizeof(IVJobDesc))
  *     if jobs_c == NULL:             # <<<<<<<<<<<<<<
@@ -19952,7 +20045,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":55
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":65
  *     if jobs_c == NULL:
  *         raise MemoryError()
  *     memset(jobs_c, 0, n_jobs * sizeof(IVJobDesc))             # <<<<<<<<<<<<<<
@@ -19961,46 +20054,46 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   (void)(memset(__pyx_v_jobs_c, 0, (__pyx_v_n_jobs * (sizeof(struct IVJobDesc)))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":58
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":68
  * 
  *     # out_len for each job
  *     cdef np.ndarray[np.int32_t, ndim=1] out_len_array = np.empty(n_jobs, dtype=np.int32)             # <<<<<<<<<<<<<<
  *     cdef np.int32_t[::1] mv_out_len = out_len_array
  *     cdef int* c_out_len_all = <int*>&mv_out_len[0]
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_empty); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_empty); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-  __pyx_t_7 = PyInt_FromSsize_t(__pyx_v_n_jobs); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_t_7 = PyInt_FromSsize_t(__pyx_v_n_jobs); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_7);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_7)) __PYX_ERR(0, 58, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_7)) __PYX_ERR(0, 68, __pyx_L1_error);
   __pyx_t_7 = 0;
-  __pyx_t_7 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_int32); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_int32); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_dtype, __pyx_t_3) < 0) __PYX_ERR(0, 58, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_dtype, __pyx_t_3) < 0) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_5, __pyx_t_7); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 58, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_5, __pyx_t_7); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 68, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-  if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 58, __pyx_L1_error)
+  if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 68, __pyx_L1_error)
   __pyx_t_9 = ((PyArrayObject *)__pyx_t_3);
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
     if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_out_len_array.rcbuffer->pybuffer, (PyObject*)__pyx_t_9, &__Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) {
       __pyx_v_out_len_array = ((PyArrayObject *)Py_None); __Pyx_INCREF(Py_None); __pyx_pybuffernd_out_len_array.rcbuffer->pybuffer.buf = NULL;
-      __PYX_ERR(0, 58, __pyx_L1_error)
+      __PYX_ERR(0, 68, __pyx_L1_error)
     } else {__pyx_pybuffernd_out_len_array.diminfo[0].strides = __pyx_pybuffernd_out_len_array.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_out_len_array.diminfo[0].shape = __pyx_pybuffernd_out_len_array.rcbuffer->pybuffer.shape[0];
     }
   }
@@ -20008,19 +20101,19 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_v_out_len_array = ((PyArrayObject *)__pyx_t_3);
   __pyx_t_3 = 0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":59
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":69
  *     # out_len for each job
  *     cdef np.ndarray[np.int32_t, ndim=1] out_len_array = np.empty(n_jobs, dtype=np.int32)
  *     cdef np.int32_t[::1] mv_out_len = out_len_array             # <<<<<<<<<<<<<<
  *     cdef int* c_out_len_all = <int*>&mv_out_len[0]
  * 
  */
-  __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_int32_t(((PyObject *)__pyx_v_out_len_array), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 59, __pyx_L1_error)
+  __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_int32_t(((PyObject *)__pyx_v_out_len_array), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 69, __pyx_L1_error)
   __pyx_v_mv_out_len = __pyx_t_10;
   __pyx_t_10.memview = NULL;
   __pyx_t_10.data = NULL;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":60
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":70
  *     cdef np.ndarray[np.int32_t, ndim=1] out_len_array = np.empty(n_jobs, dtype=np.int32)
  *     cdef np.int32_t[::1] mv_out_len = out_len_array
  *     cdef int* c_out_len_all = <int*>&mv_out_len[0]             # <<<<<<<<<<<<<<
@@ -20030,7 +20123,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_t_11 = 0;
   __pyx_v_c_out_len_all = ((int *)(&(*((__pyx_t_5numpy_int32_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_int32_t *) __pyx_v_mv_out_len.data) + __pyx_t_11)) )))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":63
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":73
  * 
  *     # ---- count total children / pc-children to allocate IVView buffers ----
  *     cdef Py_ssize_t total_children = 0             # <<<<<<<<<<<<<<
@@ -20039,7 +20132,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_total_children = 0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":66
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":76
  *     cdef Py_ssize_t i, j
  * 
  *     for i in range(n_jobs):             # <<<<<<<<<<<<<<
@@ -20051,47 +20144,47 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_12; __pyx_t_13+=1) {
     __pyx_v_i = __pyx_t_13;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":67
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":77
  * 
  *     for i in range(n_jobs):
  *         circuit_component = components[i]             # <<<<<<<<<<<<<<
  *         if circuit_component._type_number>=5:
  *             total_children += len(circuit_component.subgroups)
  */
-    __pyx_t_3 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 67, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 77, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_XDECREF_SET(__pyx_v_circuit_component, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":68
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":78
  *     for i in range(n_jobs):
  *         circuit_component = components[i]
  *         if circuit_component._type_number>=5:             # <<<<<<<<<<<<<<
  *             total_children += len(circuit_component.subgroups)
  * 
  */
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 68, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 78, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_7 = PyObject_RichCompare(__pyx_t_3, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_7); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 68, __pyx_L1_error)
+    __pyx_t_7 = PyObject_RichCompare(__pyx_t_3, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_7); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 78, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_7); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 68, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_7); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 78, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
     if (__pyx_t_1) {
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":69
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":79
  *         circuit_component = components[i]
  *         if circuit_component._type_number>=5:
  *             total_children += len(circuit_component.subgroups)             # <<<<<<<<<<<<<<
  * 
  *     cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))
  */
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 69, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 79, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_14 = PyObject_Length(__pyx_t_7); if (unlikely(__pyx_t_14 == ((Py_ssize_t)-1))) __PYX_ERR(0, 69, __pyx_L1_error)
+      __pyx_t_14 = PyObject_Length(__pyx_t_7); if (unlikely(__pyx_t_14 == ((Py_ssize_t)-1))) __PYX_ERR(0, 79, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_v_total_children = (__pyx_v_total_children + __pyx_t_14);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":68
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":78
  *     for i in range(n_jobs):
  *         circuit_component = components[i]
  *         if circuit_component._type_number>=5:             # <<<<<<<<<<<<<<
@@ -20101,7 +20194,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
     }
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":71
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":81
  *             total_children += len(circuit_component.subgroups)
  * 
  *     cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))             # <<<<<<<<<<<<<<
@@ -20110,7 +20203,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_children_views = ((struct IVView *)malloc((__pyx_v_total_children * (sizeof(struct IVView)))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":72
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":82
  * 
  *     cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))
  *     if children_views == NULL:             # <<<<<<<<<<<<<<
@@ -20120,7 +20213,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_t_1 = (__pyx_v_children_views == NULL);
   if (unlikely(__pyx_t_1)) {
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":73
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":83
  *     cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))
  *     if children_views == NULL:
  *         free(jobs_c)             # <<<<<<<<<<<<<<
@@ -20129,16 +20222,16 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
     free(__pyx_v_jobs_c);
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":74
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":84
  *     if children_views == NULL:
  *         free(jobs_c)
  *         raise MemoryError()             # <<<<<<<<<<<<<<
  * 
  *     # This list keeps all numpy buffers alive until we return from this function
  */
-    PyErr_NoMemory(); __PYX_ERR(0, 74, __pyx_L1_error)
+    PyErr_NoMemory(); __PYX_ERR(0, 84, __pyx_L1_error)
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":72
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":82
  * 
  *     cdef IVView* children_views = <IVView*> malloc(total_children * sizeof(IVView))
  *     if children_views == NULL:             # <<<<<<<<<<<<<<
@@ -20147,7 +20240,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":77
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":87
  * 
  *     # This list keeps all numpy buffers alive until we return from this function
  *     memset(children_views, 0, total_children * sizeof(IVView))             # <<<<<<<<<<<<<<
@@ -20156,7 +20249,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   (void)(memset(__pyx_v_children_views, 0, (__pyx_v_total_children * (sizeof(struct IVView)))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":79
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":89
  *     memset(children_views, 0, total_children * sizeof(IVView))
  * 
  *     cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))             # <<<<<<<<<<<<<<
@@ -20165,7 +20258,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_pc_children_views = ((struct IVView *)malloc((__pyx_v_total_children * (sizeof(struct IVView)))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":80
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":90
  * 
  *     cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))
  *     if pc_children_views == NULL:             # <<<<<<<<<<<<<<
@@ -20175,7 +20268,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
   __pyx_t_1 = (__pyx_v_pc_children_views == NULL);
   if (unlikely(__pyx_t_1)) {
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":81
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":91
  *     cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))
  *     if pc_children_views == NULL:
  *         free(jobs_c)             # <<<<<<<<<<<<<<
@@ -20184,7 +20277,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
     free(__pyx_v_jobs_c);
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":82
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":92
  *     if pc_children_views == NULL:
  *         free(jobs_c)
  *         free(children_views)             # <<<<<<<<<<<<<<
@@ -20193,16 +20286,16 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
     free(__pyx_v_children_views);
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":83
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":93
  *         free(jobs_c)
  *         free(children_views)
  *         raise MemoryError()             # <<<<<<<<<<<<<<
  *     memset(pc_children_views, 0, total_children * sizeof(IVView))
  * 
  */
-    PyErr_NoMemory(); __PYX_ERR(0, 83, __pyx_L1_error)
+    PyErr_NoMemory(); __PYX_ERR(0, 93, __pyx_L1_error)
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":80
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":90
  * 
  *     cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))
  *     if pc_children_views == NULL:             # <<<<<<<<<<<<<<
@@ -20211,7 +20304,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":84
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":94
  *         free(children_views)
  *         raise MemoryError()
  *     memset(pc_children_views, 0, total_children * sizeof(IVView))             # <<<<<<<<<<<<<<
@@ -20220,7 +20313,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   (void)(memset(__pyx_v_pc_children_views, 0, (__pyx_v_total_children * (sizeof(struct IVView)))));
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":100
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":110
  *     cdef double area
  * 
  *     cdef Py_ssize_t child_base = 0             # <<<<<<<<<<<<<<
@@ -20229,7 +20322,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   __pyx_v_child_base = 0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":111
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":121
  *     cdef int sum_abs_max_num_points
  * 
  *     try:             # <<<<<<<<<<<<<<
@@ -20238,16 +20331,16 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
   /*try:*/ {
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":112
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":122
  * 
  *     try:
  *         t1 = time.time()             # <<<<<<<<<<<<<<
  *         sum_abs_max_num_points = 0
  *         for i in range(n_jobs):
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 112, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 122, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 112, __pyx_L11_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_time); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 122, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_3 = NULL;
@@ -20268,14 +20361,14 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
       PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
       __pyx_t_7 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+1-__pyx_t_15, 0+__pyx_t_15);
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 112, __pyx_L11_error)
+      if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 122, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     }
     __pyx_v_t1 = __pyx_t_7;
     __pyx_t_7 = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":113
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":123
  *     try:
  *         t1 = time.time()
  *         sum_abs_max_num_points = 0             # <<<<<<<<<<<<<<
@@ -20284,7 +20377,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
     __pyx_v_sum_abs_max_num_points = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":114
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":124
  *         t1 = time.time()
  *         sum_abs_max_num_points = 0
  *         for i in range(n_jobs):             # <<<<<<<<<<<<<<
@@ -20296,19 +20389,19 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
     for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_12; __pyx_t_13+=1) {
       __pyx_v_i = __pyx_t_13;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":115
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":125
  *         sum_abs_max_num_points = 0
  *         for i in range(n_jobs):
  *             circuit_component = components[i]             # <<<<<<<<<<<<<<
  *             subgroups = None
  *             if circuit_component._type_number>=5:
  */
-      __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 115, __pyx_L11_error)
+      __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 125, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_XDECREF_SET(__pyx_v_circuit_component, __pyx_t_7);
       __pyx_t_7 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":116
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":126
  *         for i in range(n_jobs):
  *             circuit_component = components[i]
  *             subgroups = None             # <<<<<<<<<<<<<<
@@ -20318,34 +20411,34 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
       __Pyx_INCREF(Py_None);
       __Pyx_XDECREF_SET(__pyx_v_subgroups, Py_None);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":117
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":127
  *             circuit_component = components[i]
  *             subgroups = None
  *             if circuit_component._type_number>=5:             # <<<<<<<<<<<<<<
  *                 subgroups = circuit_component.subgroups
  *             circuit_component_type_number = circuit_component._type_number  # default CircuitGroup
  */
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 117, __pyx_L11_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 127, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_5 = PyObject_RichCompare(__pyx_t_7, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_5); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 117, __pyx_L11_error)
+      __pyx_t_5 = PyObject_RichCompare(__pyx_t_7, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_5); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 127, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_5); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 117, __pyx_L11_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_5); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 127, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":118
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":128
  *             subgroups = None
  *             if circuit_component._type_number>=5:
  *                 subgroups = circuit_component.subgroups             # <<<<<<<<<<<<<<
  *             circuit_component_type_number = circuit_component._type_number  # default CircuitGroup
  * 
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 118, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 128, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
         __Pyx_DECREF_SET(__pyx_v_subgroups, __pyx_t_5);
         __pyx_t_5 = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":117
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":127
  *             circuit_component = components[i]
  *             subgroups = None
  *             if circuit_component._type_number>=5:             # <<<<<<<<<<<<<<
@@ -20354,20 +20447,20 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_run_multiple_jobs(CYTHON_
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":119
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":129
  *             if circuit_component._type_number>=5:
  *                 subgroups = circuit_component.subgroups
  *             circuit_component_type_number = circuit_component._type_number  # default CircuitGroup             # <<<<<<<<<<<<<<
  * 
  *             # ----- build circuit_element_parameters (matches your C++ expectations) -----
  */
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 119, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 129, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_15 = __Pyx_PyInt_As_int(__pyx_t_5); if (unlikely((__pyx_t_15 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 119, __pyx_L11_error)
+      __pyx_t_15 = __Pyx_PyInt_As_int(__pyx_t_5); if (unlikely((__pyx_t_15 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 129, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __pyx_v_circuit_component_type_number = __pyx_t_15;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":122
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":132
  * 
  *             # ----- build circuit_element_parameters (matches your C++ expectations) -----
  *             mv_params = mv_params_all[i]  # shape (PARAMS_LEN,)             # <<<<<<<<<<<<<<
@@ -20392,7 +20485,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_16.memview = NULL;
       __pyx_t_16.data = NULL;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":123
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":133
  *             # ----- build circuit_element_parameters (matches your C++ expectations) -----
  *             mv_params = mv_params_all[i]  # shape (PARAMS_LEN,)
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]             # <<<<<<<<<<<<<<
@@ -20402,30 +20495,30 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_11 = 0;
       (__pyx_v_jobs_c[__pyx_v_i]).circuit_element_parameters = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) ))));
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":124
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":134
  *             mv_params = mv_params_all[i]  # shape (PARAMS_LEN,)
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  *             max_I = circuit_component.max_I             # <<<<<<<<<<<<<<
  *             if not max_I:
  *                 max_I = 0.2
  */
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_max_I); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 124, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_max_I); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 134, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_XDECREF_SET(__pyx_v_max_I, __pyx_t_5);
       __pyx_t_5 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":125
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":135
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  *             max_I = circuit_component.max_I
  *             if not max_I:             # <<<<<<<<<<<<<<
  *                 max_I = 0.2
  *             if circuit_component_type_number == 0:      # CurrentSource
  */
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_max_I); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 125, __pyx_L11_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_max_I); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 135, __pyx_L11_error)
       __pyx_t_17 = (!__pyx_t_1);
       if (__pyx_t_17) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":126
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":136
  *             max_I = circuit_component.max_I
  *             if not max_I:
  *                 max_I = 0.2             # <<<<<<<<<<<<<<
@@ -20435,7 +20528,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __Pyx_INCREF(__pyx_float_0_2);
         __Pyx_DECREF_SET(__pyx_v_max_I, __pyx_float_0_2);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":125
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":135
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  *             max_I = circuit_component.max_I
  *             if not max_I:             # <<<<<<<<<<<<<<
@@ -20444,7 +20537,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":127
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":137
  *             if not max_I:
  *                 max_I = 0.2
  *             if circuit_component_type_number == 0:      # CurrentSource             # <<<<<<<<<<<<<<
@@ -20454,21 +20547,21 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       switch (__pyx_v_circuit_component_type_number) {
         case 0:
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":128
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":138
  *                 max_I = 0.2
  *             if circuit_component_type_number == 0:      # CurrentSource
  *                 mv_params[0] = circuit_component.IL             # <<<<<<<<<<<<<<
  *             elif circuit_component_type_number == 1:    # Resistor
  *                 mv_params[0] = circuit_component.cond
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IL); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 128, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IL); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 138, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 128, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 138, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 0;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":127
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":137
  *             if not max_I:
  *                 max_I = 0.2
  *             if circuit_component_type_number == 0:      # CurrentSource             # <<<<<<<<<<<<<<
@@ -20478,21 +20571,21 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         break;
         case 1:
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":130
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":140
  *                 mv_params[0] = circuit_component.IL
  *             elif circuit_component_type_number == 1:    # Resistor
  *                 mv_params[0] = circuit_component.cond             # <<<<<<<<<<<<<<
  *             elif circuit_component_type_number in (2, 3):  # diodes
  *                 mv_params[0] = circuit_component.I0
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_cond); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 130, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_cond); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 140, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 130, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 140, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 0;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":129
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":139
  *             if circuit_component_type_number == 0:      # CurrentSource
  *                 mv_params[0] = circuit_component.IL
  *             elif circuit_component_type_number == 1:    # Resistor             # <<<<<<<<<<<<<<
@@ -20502,7 +20595,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         break;
         case 2:
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":131
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":141
  *             elif circuit_component_type_number == 1:    # Resistor
  *                 mv_params[0] = circuit_component.cond
  *             elif circuit_component_type_number in (2, 3):  # diodes             # <<<<<<<<<<<<<<
@@ -20511,74 +20604,74 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         case 3:
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":132
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":142
  *                 mv_params[0] = circuit_component.cond
  *             elif circuit_component_type_number in (2, 3):  # diodes
  *                 mv_params[0] = circuit_component.I0             # <<<<<<<<<<<<<<
  *                 mv_params[1] = circuit_component.n
  *                 mv_params[2] = circuit_component.VT
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_I0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 132, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_I0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 142, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 132, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 142, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 0;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":133
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":143
  *             elif circuit_component_type_number in (2, 3):  # diodes
  *                 mv_params[0] = circuit_component.I0
  *                 mv_params[1] = circuit_component.n             # <<<<<<<<<<<<<<
  *                 mv_params[2] = circuit_component.VT
  *                 mv_params[3] = circuit_component.V_shift
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_n); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 133, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_n); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 143, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 133, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 143, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 1;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":134
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":144
  *                 mv_params[0] = circuit_component.I0
  *                 mv_params[1] = circuit_component.n
  *                 mv_params[2] = circuit_component.VT             # <<<<<<<<<<<<<<
  *                 mv_params[3] = circuit_component.V_shift
  *                 mv_params[4] = max_I
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_VT); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 134, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_VT); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 144, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 134, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 144, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 2;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":135
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":145
  *                 mv_params[1] = circuit_component.n
  *                 mv_params[2] = circuit_component.VT
  *                 mv_params[3] = circuit_component.V_shift             # <<<<<<<<<<<<<<
  *                 mv_params[4] = max_I
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_V_shift); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 135, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_V_shift); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 145, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 135, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 145, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 3;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":136
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":146
  *                 mv_params[2] = circuit_component.VT
  *                 mv_params[3] = circuit_component.V_shift
  *                 mv_params[4] = max_I             # <<<<<<<<<<<<<<
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
  *                 base_type_number = 0.0  # p
  */
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_v_max_I); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 136, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_v_max_I); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 146, __pyx_L11_error)
         __pyx_t_11 = 4;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":131
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":141
  *             elif circuit_component_type_number == 1:    # Resistor
  *                 mv_params[0] = circuit_component.cond
  *             elif circuit_component_type_number in (2, 3):  # diodes             # <<<<<<<<<<<<<<
@@ -20588,7 +20681,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         break;
         case 4:
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":138
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":148
  *                 mv_params[4] = max_I
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
  *                 base_type_number = 0.0  # p             # <<<<<<<<<<<<<<
@@ -20597,7 +20690,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_base_type_number = 0.0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":139
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":149
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
  *                 base_type_number = 0.0  # p
  *                 try:             # <<<<<<<<<<<<<<
@@ -20613,20 +20706,20 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           __Pyx_XGOTREF(__pyx_t_21);
           /*try:*/ {
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":140
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":150
  *                 base_type_number = 0.0  # p
  *                 try:
  *                     if circuit_component.base_type == "n":             # <<<<<<<<<<<<<<
  *                         base_type_number = 1.0
  *                 except AttributeError:
  */
-            __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_base_type); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 140, __pyx_L17_error)
+            __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_base_type); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 150, __pyx_L17_error)
             __Pyx_GOTREF(__pyx_t_5);
-            __pyx_t_17 = (__Pyx_PyUnicode_Equals(__pyx_t_5, __pyx_n_u_n, Py_EQ)); if (unlikely((__pyx_t_17 < 0))) __PYX_ERR(0, 140, __pyx_L17_error)
+            __pyx_t_17 = (__Pyx_PyUnicode_Equals(__pyx_t_5, __pyx_n_u_n, Py_EQ)); if (unlikely((__pyx_t_17 < 0))) __PYX_ERR(0, 150, __pyx_L17_error)
             __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
             if (__pyx_t_17) {
 
-              /* "PV_Circuit_Model/ivkernel_wrapper.pyx":141
+              /* "PV_Circuit_Model/ivkernel_wrapper.pyx":151
  *                 try:
  *                     if circuit_component.base_type == "n":
  *                         base_type_number = 1.0             # <<<<<<<<<<<<<<
@@ -20635,7 +20728,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
               __pyx_v_base_type_number = 1.0;
 
-              /* "PV_Circuit_Model/ivkernel_wrapper.pyx":140
+              /* "PV_Circuit_Model/ivkernel_wrapper.pyx":150
  *                 base_type_number = 0.0  # p
  *                 try:
  *                     if circuit_component.base_type == "n":             # <<<<<<<<<<<<<<
@@ -20644,7 +20737,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
             }
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":139
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":149
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
  *                 base_type_number = 0.0  # p
  *                 try:             # <<<<<<<<<<<<<<
@@ -20669,7 +20762,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           __PYX_XCLEAR_MEMVIEW(&__pyx_t_8, 1);
           __pyx_t_8.memview = NULL; __pyx_t_8.data = NULL;
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":142
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":152
  *                     if circuit_component.base_type == "n":
  *                         base_type_number = 1.0
  *                 except AttributeError:             # <<<<<<<<<<<<<<
@@ -20683,7 +20776,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           }
           goto __pyx_L19_except_error;
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":139
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":149
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
  *                 base_type_number = 0.0  # p
  *                 try:             # <<<<<<<<<<<<<<
@@ -20704,21 +20797,21 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           __pyx_L24_try_end:;
         }
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":145
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":155
  *                     pass
  * 
  *                 mv_params[0] = circuit_component.base_doping             # <<<<<<<<<<<<<<
  *                 mv_params[1] = 1.0
  *                 mv_params[2] = circuit_component.VT
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_base_doping); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 145, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_base_doping); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 155, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 145, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 155, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 0;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":146
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":156
  * 
  *                 mv_params[0] = circuit_component.base_doping
  *                 mv_params[1] = 1.0             # <<<<<<<<<<<<<<
@@ -20728,60 +20821,60 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __pyx_t_11 = 1;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = 1.0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":147
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":157
  *                 mv_params[0] = circuit_component.base_doping
  *                 mv_params[1] = 1.0
  *                 mv_params[2] = circuit_component.VT             # <<<<<<<<<<<<<<
  *                 mv_params[3] = circuit_component.base_thickness
  *                 mv_params[4] = max_I
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_VT); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 147, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_VT); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 157, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 147, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 157, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 2;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":148
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":158
  *                 mv_params[1] = 1.0
  *                 mv_params[2] = circuit_component.VT
  *                 mv_params[3] = circuit_component.base_thickness             # <<<<<<<<<<<<<<
  *                 mv_params[4] = max_I
  *                 mv_params[5] = circuit_component.ni
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_base_thickness); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 148, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_base_thickness); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 158, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 148, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 158, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 3;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":149
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":159
  *                 mv_params[2] = circuit_component.VT
  *                 mv_params[3] = circuit_component.base_thickness
  *                 mv_params[4] = max_I             # <<<<<<<<<<<<<<
  *                 mv_params[5] = circuit_component.ni
  *                 mv_params[6] = base_type_number
  */
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_v_max_I); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 149, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_v_max_I); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 159, __pyx_L11_error)
         __pyx_t_11 = 4;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":150
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":160
  *                 mv_params[3] = circuit_component.base_thickness
  *                 mv_params[4] = max_I
  *                 mv_params[5] = circuit_component.ni             # <<<<<<<<<<<<<<
  *                 mv_params[6] = base_type_number
  *             else:
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_ni); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 150, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_ni); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 160, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 150, __pyx_L11_error)
+        __pyx_t_18 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_18 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 160, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_t_11 = 5;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_t_18;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":151
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":161
  *                 mv_params[4] = max_I
  *                 mv_params[5] = circuit_component.ni
  *                 mv_params[6] = base_type_number             # <<<<<<<<<<<<<<
@@ -20791,7 +20884,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __pyx_t_11 = 6;
         *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) )) = __pyx_v_base_type_number;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":137
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":147
  *                 mv_params[3] = circuit_component.V_shift
  *                 mv_params[4] = max_I
  *             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode             # <<<<<<<<<<<<<<
@@ -20803,7 +20896,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         break;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":157
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":167
  * 
  *             # ----- scalar fields -----
  *             area = 1.0             # <<<<<<<<<<<<<<
@@ -20812,23 +20905,23 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       __pyx_v_area = 1.0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":158
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":168
  *             # ----- scalar fields -----
  *             area = 1.0
  *             if circuit_component._type_number==6 and circuit_component.area is not None:             # <<<<<<<<<<<<<<
  *                 area = circuit_component.area
  *             max_num_points = circuit_component.max_num_points
  */
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 158, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 168, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_1 = (__Pyx_PyInt_BoolEqObjC(__pyx_t_5, __pyx_int_6, 6, 0)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 158, __pyx_L11_error)
+      __pyx_t_1 = (__Pyx_PyInt_BoolEqObjC(__pyx_t_5, __pyx_int_6, 6, 0)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 168, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       if (__pyx_t_1) {
       } else {
         __pyx_t_17 = __pyx_t_1;
         goto __pyx_L27_bool_binop_done;
       }
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_area); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 158, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_area); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 168, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
       __pyx_t_1 = (__pyx_t_5 != Py_None);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
@@ -20836,20 +20929,20 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_L27_bool_binop_done:;
       if (__pyx_t_17) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":159
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":169
  *             area = 1.0
  *             if circuit_component._type_number==6 and circuit_component.area is not None:
  *                 area = circuit_component.area             # <<<<<<<<<<<<<<
  *             max_num_points = circuit_component.max_num_points
  *             if not max_num_points:
  */
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_area); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 159, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_area); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 169, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 159, __pyx_L11_error)
+        __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 169, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_v_area = __pyx_t_22;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":158
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":168
  *             # ----- scalar fields -----
  *             area = 1.0
  *             if circuit_component._type_number==6 and circuit_component.area is not None:             # <<<<<<<<<<<<<<
@@ -20858,30 +20951,30 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":160
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":170
  *             if circuit_component._type_number==6 and circuit_component.area is not None:
  *                 area = circuit_component.area
  *             max_num_points = circuit_component.max_num_points             # <<<<<<<<<<<<<<
  *             if not max_num_points:
  *                 max_num_points = -1
  */
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_max_num_points); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 160, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_max_num_points); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 170, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_XDECREF_SET(__pyx_v_max_num_points, __pyx_t_5);
       __pyx_t_5 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":161
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":171
  *                 area = circuit_component.area
  *             max_num_points = circuit_component.max_num_points
  *             if not max_num_points:             # <<<<<<<<<<<<<<
  *                 max_num_points = -1
  *             # ----- fill IVJobDesc scalars -----
  */
-      __pyx_t_17 = __Pyx_PyObject_IsTrue(__pyx_v_max_num_points); if (unlikely((__pyx_t_17 < 0))) __PYX_ERR(0, 161, __pyx_L11_error)
+      __pyx_t_17 = __Pyx_PyObject_IsTrue(__pyx_v_max_num_points); if (unlikely((__pyx_t_17 < 0))) __PYX_ERR(0, 171, __pyx_L11_error)
       __pyx_t_1 = (!__pyx_t_17);
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":162
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":172
  *             max_num_points = circuit_component.max_num_points
  *             if not max_num_points:
  *                 max_num_points = -1             # <<<<<<<<<<<<<<
@@ -20891,7 +20984,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __Pyx_INCREF(__pyx_int_neg_1);
         __Pyx_DECREF_SET(__pyx_v_max_num_points, __pyx_int_neg_1);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":161
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":171
  *                 area = circuit_component.area
  *             max_num_points = circuit_component.max_num_points
  *             if not max_num_points:             # <<<<<<<<<<<<<<
@@ -20900,7 +20993,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":164
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":174
  *                 max_num_points = -1
  *             # ----- fill IVJobDesc scalars -----
  *             jobs_c[i].connection = -1             # <<<<<<<<<<<<<<
@@ -20909,34 +21002,34 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).connection = -1;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":165
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":175
  *             # ----- fill IVJobDesc scalars -----
  *             jobs_c[i].connection = -1
  *             if circuit_component._type_number >= 5:             # <<<<<<<<<<<<<<
  *                 connection = circuit_component.connection
  *                 jobs_c[i].connection = 0  # series default
  */
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 165, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 175, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_7 = PyObject_RichCompare(__pyx_t_5, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_7); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 165, __pyx_L11_error)
+      __pyx_t_7 = PyObject_RichCompare(__pyx_t_5, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_7); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 175, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_7); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 165, __pyx_L11_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_7); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 175, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":166
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":176
  *             jobs_c[i].connection = -1
  *             if circuit_component._type_number >= 5:
  *                 connection = circuit_component.connection             # <<<<<<<<<<<<<<
  *                 jobs_c[i].connection = 0  # series default
  *                 if connection == "parallel":
  */
-        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_connection); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 166, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_connection); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 176, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
         __Pyx_XDECREF_SET(__pyx_v_connection, __pyx_t_7);
         __pyx_t_7 = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":167
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":177
  *             if circuit_component._type_number >= 5:
  *                 connection = circuit_component.connection
  *                 jobs_c[i].connection = 0  # series default             # <<<<<<<<<<<<<<
@@ -20945,17 +21038,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         (__pyx_v_jobs_c[__pyx_v_i]).connection = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":168
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":178
  *                 connection = circuit_component.connection
  *                 jobs_c[i].connection = 0  # series default
  *                 if connection == "parallel":             # <<<<<<<<<<<<<<
  *                     jobs_c[i].connection = 1
  * 
  */
-        __pyx_t_1 = (__Pyx_PyUnicode_Equals(__pyx_v_connection, __pyx_n_u_parallel, Py_EQ)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 168, __pyx_L11_error)
+        __pyx_t_1 = (__Pyx_PyUnicode_Equals(__pyx_v_connection, __pyx_n_u_parallel, Py_EQ)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 178, __pyx_L11_error)
         if (__pyx_t_1) {
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":169
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":179
  *                 jobs_c[i].connection = 0  # series default
  *                 if connection == "parallel":
  *                     jobs_c[i].connection = 1             # <<<<<<<<<<<<<<
@@ -20964,7 +21057,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
           (__pyx_v_jobs_c[__pyx_v_i]).connection = 1;
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":168
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":178
  *                 connection = circuit_component.connection
  *                 jobs_c[i].connection = 0  # series default
  *                 if connection == "parallel":             # <<<<<<<<<<<<<<
@@ -20973,7 +21066,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         }
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":165
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":175
  *             # ----- fill IVJobDesc scalars -----
  *             jobs_c[i].connection = -1
  *             if circuit_component._type_number >= 5:             # <<<<<<<<<<<<<<
@@ -20982,7 +21075,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":171
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":181
  *                     jobs_c[i].connection = 1
  * 
  *             jobs_c[i].circuit_component_type_number = circuit_component_type_number             # <<<<<<<<<<<<<<
@@ -20991,17 +21084,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).circuit_component_type_number = __pyx_v_circuit_component_type_number;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":172
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":182
  * 
  *             jobs_c[i].circuit_component_type_number = circuit_component_type_number
  *             jobs_c[i].max_num_points     = max_num_points             # <<<<<<<<<<<<<<
  *             jobs_c[i].area               = area
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  */
-      __pyx_t_15 = __Pyx_PyInt_As_int(__pyx_v_max_num_points); if (unlikely((__pyx_t_15 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 172, __pyx_L11_error)
+      __pyx_t_15 = __Pyx_PyInt_As_int(__pyx_v_max_num_points); if (unlikely((__pyx_t_15 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 182, __pyx_L11_error)
       (__pyx_v_jobs_c[__pyx_v_i]).max_num_points = __pyx_t_15;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":173
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":183
  *             jobs_c[i].circuit_component_type_number = circuit_component_type_number
  *             jobs_c[i].max_num_points     = max_num_points
  *             jobs_c[i].area               = area             # <<<<<<<<<<<<<<
@@ -21010,7 +21103,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).area = __pyx_v_area;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":174
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":184
  *             jobs_c[i].max_num_points     = max_num_points
  *             jobs_c[i].area               = area
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]             # <<<<<<<<<<<<<<
@@ -21020,17 +21113,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_11 = 0;
       (__pyx_v_jobs_c[__pyx_v_i]).circuit_element_parameters = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_params.data) + __pyx_t_11)) ))));
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":175
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":185
  *             jobs_c[i].area               = area
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  *             if refine_mode:             # <<<<<<<<<<<<<<
  *                 jobs_c[i].refine_mode = 1
  *             else:
  */
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_refine_mode); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 175, __pyx_L11_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_refine_mode); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 185, __pyx_L11_error)
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":176
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":186
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  *             if refine_mode:
  *                 jobs_c[i].refine_mode = 1             # <<<<<<<<<<<<<<
@@ -21039,7 +21132,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         (__pyx_v_jobs_c[__pyx_v_i]).refine_mode = 1;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":175
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":185
  *             jobs_c[i].area               = area
  *             jobs_c[i].circuit_element_parameters = &mv_params[0]
  *             if refine_mode:             # <<<<<<<<<<<<<<
@@ -21049,7 +21142,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         goto __pyx_L32;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":178
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":188
  *                 jobs_c[i].refine_mode = 1
  *             else:
  *                 jobs_c[i].refine_mode = 0             # <<<<<<<<<<<<<<
@@ -21061,7 +21154,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       }
       __pyx_L32:;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":181
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":191
  * 
  *             # ----- children_IVs  IVView[] (zero-copy views) -----
  *             abs_max_num_points = 0             # <<<<<<<<<<<<<<
@@ -21070,7 +21163,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       __pyx_v_abs_max_num_points = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":182
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":192
  *             # ----- children_IVs  IVView[] (zero-copy views) -----
  *             abs_max_num_points = 0
  *             n_children = 0             # <<<<<<<<<<<<<<
@@ -21079,27 +21172,27 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       __pyx_v_n_children = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":183
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":193
  *             abs_max_num_points = 0
  *             n_children = 0
  *             if subgroups:             # <<<<<<<<<<<<<<
  *                 n_children = len(subgroups)
  * 
  */
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_subgroups); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 183, __pyx_L11_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_subgroups); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 193, __pyx_L11_error)
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":184
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":194
  *             n_children = 0
  *             if subgroups:
  *                 n_children = len(subgroups)             # <<<<<<<<<<<<<<
  * 
  *             jobs_c[i].n_children = n_children
  */
-        __pyx_t_14 = PyObject_Length(__pyx_v_subgroups); if (unlikely(__pyx_t_14 == ((Py_ssize_t)-1))) __PYX_ERR(0, 184, __pyx_L11_error)
+        __pyx_t_14 = PyObject_Length(__pyx_v_subgroups); if (unlikely(__pyx_t_14 == ((Py_ssize_t)-1))) __PYX_ERR(0, 194, __pyx_L11_error)
         __pyx_v_n_children = __pyx_t_14;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":183
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":193
  *             abs_max_num_points = 0
  *             n_children = 0
  *             if subgroups:             # <<<<<<<<<<<<<<
@@ -21108,7 +21201,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":186
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":196
  *                 n_children = len(subgroups)
  * 
  *             jobs_c[i].n_children = n_children             # <<<<<<<<<<<<<<
@@ -21117,7 +21210,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).n_children = __pyx_v_n_children;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":187
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":197
  * 
  *             jobs_c[i].n_children = n_children
  *             if n_children > 0:             # <<<<<<<<<<<<<<
@@ -21127,7 +21220,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_1 = (__pyx_v_n_children > 0);
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":188
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":198
  *             jobs_c[i].n_children = n_children
  *             if n_children > 0:
  *                 jobs_c[i].children_IVs = children_views + child_base             # <<<<<<<<<<<<<<
@@ -21136,7 +21229,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         (__pyx_v_jobs_c[__pyx_v_i]).children_IVs = (__pyx_v_children_views + __pyx_v_child_base);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":187
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":197
  * 
  *             jobs_c[i].n_children = n_children
  *             if n_children > 0:             # <<<<<<<<<<<<<<
@@ -21146,7 +21239,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         goto __pyx_L34;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":190
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":200
  *                 jobs_c[i].children_IVs = children_views + child_base
  *             else:
  *                 jobs_c[i].children_IVs = <IVView*> 0             # <<<<<<<<<<<<<<
@@ -21158,7 +21251,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       }
       __pyx_L34:;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":192
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":202
  *                 jobs_c[i].children_IVs = <IVView*> 0
  * 
  *             for j in range(n_children):             # <<<<<<<<<<<<<<
@@ -21170,32 +21263,32 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       for (__pyx_t_14 = 0; __pyx_t_14 < __pyx_t_23; __pyx_t_14+=1) {
         __pyx_v_j = __pyx_t_14;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":193
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":203
  * 
  *             for j in range(n_children):
  *                 element = subgroups[j]             # <<<<<<<<<<<<<<
  *                 type_number = element._type_number
  * 
  */
-        __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_subgroups, __pyx_v_j, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 193, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_subgroups, __pyx_v_j, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 203, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
         __Pyx_XDECREF_SET(__pyx_v_element, __pyx_t_7);
         __pyx_t_7 = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":194
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":204
  *             for j in range(n_children):
  *                 element = subgroups[j]
  *                 type_number = element._type_number             # <<<<<<<<<<<<<<
  * 
  *                 children_views[child_base + j].type_number = type_number
  */
-        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_type_number); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 194, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_type_number); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 204, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
-        __pyx_t_24 = __Pyx_PyInt_As_int(__pyx_t_7); if (unlikely((__pyx_t_24 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 194, __pyx_L11_error)
+        __pyx_t_24 = __Pyx_PyInt_As_int(__pyx_t_7); if (unlikely((__pyx_t_24 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 204, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
         __pyx_v_type_number = __pyx_t_24;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":196
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":206
  *                 type_number = element._type_number
  * 
  *                 children_views[child_base + j].type_number = type_number             # <<<<<<<<<<<<<<
@@ -21204,39 +21297,39 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         (__pyx_v_children_views[(__pyx_v_child_base + __pyx_v_j)]).type_number = __pyx_v_type_number;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":198
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":208
  *                 children_views[child_base + j].type_number = type_number
  *                 # ensure IV_table is C-contiguous float64 (2, Ni)
  *                 mv_child_v = element.IV_V             # <<<<<<<<<<<<<<
  *                 mv_child_i = element.IV_I
  *                 Ni = mv_child_v.shape[0]
  */
-        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_IV_V); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 198, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_IV_V); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 208, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
-        __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_7, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 198, __pyx_L11_error)
+        __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_7, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 208, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
         __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_child_v, 1);
         __pyx_v_mv_child_v = __pyx_t_16;
         __pyx_t_16.memview = NULL;
         __pyx_t_16.data = NULL;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":199
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":209
  *                 # ensure IV_table is C-contiguous float64 (2, Ni)
  *                 mv_child_v = element.IV_V
  *                 mv_child_i = element.IV_I             # <<<<<<<<<<<<<<
  *                 Ni = mv_child_v.shape[0]
  *                 abs_max_num_points += Ni
  */
-        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_IV_I); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 199, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_IV_I); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 209, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
-        __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_7, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 199, __pyx_L11_error)
+        __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_7, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 209, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
         __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_child_i, 1);
         __pyx_v_mv_child_i = __pyx_t_16;
         __pyx_t_16.memview = NULL;
         __pyx_t_16.data = NULL;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":200
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":210
  *                 mv_child_v = element.IV_V
  *                 mv_child_i = element.IV_I
  *                 Ni = mv_child_v.shape[0]             # <<<<<<<<<<<<<<
@@ -21245,7 +21338,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_Ni = (__pyx_v_mv_child_v.shape[0]);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":201
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":211
  *                 mv_child_i = element.IV_I
  *                 Ni = mv_child_v.shape[0]
  *                 abs_max_num_points += Ni             # <<<<<<<<<<<<<<
@@ -21254,7 +21347,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_abs_max_num_points = (__pyx_v_abs_max_num_points + __pyx_v_Ni);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":202
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":212
  *                 Ni = mv_child_v.shape[0]
  *                 abs_max_num_points += Ni
  *                 children_views[child_base + j].V           = &mv_child_v[0]             # <<<<<<<<<<<<<<
@@ -21264,7 +21357,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __pyx_t_11 = 0;
         (__pyx_v_children_views[(__pyx_v_child_base + __pyx_v_j)]).V = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_child_v.data) + __pyx_t_11)) ))));
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":203
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":213
  *                 abs_max_num_points += Ni
  *                 children_views[child_base + j].V           = &mv_child_v[0]
  *                 children_views[child_base + j].I           = &mv_child_i[0]             # <<<<<<<<<<<<<<
@@ -21274,7 +21367,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __pyx_t_11 = 0;
         (__pyx_v_children_views[(__pyx_v_child_base + __pyx_v_j)]).I = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_child_i.data) + __pyx_t_11)) ))));
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":204
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":214
  *                 children_views[child_base + j].V           = &mv_child_v[0]
  *                 children_views[child_base + j].I           = &mv_child_i[0]
  *                 children_views[child_base + j].length      = Ni             # <<<<<<<<<<<<<<
@@ -21284,7 +21377,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         (__pyx_v_children_views[(__pyx_v_child_base + __pyx_v_j)]).length = __pyx_v_Ni;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":207
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":217
  * 
  *             # ----- photon-coupled children  IVView[] -----
  *             if n_children > 0:             # <<<<<<<<<<<<<<
@@ -21294,7 +21387,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_1 = (__pyx_v_n_children > 0);
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":208
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":218
  *             # ----- photon-coupled children  IVView[] -----
  *             if n_children > 0:
  *                 jobs_c[i].children_pc_IVs = pc_children_views + child_base             # <<<<<<<<<<<<<<
@@ -21303,7 +21396,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         (__pyx_v_jobs_c[__pyx_v_i]).children_pc_IVs = (__pyx_v_pc_children_views + __pyx_v_child_base);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":207
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":217
  * 
  *             # ----- photon-coupled children  IVView[] -----
  *             if n_children > 0:             # <<<<<<<<<<<<<<
@@ -21313,7 +21406,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         goto __pyx_L37;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":210
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":220
  *                 jobs_c[i].children_pc_IVs = pc_children_views + child_base
  *             else:
  *                 jobs_c[i].children_pc_IVs = <IVView*> 0             # <<<<<<<<<<<<<<
@@ -21325,7 +21418,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       }
       __pyx_L37:;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":212
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":222
  *                 jobs_c[i].children_pc_IVs = <IVView*> 0
  * 
  *             abs_max_num_points_multipier = 1             # <<<<<<<<<<<<<<
@@ -21335,7 +21428,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __Pyx_INCREF(__pyx_int_1);
       __Pyx_XDECREF_SET(__pyx_v_abs_max_num_points_multipier, __pyx_int_1);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":213
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":223
  * 
  *             abs_max_num_points_multipier = 1
  *             for j in range(n_children):             # <<<<<<<<<<<<<<
@@ -21347,7 +21440,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       for (__pyx_t_14 = 0; __pyx_t_14 < __pyx_t_23; __pyx_t_14+=1) {
         __pyx_v_j = __pyx_t_14;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":214
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":224
  *             abs_max_num_points_multipier = 1
  *             for j in range(n_children):
  *                 element_area = 0             # <<<<<<<<<<<<<<
@@ -21357,19 +21450,19 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         __Pyx_INCREF(__pyx_int_0);
         __Pyx_XDECREF_SET(__pyx_v_element_area, __pyx_int_0);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":215
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":225
  *             for j in range(n_children):
  *                 element_area = 0
  *                 element = subgroups[j]             # <<<<<<<<<<<<<<
  *                 Ni = 0
  *                 if element._type_number == 6: # cell
  */
-        __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_subgroups, __pyx_v_j, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 215, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_subgroups, __pyx_v_j, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 225, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
         __Pyx_XDECREF_SET(__pyx_v_element, __pyx_t_7);
         __pyx_t_7 = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":216
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":226
  *                 element_area = 0
  *                 element = subgroups[j]
  *                 Ni = 0             # <<<<<<<<<<<<<<
@@ -21378,113 +21471,113 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_Ni = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":217
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":227
  *                 element = subgroups[j]
  *                 Ni = 0
  *                 if element._type_number == 6: # cell             # <<<<<<<<<<<<<<
  *                     photon_coupling_diodes = element.photon_coupling_diodes
  *                     if photon_coupling_diodes and len(photon_coupling_diodes)>0:
  */
-        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_type_number); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 217, __pyx_L11_error)
+        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_type_number); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 227, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
-        __pyx_t_1 = (__Pyx_PyInt_BoolEqObjC(__pyx_t_7, __pyx_int_6, 6, 0)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 217, __pyx_L11_error)
+        __pyx_t_1 = (__Pyx_PyInt_BoolEqObjC(__pyx_t_7, __pyx_int_6, 6, 0)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 227, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
         if (__pyx_t_1) {
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":218
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":228
  *                 Ni = 0
  *                 if element._type_number == 6: # cell
  *                     photon_coupling_diodes = element.photon_coupling_diodes             # <<<<<<<<<<<<<<
  *                     if photon_coupling_diodes and len(photon_coupling_diodes)>0:
  *                         abs_max_num_points_multipier += 1
  */
-          __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_photon_coupling_diodes); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 218, __pyx_L11_error)
+          __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_photon_coupling_diodes); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 228, __pyx_L11_error)
           __Pyx_GOTREF(__pyx_t_7);
           __Pyx_XDECREF_SET(__pyx_v_photon_coupling_diodes, __pyx_t_7);
           __pyx_t_7 = 0;
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":219
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":229
  *                 if element._type_number == 6: # cell
  *                     photon_coupling_diodes = element.photon_coupling_diodes
  *                     if photon_coupling_diodes and len(photon_coupling_diodes)>0:             # <<<<<<<<<<<<<<
  *                         abs_max_num_points_multipier += 1
  *                         mv_child_pc_v = photon_coupling_diodes[0].IV_V
  */
-          __pyx_t_17 = __Pyx_PyObject_IsTrue(__pyx_v_photon_coupling_diodes); if (unlikely((__pyx_t_17 < 0))) __PYX_ERR(0, 219, __pyx_L11_error)
+          __pyx_t_17 = __Pyx_PyObject_IsTrue(__pyx_v_photon_coupling_diodes); if (unlikely((__pyx_t_17 < 0))) __PYX_ERR(0, 229, __pyx_L11_error)
           if (__pyx_t_17) {
           } else {
             __pyx_t_1 = __pyx_t_17;
             goto __pyx_L42_bool_binop_done;
           }
-          __pyx_t_25 = PyObject_Length(__pyx_v_photon_coupling_diodes); if (unlikely(__pyx_t_25 == ((Py_ssize_t)-1))) __PYX_ERR(0, 219, __pyx_L11_error)
+          __pyx_t_25 = PyObject_Length(__pyx_v_photon_coupling_diodes); if (unlikely(__pyx_t_25 == ((Py_ssize_t)-1))) __PYX_ERR(0, 229, __pyx_L11_error)
           __pyx_t_17 = (__pyx_t_25 > 0);
           __pyx_t_1 = __pyx_t_17;
           __pyx_L42_bool_binop_done:;
           if (__pyx_t_1) {
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":220
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":230
  *                     photon_coupling_diodes = element.photon_coupling_diodes
  *                     if photon_coupling_diodes and len(photon_coupling_diodes)>0:
  *                         abs_max_num_points_multipier += 1             # <<<<<<<<<<<<<<
  *                         mv_child_pc_v = photon_coupling_diodes[0].IV_V
  *                         mv_child_pc_i = photon_coupling_diodes[0].IV_I
  */
-            __pyx_t_7 = __Pyx_PyInt_AddObjC(__pyx_v_abs_max_num_points_multipier, __pyx_int_1, 1, 1, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 220, __pyx_L11_error)
+            __pyx_t_7 = __Pyx_PyInt_AddObjC(__pyx_v_abs_max_num_points_multipier, __pyx_int_1, 1, 1, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 230, __pyx_L11_error)
             __Pyx_GOTREF(__pyx_t_7);
             __Pyx_DECREF_SET(__pyx_v_abs_max_num_points_multipier, __pyx_t_7);
             __pyx_t_7 = 0;
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":221
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":231
  *                     if photon_coupling_diodes and len(photon_coupling_diodes)>0:
  *                         abs_max_num_points_multipier += 1
  *                         mv_child_pc_v = photon_coupling_diodes[0].IV_V             # <<<<<<<<<<<<<<
  *                         mv_child_pc_i = photon_coupling_diodes[0].IV_I
  *                         element_area = element.area
  */
-            __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_photon_coupling_diodes, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 221, __pyx_L11_error)
+            __pyx_t_7 = __Pyx_GetItemInt(__pyx_v_photon_coupling_diodes, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 231, __pyx_L11_error)
             __Pyx_GOTREF(__pyx_t_7);
-            __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_IV_V); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 221, __pyx_L11_error)
+            __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_IV_V); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 231, __pyx_L11_error)
             __Pyx_GOTREF(__pyx_t_5);
             __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-            __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 221, __pyx_L11_error)
+            __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 231, __pyx_L11_error)
             __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
             __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_child_pc_v, 1);
             __pyx_v_mv_child_pc_v = __pyx_t_16;
             __pyx_t_16.memview = NULL;
             __pyx_t_16.data = NULL;
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":222
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":232
  *                         abs_max_num_points_multipier += 1
  *                         mv_child_pc_v = photon_coupling_diodes[0].IV_V
  *                         mv_child_pc_i = photon_coupling_diodes[0].IV_I             # <<<<<<<<<<<<<<
  *                         element_area = element.area
  *                         Ni = mv_child_pc_v.shape[0]
  */
-            __pyx_t_5 = __Pyx_GetItemInt(__pyx_v_photon_coupling_diodes, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 222, __pyx_L11_error)
+            __pyx_t_5 = __Pyx_GetItemInt(__pyx_v_photon_coupling_diodes, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 232, __pyx_L11_error)
             __Pyx_GOTREF(__pyx_t_5);
-            __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_IV_I); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 222, __pyx_L11_error)
+            __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_IV_I); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 232, __pyx_L11_error)
             __Pyx_GOTREF(__pyx_t_7);
             __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-            __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_7, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 222, __pyx_L11_error)
+            __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_t_7, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 232, __pyx_L11_error)
             __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
             __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_child_pc_i, 1);
             __pyx_v_mv_child_pc_i = __pyx_t_16;
             __pyx_t_16.memview = NULL;
             __pyx_t_16.data = NULL;
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":223
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":233
  *                         mv_child_pc_v = photon_coupling_diodes[0].IV_V
  *                         mv_child_pc_i = photon_coupling_diodes[0].IV_I
  *                         element_area = element.area             # <<<<<<<<<<<<<<
  *                         Ni = mv_child_pc_v.shape[0]
  *                     if Ni > 0:
  */
-            __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_area); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 223, __pyx_L11_error)
+            __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_element, __pyx_n_s_area); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 233, __pyx_L11_error)
             __Pyx_GOTREF(__pyx_t_7);
             __Pyx_DECREF_SET(__pyx_v_element_area, __pyx_t_7);
             __pyx_t_7 = 0;
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":224
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":234
  *                         mv_child_pc_i = photon_coupling_diodes[0].IV_I
  *                         element_area = element.area
  *                         Ni = mv_child_pc_v.shape[0]             # <<<<<<<<<<<<<<
@@ -21493,7 +21586,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
             __pyx_v_Ni = (__pyx_v_mv_child_pc_v.shape[0]);
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":219
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":229
  *                 if element._type_number == 6: # cell
  *                     photon_coupling_diodes = element.photon_coupling_diodes
  *                     if photon_coupling_diodes and len(photon_coupling_diodes)>0:             # <<<<<<<<<<<<<<
@@ -21502,7 +21595,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
           }
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":225
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":235
  *                         element_area = element.area
  *                         Ni = mv_child_pc_v.shape[0]
  *                     if Ni > 0:             # <<<<<<<<<<<<<<
@@ -21512,7 +21605,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           __pyx_t_1 = (__pyx_v_Ni > 0);
           if (__pyx_t_1) {
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":226
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":236
  *                         Ni = mv_child_pc_v.shape[0]
  *                     if Ni > 0:
  *                         pc_children_views[child_base + j].V      = &mv_child_pc_v[0]             # <<<<<<<<<<<<<<
@@ -21522,7 +21615,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
             __pyx_t_11 = 0;
             (__pyx_v_pc_children_views[(__pyx_v_child_base + __pyx_v_j)]).V = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_child_pc_v.data) + __pyx_t_11)) ))));
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":227
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":237
  *                     if Ni > 0:
  *                         pc_children_views[child_base + j].V      = &mv_child_pc_v[0]
  *                         pc_children_views[child_base + j].I      = &mv_child_pc_i[0]             # <<<<<<<<<<<<<<
@@ -21532,7 +21625,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
             __pyx_t_11 = 0;
             (__pyx_v_pc_children_views[(__pyx_v_child_base + __pyx_v_j)]).I = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_child_pc_i.data) + __pyx_t_11)) ))));
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":228
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":238
  *                         pc_children_views[child_base + j].V      = &mv_child_pc_v[0]
  *                         pc_children_views[child_base + j].I      = &mv_child_pc_i[0]
  *                         pc_children_views[child_base + j].length = Ni             # <<<<<<<<<<<<<<
@@ -21541,7 +21634,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
             (__pyx_v_pc_children_views[(__pyx_v_child_base + __pyx_v_j)]).length = __pyx_v_Ni;
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":225
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":235
  *                         element_area = element.area
  *                         Ni = mv_child_pc_v.shape[0]
  *                     if Ni > 0:             # <<<<<<<<<<<<<<
@@ -21551,7 +21644,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
             goto __pyx_L44;
           }
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":230
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":240
  *                         pc_children_views[child_base + j].length = Ni
  *                     else:
  *                         pc_children_views[child_base + j].V      = <const double*> 0             # <<<<<<<<<<<<<<
@@ -21561,7 +21654,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           /*else*/ {
             (__pyx_v_pc_children_views[(__pyx_v_child_base + __pyx_v_j)]).V = ((double const *)0);
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":231
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":241
  *                     else:
  *                         pc_children_views[child_base + j].V      = <const double*> 0
  *                         pc_children_views[child_base + j].I      = <const double*> 0             # <<<<<<<<<<<<<<
@@ -21570,7 +21663,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
             (__pyx_v_pc_children_views[(__pyx_v_child_base + __pyx_v_j)]).I = ((double const *)0);
 
-            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":232
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":242
  *                         pc_children_views[child_base + j].V      = <const double*> 0
  *                         pc_children_views[child_base + j].I      = <const double*> 0
  *                         pc_children_views[child_base + j].length = 0             # <<<<<<<<<<<<<<
@@ -21581,17 +21674,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           }
           __pyx_L44:;
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":233
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":243
  *                         pc_children_views[child_base + j].I      = <const double*> 0
  *                         pc_children_views[child_base + j].length = 0
  *                     pc_children_views[child_base + j].scale       = element_area             # <<<<<<<<<<<<<<
  * 
  *             if abs_max_num_points_multipier == 1:
  */
-          __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_v_element_area); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 233, __pyx_L11_error)
+          __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_v_element_area); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 243, __pyx_L11_error)
           (__pyx_v_pc_children_views[(__pyx_v_child_base + __pyx_v_j)]).scale = __pyx_t_22;
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":217
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":227
  *                 element = subgroups[j]
  *                 Ni = 0
  *                 if element._type_number == 6: # cell             # <<<<<<<<<<<<<<
@@ -21601,17 +21694,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         }
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":235
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":245
  *                     pc_children_views[child_base + j].scale       = element_area
  * 
  *             if abs_max_num_points_multipier == 1:             # <<<<<<<<<<<<<<
  *                 jobs_c[i].has_photon_coupling = 0;
  *             else:
  */
-      __pyx_t_1 = (__Pyx_PyInt_BoolEqObjC(__pyx_v_abs_max_num_points_multipier, __pyx_int_1, 1, 0)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 235, __pyx_L11_error)
+      __pyx_t_1 = (__Pyx_PyInt_BoolEqObjC(__pyx_v_abs_max_num_points_multipier, __pyx_int_1, 1, 0)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 245, __pyx_L11_error)
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":236
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":246
  * 
  *             if abs_max_num_points_multipier == 1:
  *                 jobs_c[i].has_photon_coupling = 0;             # <<<<<<<<<<<<<<
@@ -21620,7 +21713,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         (__pyx_v_jobs_c[__pyx_v_i]).has_photon_coupling = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":235
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":245
  *                     pc_children_views[child_base + j].scale       = element_area
  * 
  *             if abs_max_num_points_multipier == 1:             # <<<<<<<<<<<<<<
@@ -21630,7 +21723,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         goto __pyx_L45;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":238
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":248
  *                 jobs_c[i].has_photon_coupling = 0;
  *             else:
  *                 jobs_c[i].has_photon_coupling = 1;             # <<<<<<<<<<<<<<
@@ -21642,23 +21735,23 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       }
       __pyx_L45:;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":240
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":250
  *                 jobs_c[i].has_photon_coupling = 1;
  * 
  *             abs_max_num_points = abs_max_num_points_multipier*abs_max_num_points             # <<<<<<<<<<<<<<
  * 
  *             child_base += n_children
  */
-      __pyx_t_7 = __Pyx_PyInt_From_int(__pyx_v_abs_max_num_points); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 240, __pyx_L11_error)
+      __pyx_t_7 = __Pyx_PyInt_From_int(__pyx_v_abs_max_num_points); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 250, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_5 = PyNumber_Multiply(__pyx_v_abs_max_num_points_multipier, __pyx_t_7); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 240, __pyx_L11_error)
+      __pyx_t_5 = PyNumber_Multiply(__pyx_v_abs_max_num_points_multipier, __pyx_t_7); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 250, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      __pyx_t_15 = __Pyx_PyInt_As_int(__pyx_t_5); if (unlikely((__pyx_t_15 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 240, __pyx_L11_error)
+      __pyx_t_15 = __Pyx_PyInt_As_int(__pyx_t_5); if (unlikely((__pyx_t_15 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 250, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __pyx_v_abs_max_num_points = __pyx_t_15;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":242
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":252
  *             abs_max_num_points = abs_max_num_points_multipier*abs_max_num_points
  * 
  *             child_base += n_children             # <<<<<<<<<<<<<<
@@ -21667,7 +21760,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       __pyx_v_child_base = (__pyx_v_child_base + __pyx_v_n_children);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":244
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":254
  *             child_base += n_children
  * 
  *             if circuit_component_type_number==0: # current source             # <<<<<<<<<<<<<<
@@ -21677,7 +21770,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_1 = (__pyx_v_circuit_component_type_number == 0);
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":245
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":255
  * 
  *             if circuit_component_type_number==0: # current source
  *                 abs_max_num_points = 1             # <<<<<<<<<<<<<<
@@ -21686,7 +21779,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_abs_max_num_points = 1;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":244
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":254
  *             child_base += n_children
  * 
  *             if circuit_component_type_number==0: # current source             # <<<<<<<<<<<<<<
@@ -21696,7 +21789,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         goto __pyx_L46;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":246
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":256
  *             if circuit_component_type_number==0: # current source
  *                 abs_max_num_points = 1
  *             elif circuit_component_type_number==1: # resistor             # <<<<<<<<<<<<<<
@@ -21706,7 +21799,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_1 = (__pyx_v_circuit_component_type_number == 1);
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":247
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":257
  *                 abs_max_num_points = 1
  *             elif circuit_component_type_number==1: # resistor
  *                 abs_max_num_points = 2             # <<<<<<<<<<<<<<
@@ -21715,7 +21808,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_abs_max_num_points = 2;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":246
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":256
  *             if circuit_component_type_number==0: # current source
  *                 abs_max_num_points = 1
  *             elif circuit_component_type_number==1: # resistor             # <<<<<<<<<<<<<<
@@ -21725,7 +21818,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         goto __pyx_L46;
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":248
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":258
  *             elif circuit_component_type_number==1: # resistor
  *                 abs_max_num_points = 2
  *             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode             # <<<<<<<<<<<<<<
@@ -21743,26 +21836,26 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_L47_bool_binop_done:;
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":249
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":259
  *                 abs_max_num_points = 2
  *             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
  *                 tmp = 100.0 / 0.2 * max_I + 5.0             # <<<<<<<<<<<<<<
  *                 abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil
  * 
  */
-        __pyx_t_5 = PyFloat_FromDouble((100.0 / 0.2)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 249, __pyx_L11_error)
+        __pyx_t_5 = PyFloat_FromDouble((100.0 / 0.2)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 259, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_7 = PyNumber_Multiply(__pyx_t_5, __pyx_v_max_I); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 249, __pyx_L11_error)
+        __pyx_t_7 = PyNumber_Multiply(__pyx_t_5, __pyx_v_max_I); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 259, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_7);
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-        __pyx_t_5 = __Pyx_PyFloat_AddObjC(__pyx_t_7, __pyx_float_5_0, 5.0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 249, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_PyFloat_AddObjC(__pyx_t_7, __pyx_float_5_0, 5.0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 259, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
         __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-        __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 249, __pyx_L11_error)
+        __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 259, __pyx_L11_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __pyx_v_tmp = __pyx_t_22;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":250
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":260
  *             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
  *                 tmp = 100.0 / 0.2 * max_I + 5.0
  *                 abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil             # <<<<<<<<<<<<<<
@@ -21771,7 +21864,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         __pyx_v_abs_max_num_points = ((int)(__pyx_v_tmp + 0.999999));
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":248
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":258
  *             elif circuit_component_type_number==1: # resistor
  *                 abs_max_num_points = 2
  *             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode             # <<<<<<<<<<<<<<
@@ -21781,7 +21874,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       }
       __pyx_L46:;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":254
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":264
  *             abs_max_num_points = int(abs_max_num_points)
  * 
  *             jobs_c[i].abs_max_num_points = abs_max_num_points             # <<<<<<<<<<<<<<
@@ -21790,7 +21883,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).abs_max_num_points = __pyx_v_abs_max_num_points;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":255
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":265
  * 
  *             jobs_c[i].abs_max_num_points = abs_max_num_points
  *             op_pt_V = 0             # <<<<<<<<<<<<<<
@@ -21800,41 +21893,41 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __Pyx_INCREF(__pyx_int_0);
       __Pyx_XDECREF_SET(__pyx_v_op_pt_V, __pyx_int_0);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":256
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":266
  *             jobs_c[i].abs_max_num_points = abs_max_num_points
  *             op_pt_V = 0
  *             op_pt = circuit_component.operating_point             # <<<<<<<<<<<<<<
  *             if op_pt:
  *                 op_pt_V = op_pt[0]
  */
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_operating_point); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 256, __pyx_L11_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_operating_point); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 266, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_XDECREF_SET(__pyx_v_op_pt, __pyx_t_5);
       __pyx_t_5 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":257
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":267
  *             op_pt_V = 0
  *             op_pt = circuit_component.operating_point
  *             if op_pt:             # <<<<<<<<<<<<<<
  *                 op_pt_V = op_pt[0]
  *             jobs_c[i].op_pt_V = op_pt_V
  */
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_op_pt); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 257, __pyx_L11_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_op_pt); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 267, __pyx_L11_error)
       if (__pyx_t_1) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":258
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":268
  *             op_pt = circuit_component.operating_point
  *             if op_pt:
  *                 op_pt_V = op_pt[0]             # <<<<<<<<<<<<<<
  *             jobs_c[i].op_pt_V = op_pt_V
  * 
  */
-        __pyx_t_5 = __Pyx_GetItemInt(__pyx_v_op_pt, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 258, __pyx_L11_error)
+        __pyx_t_5 = __Pyx_GetItemInt(__pyx_v_op_pt, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 268, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_5);
         __Pyx_DECREF_SET(__pyx_v_op_pt_V, __pyx_t_5);
         __pyx_t_5 = 0;
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":257
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":267
  *             op_pt_V = 0
  *             op_pt = circuit_component.operating_point
  *             if op_pt:             # <<<<<<<<<<<<<<
@@ -21843,17 +21936,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":259
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":269
  *             if op_pt:
  *                 op_pt_V = op_pt[0]
  *             jobs_c[i].op_pt_V = op_pt_V             # <<<<<<<<<<<<<<
  * 
  *             # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
  */
-      __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_v_op_pt_V); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 259, __pyx_L11_error)
+      __pyx_t_22 = __pyx_PyFloat_AsDouble(__pyx_v_op_pt_V); if (unlikely((__pyx_t_22 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 269, __pyx_L11_error)
       (__pyx_v_jobs_c[__pyx_v_i]).op_pt_V = __pyx_t_22;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":262
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":272
  * 
  *             # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
  *             sum_abs_max_num_points += abs_max_num_points             # <<<<<<<<<<<<<<
@@ -21863,35 +21956,35 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_v_sum_abs_max_num_points = (__pyx_v_sum_abs_max_num_points + __pyx_v_abs_max_num_points);
     }
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":264
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":274
  *             sum_abs_max_num_points += abs_max_num_points
  * 
  *         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)             # <<<<<<<<<<<<<<
  *         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
  *         mv_big_v = big_out_V  # anchors the array
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_empty); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_empty); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_7);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_sum_abs_max_num_points); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_sum_abs_max_num_points); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_GIVEREF(__pyx_t_5);
-    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_5)) __PYX_ERR(0, 264, __pyx_L11_error);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_5)) __PYX_ERR(0, 274, __pyx_L11_error);
     __pyx_t_5 = 0;
-    __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_float64); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_float64); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-    if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, __pyx_t_4) < 0) __PYX_ERR(0, 264, __pyx_L11_error)
+    if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, __pyx_t_4) < 0) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_7, __pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 264, __pyx_L11_error)
+    __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_7, __pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 274, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -21899,35 +21992,35 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     __pyx_v_big_out_V = __pyx_t_4;
     __pyx_t_4 = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":265
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":275
  * 
  *         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
  *         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)             # <<<<<<<<<<<<<<
  *         mv_big_v = big_out_V  # anchors the array
  *         mv_big_i = big_out_I  # anchors the array
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_empty); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_empty); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_sum_abs_max_num_points); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_sum_abs_max_num_points); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_GIVEREF(__pyx_t_4);
-    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_4)) __PYX_ERR(0, 265, __pyx_L11_error);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_4)) __PYX_ERR(0, 275, __pyx_L11_error);
     __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_7);
-    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_float64); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_float64); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_6);
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-    if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 265, __pyx_L11_error)
+    if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-    __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_5, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 265, __pyx_L11_error)
+    __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_5, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 275, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_6);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -21935,31 +22028,31 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     __pyx_v_big_out_I = __pyx_t_6;
     __pyx_t_6 = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":266
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":276
  *         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
  *         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
  *         mv_big_v = big_out_V  # anchors the array             # <<<<<<<<<<<<<<
  *         mv_big_i = big_out_I  # anchors the array
  *         base_v = &mv_big_v[0]              # base pointer into contiguous buffer
  */
-    __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_v_big_out_V, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 266, __pyx_L11_error)
+    __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_v_big_out_V, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 276, __pyx_L11_error)
     __pyx_v_mv_big_v = __pyx_t_16;
     __pyx_t_16.memview = NULL;
     __pyx_t_16.data = NULL;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":267
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":277
  *         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
  *         mv_big_v = big_out_V  # anchors the array
  *         mv_big_i = big_out_I  # anchors the array             # <<<<<<<<<<<<<<
  *         base_v = &mv_big_v[0]              # base pointer into contiguous buffer
  *         base_i = &mv_big_i[0]              # base pointer into contiguous buffer
  */
-    __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_v_big_out_I, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 267, __pyx_L11_error)
+    __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_float64_t(__pyx_v_big_out_I, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 277, __pyx_L11_error)
     __pyx_v_mv_big_i = __pyx_t_16;
     __pyx_t_16.memview = NULL;
     __pyx_t_16.data = NULL;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":268
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":278
  *         mv_big_v = big_out_V  # anchors the array
  *         mv_big_i = big_out_I  # anchors the array
  *         base_v = &mv_big_v[0]              # base pointer into contiguous buffer             # <<<<<<<<<<<<<<
@@ -21969,7 +22062,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     __pyx_t_11 = 0;
     __pyx_v_base_v = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_big_v.data) + __pyx_t_11)) ))));
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":269
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":279
  *         mv_big_i = big_out_I  # anchors the array
  *         base_v = &mv_big_v[0]              # base pointer into contiguous buffer
  *         base_i = &mv_big_i[0]              # base pointer into contiguous buffer             # <<<<<<<<<<<<<<
@@ -21979,7 +22072,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     __pyx_t_11 = 0;
     __pyx_v_base_i = (&(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_float64_t *) __pyx_v_mv_big_i.data) + __pyx_t_11)) ))));
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":271
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":281
  *         base_i = &mv_big_i[0]              # base pointer into contiguous buffer
  * 
  *         offset = 0             # <<<<<<<<<<<<<<
@@ -21988,7 +22081,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
     __pyx_v_offset = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":272
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":282
  * 
  *         offset = 0
  *         for i in range(n_jobs):             # <<<<<<<<<<<<<<
@@ -22000,7 +22093,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_12; __pyx_t_13+=1) {
       __pyx_v_i = __pyx_t_13;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":273
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":283
  *         offset = 0
  *         for i in range(n_jobs):
  *             jobs_c[i].out_V   = base_v + offset             # <<<<<<<<<<<<<<
@@ -22009,7 +22102,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).out_V = (__pyx_v_base_v + __pyx_v_offset);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":274
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":284
  *         for i in range(n_jobs):
  *             jobs_c[i].out_V   = base_v + offset
  *             jobs_c[i].out_I   = base_i + offset             # <<<<<<<<<<<<<<
@@ -22018,7 +22111,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).out_I = (__pyx_v_base_i + __pyx_v_offset);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":275
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":285
  *             jobs_c[i].out_V   = base_v + offset
  *             jobs_c[i].out_I   = base_i + offset
  *             jobs_c[i].out_len = &c_out_len_all[i]             # <<<<<<<<<<<<<<
@@ -22027,7 +22120,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       (__pyx_v_jobs_c[__pyx_v_i]).out_len = (&(__pyx_v_c_out_len_all[__pyx_v_i]));
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":276
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":286
  *             jobs_c[i].out_I   = base_i + offset
  *             jobs_c[i].out_len = &c_out_len_all[i]
  *             offset += jobs_c[i].abs_max_num_points             # <<<<<<<<<<<<<<
@@ -22037,16 +22130,16 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_v_offset = (__pyx_v_offset + (__pyx_v_jobs_c[__pyx_v_i]).abs_max_num_points);
     }
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":278
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":288
  *             offset += jobs_c[i].abs_max_num_points
  * 
  *         packing_time = time.time()-t1             # <<<<<<<<<<<<<<
  *         # ----- call C++ batched kernel (no Python inside) -----
  *         with nogil:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 278, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 288, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 278, __pyx_L11_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 288, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __pyx_t_4 = NULL;
@@ -22067,17 +22160,17 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       PyObject *__pyx_callargs[2] = {__pyx_t_4, NULL};
       __pyx_t_6 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_15, 0+__pyx_t_15);
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 278, __pyx_L11_error)
+      if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 288, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_6);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     }
-    __pyx_t_3 = PyNumber_Subtract(__pyx_t_6, __pyx_v_t1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 278, __pyx_L11_error)
+    __pyx_t_3 = PyNumber_Subtract(__pyx_t_6, __pyx_v_t1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 288, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __pyx_v_packing_time = __pyx_t_3;
     __pyx_t_3 = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":280
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":290
  *         packing_time = time.time()-t1
  *         # ----- call C++ batched kernel (no Python inside) -----
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -22093,7 +22186,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         #endif
         /*try:*/ {
 
-          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":281
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":291
  *         # ----- call C++ batched kernel (no Python inside) -----
  *         with nogil:
  *             kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_)             # <<<<<<<<<<<<<<
@@ -22103,7 +22196,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
           __pyx_v_kernel_ms = combine_iv_jobs_batch(((int)__pyx_v_n_jobs), __pyx_v_jobs_c, __pyx_v_parallel_);
         }
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":280
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":290
  *         packing_time = time.time()-t1
  *         # ----- call C++ batched kernel (no Python inside) -----
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -22122,16 +22215,16 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
         }
     }
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":284
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":294
  * 
  *         # ----- unpack outputs -----
  *         t1 = time.time()             # <<<<<<<<<<<<<<
  *         offset = 0
  *         for i in range(n_jobs):
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_time); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 284, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_time); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 294, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_time); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 284, __pyx_L11_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_time); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 294, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __pyx_t_6 = NULL;
@@ -22152,14 +22245,14 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       PyObject *__pyx_callargs[2] = {__pyx_t_6, NULL};
       __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_15, 0+__pyx_t_15);
       __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 284, __pyx_L11_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 294, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
     __Pyx_DECREF_SET(__pyx_v_t1, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":285
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":295
  *         # ----- unpack outputs -----
  *         t1 = time.time()
  *         offset = 0             # <<<<<<<<<<<<<<
@@ -22168,7 +22261,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
     __pyx_v_offset = 0;
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":286
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":296
  *         t1 = time.time()
  *         offset = 0
  *         for i in range(n_jobs):             # <<<<<<<<<<<<<<
@@ -22180,19 +22273,19 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_12; __pyx_t_13+=1) {
       __pyx_v_i = __pyx_t_13;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":287
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":297
  *         offset = 0
  *         for i in range(n_jobs):
  *             circuit_component = components[i]             # <<<<<<<<<<<<<<
  *             olen = c_out_len_all[i]
  *             if olen < 0:
  */
-      __pyx_t_3 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 287, __pyx_L11_error)
+      __pyx_t_3 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 297, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_XDECREF_SET(__pyx_v_circuit_component, __pyx_t_3);
       __pyx_t_3 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":288
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":298
  *         for i in range(n_jobs):
  *             circuit_component = components[i]
  *             olen = c_out_len_all[i]             # <<<<<<<<<<<<<<
@@ -22201,7 +22294,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       __pyx_v_olen = (__pyx_v_c_out_len_all[__pyx_v_i]);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":289
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":299
  *             circuit_component = components[i]
  *             olen = c_out_len_all[i]
  *             if olen < 0:             # <<<<<<<<<<<<<<
@@ -22211,26 +22304,26 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_1 = (__pyx_v_olen < 0);
       if (unlikely(__pyx_t_1)) {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":290
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":300
  *             olen = c_out_len_all[i]
  *             if olen < 0:
  *                 raise ValueError(f"Negative out_len for job {i}")             # <<<<<<<<<<<<<<
  *             circuit_component.IV_V = big_out_V[offset:offset+olen]
  *             circuit_component.IV_I = big_out_I[offset:offset+olen]
  */
-        __pyx_t_3 = __Pyx_PyUnicode_From_Py_ssize_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 290, __pyx_L11_error)
+        __pyx_t_3 = __Pyx_PyUnicode_From_Py_ssize_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 300, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_3);
-        __pyx_t_4 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Negative_out_len_for_job, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 290, __pyx_L11_error)
+        __pyx_t_4 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Negative_out_len_for_job, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 300, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_4);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_ValueError, __pyx_t_4); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 290, __pyx_L11_error)
+        __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_ValueError, __pyx_t_4); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 300, __pyx_L11_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __Pyx_Raise(__pyx_t_3, 0, 0, 0);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        __PYX_ERR(0, 290, __pyx_L11_error)
+        __PYX_ERR(0, 300, __pyx_L11_error)
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":289
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":299
  *             circuit_component = components[i]
  *             olen = c_out_len_all[i]
  *             if olen < 0:             # <<<<<<<<<<<<<<
@@ -22239,31 +22332,31 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       }
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":291
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":301
  *             if olen < 0:
  *                 raise ValueError(f"Negative out_len for job {i}")
  *             circuit_component.IV_V = big_out_V[offset:offset+olen]             # <<<<<<<<<<<<<<
  *             circuit_component.IV_I = big_out_I[offset:offset+olen]
  *             offset += jobs_c[i].abs_max_num_points
  */
-      __pyx_t_3 = __Pyx_PyObject_GetSlice(__pyx_v_big_out_V, __pyx_v_offset, (__pyx_v_offset + __pyx_v_olen), NULL, NULL, NULL, 1, 1, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 291, __pyx_L11_error)
+      __pyx_t_3 = __Pyx_PyObject_GetSlice(__pyx_v_big_out_V, __pyx_v_offset, (__pyx_v_offset + __pyx_v_olen), NULL, NULL, NULL, 1, 1, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 301, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_3);
-      if (__Pyx_PyObject_SetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_V, __pyx_t_3) < 0) __PYX_ERR(0, 291, __pyx_L11_error)
+      if (__Pyx_PyObject_SetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_V, __pyx_t_3) < 0) __PYX_ERR(0, 301, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":292
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":302
  *                 raise ValueError(f"Negative out_len for job {i}")
  *             circuit_component.IV_V = big_out_V[offset:offset+olen]
  *             circuit_component.IV_I = big_out_I[offset:offset+olen]             # <<<<<<<<<<<<<<
  *             offset += jobs_c[i].abs_max_num_points
  *         unpacking_time = time.time()-t1
  */
-      __pyx_t_3 = __Pyx_PyObject_GetSlice(__pyx_v_big_out_I, __pyx_v_offset, (__pyx_v_offset + __pyx_v_olen), NULL, NULL, NULL, 1, 1, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 292, __pyx_L11_error)
+      __pyx_t_3 = __Pyx_PyObject_GetSlice(__pyx_v_big_out_I, __pyx_v_offset, (__pyx_v_offset + __pyx_v_olen), NULL, NULL, NULL, 1, 1, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 302, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_3);
-      if (__Pyx_PyObject_SetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_I, __pyx_t_3) < 0) __PYX_ERR(0, 292, __pyx_L11_error)
+      if (__Pyx_PyObject_SetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_I, __pyx_t_3) < 0) __PYX_ERR(0, 302, __pyx_L11_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":293
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":303
  *             circuit_component.IV_V = big_out_V[offset:offset+olen]
  *             circuit_component.IV_I = big_out_I[offset:offset+olen]
  *             offset += jobs_c[i].abs_max_num_points             # <<<<<<<<<<<<<<
@@ -22273,16 +22366,16 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_v_offset = (__pyx_v_offset + (__pyx_v_jobs_c[__pyx_v_i]).abs_max_num_points);
     }
 
-    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":294
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":304
  *             circuit_component.IV_I = big_out_I[offset:offset+olen]
  *             offset += jobs_c[i].abs_max_num_points
  *         unpacking_time = time.time()-t1             # <<<<<<<<<<<<<<
  * 
  *     finally:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 294, __pyx_L11_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 304, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 294, __pyx_L11_error)
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_time); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 304, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_6);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __pyx_t_4 = NULL;
@@ -22303,18 +22396,18 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       PyObject *__pyx_callargs[2] = {__pyx_t_4, NULL};
       __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_15, 0+__pyx_t_15);
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 294, __pyx_L11_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 304, __pyx_L11_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     }
-    __pyx_t_6 = PyNumber_Subtract(__pyx_t_3, __pyx_v_t1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 294, __pyx_L11_error)
+    __pyx_t_6 = PyNumber_Subtract(__pyx_t_3, __pyx_v_t1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 304, __pyx_L11_error)
     __Pyx_GOTREF(__pyx_t_6);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_v_unpacking_time = __pyx_t_6;
     __pyx_t_6 = 0;
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":297
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":307
  * 
  *     finally:
  *         free(jobs_c)             # <<<<<<<<<<<<<<
@@ -22325,7 +22418,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     /*normal exit:*/{
       free(__pyx_v_jobs_c);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":298
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":308
  *     finally:
  *         free(jobs_c)
  *         free(children_views)             # <<<<<<<<<<<<<<
@@ -22334,7 +22427,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
       free(__pyx_v_children_views);
 
-      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":299
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":309
  *         free(jobs_c)
  *         free(children_views)
  *         free(pc_children_views)             # <<<<<<<<<<<<<<
@@ -22371,7 +22464,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
       __pyx_t_15 = __pyx_lineno; __pyx_t_23 = __pyx_clineno; __pyx_t_26 = __pyx_filename;
       {
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":297
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":307
  * 
  *     finally:
  *         free(jobs_c)             # <<<<<<<<<<<<<<
@@ -22380,7 +22473,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         free(__pyx_v_jobs_c);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":298
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":308
  *     finally:
  *         free(jobs_c)
  *         free(children_views)             # <<<<<<<<<<<<<<
@@ -22389,7 +22482,7 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
  */
         free(__pyx_v_children_views);
 
-        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":299
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":309
  *         free(jobs_c)
  *         free(children_views)
  *         free(pc_children_views)             # <<<<<<<<<<<<<<
@@ -22415,32 +22508,33 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
     __pyx_L12:;
   }
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":301
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":311
  *         free(pc_children_views)
  * 
  *     return kernel_ms, packing_time, unpacking_time             # <<<<<<<<<<<<<<
  * 
+ * def run_multiple_operating_points(components, bint parallel=False):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_6 = PyFloat_FromDouble(__pyx_v_kernel_ms); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 301, __pyx_L1_error)
+  __pyx_t_6 = PyFloat_FromDouble(__pyx_v_kernel_ms); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_3 = PyTuple_New(3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 301, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_6);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_6)) __PYX_ERR(0, 301, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_6)) __PYX_ERR(0, 311, __pyx_L1_error);
   __Pyx_INCREF(__pyx_v_packing_time);
   __Pyx_GIVEREF(__pyx_v_packing_time);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_v_packing_time)) __PYX_ERR(0, 301, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_v_packing_time)) __PYX_ERR(0, 311, __pyx_L1_error);
   __Pyx_INCREF(__pyx_v_unpacking_time);
   __Pyx_GIVEREF(__pyx_v_unpacking_time);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 2, __pyx_v_unpacking_time)) __PYX_ERR(0, 301, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 2, __pyx_v_unpacking_time)) __PYX_ERR(0, 311, __pyx_L1_error);
   __pyx_t_6 = 0;
   __pyx_r = __pyx_t_3;
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":41
- *     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":51
+ *     ) nogil
  * 
  * def run_multiple_jobs(components,refine_mode=False,parallel=False):             # <<<<<<<<<<<<<<
  * 
@@ -22496,6 +22590,1275 @@ __PYX_XCLEAR_MEMVIEW(&__pyx_v_mv_params, 1);
   __Pyx_XDECREF(__pyx_v_big_out_I);
   __Pyx_XDECREF(__pyx_v_packing_time);
   __Pyx_XDECREF(__pyx_v_unpacking_time);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "PV_Circuit_Model/ivkernel_wrapper.pyx":313
+ *     return kernel_ms, packing_time, unpacking_time
+ * 
+ * def run_multiple_operating_points(components, bint parallel=False):             # <<<<<<<<<<<<<<
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:
+ */
+
+/* Python wrapper */
+static PyObject *__pyx_pw_16PV_Circuit_Model_8ivkernel_3run_multiple_operating_points(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+static PyMethodDef __pyx_mdef_16PV_Circuit_Model_8ivkernel_3run_multiple_operating_points = {"run_multiple_operating_points", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_16PV_Circuit_Model_8ivkernel_3run_multiple_operating_points, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_16PV_Circuit_Model_8ivkernel_3run_multiple_operating_points(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_components = 0;
+  int __pyx_v_parallel;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[2] = {0,0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("run_multiple_operating_points (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_MACROS
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject **__pyx_pyargnames[] = {&__pyx_n_s_components,&__pyx_n_s_parallel,0};
+    if (__pyx_kwds) {
+      Py_ssize_t kw_args;
+      switch (__pyx_nargs) {
+        case  2: values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
+        CYTHON_FALLTHROUGH;
+        case  1: values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      kw_args = __Pyx_NumKwargs_FASTCALL(__pyx_kwds);
+      switch (__pyx_nargs) {
+        case  0:
+        if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_components)) != 0)) {
+          (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 313, __pyx_L3_error)
+        else goto __pyx_L5_argtuple_error;
+        CYTHON_FALLTHROUGH;
+        case  1:
+        if (kw_args > 0) {
+          PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_parallel);
+          if (value) { values[1] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 313, __pyx_L3_error)
+        }
+      }
+      if (unlikely(kw_args > 0)) {
+        const Py_ssize_t kwd_pos_args = __pyx_nargs;
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "run_multiple_operating_points") < 0)) __PYX_ERR(0, 313, __pyx_L3_error)
+      }
+    } else {
+      switch (__pyx_nargs) {
+        case  2: values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
+        CYTHON_FALLTHROUGH;
+        case  1: values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
+        break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+    }
+    __pyx_v_components = values[0];
+    if (values[1]) {
+      __pyx_v_parallel = __Pyx_PyObject_IsTrue(values[1]); if (unlikely((__pyx_v_parallel == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 313, __pyx_L3_error)
+    } else {
+      __pyx_v_parallel = ((int)((int)0));
+    }
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("run_multiple_operating_points", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 313, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  {
+    Py_ssize_t __pyx_temp;
+    for (__pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+      __Pyx_Arg_XDECREF_FASTCALL(values[__pyx_temp]);
+    }
+  }
+  __Pyx_AddTraceback("PV_Circuit_Model.ivkernel.run_multiple_operating_points", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  __pyx_r = __pyx_pf_16PV_Circuit_Model_8ivkernel_2run_multiple_operating_points(__pyx_self, __pyx_v_components, __pyx_v_parallel);
+
+  /* function exit code */
+  {
+    Py_ssize_t __pyx_temp;
+    for (__pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+      __Pyx_Arg_XDECREF_FASTCALL(values[__pyx_temp]);
+    }
+  }
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_16PV_Circuit_Model_8ivkernel_2run_multiple_operating_points(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_components, int __pyx_v_parallel) {
+  Py_ssize_t __pyx_v_n_jobs;
+  int __pyx_v_parallel_;
+  PyArrayObject *__pyx_v_yqs_arr = 0;
+  __Pyx_memviewslice __pyx_v_yqs_mv = { 0, 0, { 0 }, { 0 }, { 0 } };
+  PyArrayObject *__pyx_v_xqs_arr = 0;
+  __Pyx_memviewslice __pyx_v_xqs_mv = { 0, 0, { 0 }, { 0 }, { 0 } };
+  double const **__pyx_v_xs;
+  double const **__pyx_v_ys;
+  int *__pyx_v_ns;
+  double **__pyx_v_yqs;
+  int *__pyx_v_known_is_V;
+  Py_ssize_t __pyx_v_i;
+  __Pyx_memviewslice __pyx_v_xmv = { 0, 0, { 0 }, { 0 }, { 0 } };
+  __Pyx_memviewslice __pyx_v_ymv = { 0, 0, { 0 }, { 0 }, { 0 } };
+  PyObject *__pyx_v_circuit_component = NULL;
+  PyObject *__pyx_v_operating_point = NULL;
+  int __pyx_v_is_series;
+  PyObject *__pyx_v_child = NULL;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_xqs_arr;
+  __Pyx_Buffer __pyx_pybuffer_xqs_arr;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_yqs_arr;
+  __Pyx_Buffer __pyx_pybuffer_yqs_arr;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  Py_ssize_t __pyx_t_1;
+  int __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  int __pyx_t_7;
+  PyObject *__pyx_t_8 = NULL;
+  PyArrayObject *__pyx_t_9 = NULL;
+  __Pyx_memviewslice __pyx_t_10 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  PyArrayObject *__pyx_t_11 = NULL;
+  int __pyx_t_12;
+  Py_ssize_t __pyx_t_13;
+  Py_ssize_t __pyx_t_14;
+  double __pyx_t_15;
+  Py_ssize_t __pyx_t_16;
+  Py_ssize_t __pyx_t_17;
+  PyObject *(*__pyx_t_18)(PyObject *);
+  int __pyx_t_19;
+  char const *__pyx_t_20;
+  PyObject *__pyx_t_21 = NULL;
+  PyObject *__pyx_t_22 = NULL;
+  PyObject *__pyx_t_23 = NULL;
+  PyObject *__pyx_t_24 = NULL;
+  PyObject *__pyx_t_25 = NULL;
+  PyObject *__pyx_t_26 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("run_multiple_operating_points", 1);
+  __pyx_pybuffer_yqs_arr.pybuffer.buf = NULL;
+  __pyx_pybuffer_yqs_arr.refcount = 0;
+  __pyx_pybuffernd_yqs_arr.data = NULL;
+  __pyx_pybuffernd_yqs_arr.rcbuffer = &__pyx_pybuffer_yqs_arr;
+  __pyx_pybuffer_xqs_arr.pybuffer.buf = NULL;
+  __pyx_pybuffer_xqs_arr.refcount = 0;
+  __pyx_pybuffernd_xqs_arr.data = NULL;
+  __pyx_pybuffernd_xqs_arr.rcbuffer = &__pyx_pybuffer_xqs_arr;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":314
+ * 
+ * def run_multiple_operating_points(components, bint parallel=False):
+ *     cdef Py_ssize_t n_jobs = len(components)             # <<<<<<<<<<<<<<
+ *     if n_jobs == 0:
+ *         return np.empty(0, dtype=np.float64)
+ */
+  __pyx_t_1 = PyObject_Length(__pyx_v_components); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 314, __pyx_L1_error)
+  __pyx_v_n_jobs = __pyx_t_1;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":315
+ * def run_multiple_operating_points(components, bint parallel=False):
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:             # <<<<<<<<<<<<<<
+ *         return np.empty(0, dtype=np.float64)
+ * 
+ */
+  __pyx_t_2 = (__pyx_v_n_jobs == 0);
+  if (__pyx_t_2) {
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":316
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:
+ *         return np.empty(0, dtype=np.float64)             # <<<<<<<<<<<<<<
+ * 
+ *     cdef int parallel_ = 1 if parallel else 0
+ */
+    __Pyx_XDECREF(__pyx_r);
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_empty); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_5);
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_float64); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_6);
+    __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+    if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+    __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_tuple__11, __pyx_t_3); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 316, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_6);
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __pyx_r = __pyx_t_6;
+    __pyx_t_6 = 0;
+    goto __pyx_L0;
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":315
+ * def run_multiple_operating_points(components, bint parallel=False):
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:             # <<<<<<<<<<<<<<
+ *         return np.empty(0, dtype=np.float64)
+ * 
+ */
+  }
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":318
+ *         return np.empty(0, dtype=np.float64)
+ * 
+ *     cdef int parallel_ = 1 if parallel else 0             # <<<<<<<<<<<<<<
+ * 
+ *     # --------------------------------------------------------
+ */
+  if (__pyx_v_parallel) {
+    __pyx_t_7 = 1;
+  } else {
+    __pyx_t_7 = 0;
+  }
+  __pyx_v_parallel_ = __pyx_t_7;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":323
+ *     # Allocate output array (one solved value per component)
+ *     # --------------------------------------------------------
+ *     cdef np.ndarray[np.float64_t, ndim=1] yqs_arr = np.empty(n_jobs, dtype=np.float64)             # <<<<<<<<<<<<<<
+ *     cdef double[:] yqs_mv = yqs_arr  # memoryview over output
+ * 
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_empty); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  __pyx_t_6 = PyInt_FromSsize_t(__pyx_v_n_jobs); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __Pyx_GIVEREF(__pyx_t_6);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_6)) __PYX_ERR(0, 323, __pyx_L1_error);
+  __pyx_t_6 = 0;
+  __pyx_t_6 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_float64); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_8);
+  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_8) < 0) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+  __pyx_t_8 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_4, __pyx_t_6); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 323, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_8);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  if (!(likely(((__pyx_t_8) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_8, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 323, __pyx_L1_error)
+  __pyx_t_9 = ((PyArrayObject *)__pyx_t_8);
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer, (PyObject*)__pyx_t_9, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) {
+      __pyx_v_yqs_arr = ((PyArrayObject *)Py_None); __Pyx_INCREF(Py_None); __pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer.buf = NULL;
+      __PYX_ERR(0, 323, __pyx_L1_error)
+    } else {__pyx_pybuffernd_yqs_arr.diminfo[0].strides = __pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_yqs_arr.diminfo[0].shape = __pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer.shape[0];
+    }
+  }
+  __pyx_t_9 = 0;
+  __pyx_v_yqs_arr = ((PyArrayObject *)__pyx_t_8);
+  __pyx_t_8 = 0;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":324
+ *     # --------------------------------------------------------
+ *     cdef np.ndarray[np.float64_t, ndim=1] yqs_arr = np.empty(n_jobs, dtype=np.float64)
+ *     cdef double[:] yqs_mv = yqs_arr  # memoryview over output             # <<<<<<<<<<<<<<
+ * 
+ *     # Query values
+ */
+  __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(((PyObject *)__pyx_v_yqs_arr), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 324, __pyx_L1_error)
+  __pyx_v_yqs_mv = __pyx_t_10;
+  __pyx_t_10.memview = NULL;
+  __pyx_t_10.data = NULL;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":327
+ * 
+ *     # Query values
+ *     cdef np.ndarray[np.float64_t, ndim=1] xqs_arr = np.empty(n_jobs, dtype=np.float64)             # <<<<<<<<<<<<<<
+ *     cdef double[:] xqs_mv = xqs_arr
+ * 
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_8);
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_empty); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+  __pyx_t_8 = PyInt_FromSsize_t(__pyx_v_n_jobs); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_8);
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __Pyx_GIVEREF(__pyx_t_8);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_8)) __PYX_ERR(0, 327, __pyx_L1_error);
+  __pyx_t_8 = 0;
+  __pyx_t_8 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_8);
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_float64); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  if (PyDict_SetItem(__pyx_t_8, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_4, __pyx_t_8); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 327, __pyx_L1_error)
+  __pyx_t_11 = ((PyArrayObject *)__pyx_t_5);
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_xqs_arr.rcbuffer->pybuffer, (PyObject*)__pyx_t_11, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) {
+      __pyx_v_xqs_arr = ((PyArrayObject *)Py_None); __Pyx_INCREF(Py_None); __pyx_pybuffernd_xqs_arr.rcbuffer->pybuffer.buf = NULL;
+      __PYX_ERR(0, 327, __pyx_L1_error)
+    } else {__pyx_pybuffernd_xqs_arr.diminfo[0].strides = __pyx_pybuffernd_xqs_arr.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_xqs_arr.diminfo[0].shape = __pyx_pybuffernd_xqs_arr.rcbuffer->pybuffer.shape[0];
+    }
+  }
+  __pyx_t_11 = 0;
+  __pyx_v_xqs_arr = ((PyArrayObject *)__pyx_t_5);
+  __pyx_t_5 = 0;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":328
+ *     # Query values
+ *     cdef np.ndarray[np.float64_t, ndim=1] xqs_arr = np.empty(n_jobs, dtype=np.float64)
+ *     cdef double[:] xqs_mv = xqs_arr             # <<<<<<<<<<<<<<
+ * 
+ *     # Allocate C pointer tables
+ */
+  __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(((PyObject *)__pyx_v_xqs_arr), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 328, __pyx_L1_error)
+  __pyx_v_xqs_mv = __pyx_t_10;
+  __pyx_t_10.memview = NULL;
+  __pyx_t_10.data = NULL;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":331
+ * 
+ *     # Allocate C pointer tables
+ *     cdef const double** xs = <const double**> malloc(n_jobs * sizeof(const double*))             # <<<<<<<<<<<<<<
+ *     cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))
+ *     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
+ */
+  __pyx_v_xs = ((double const **)malloc((__pyx_v_n_jobs * (sizeof(double const *)))));
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":332
+ *     # Allocate C pointer tables
+ *     cdef const double** xs = <const double**> malloc(n_jobs * sizeof(const double*))
+ *     cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))             # <<<<<<<<<<<<<<
+ *     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
+ *     cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))
+ */
+  __pyx_v_ys = ((double const **)malloc((__pyx_v_n_jobs * (sizeof(double const *)))));
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":333
+ *     cdef const double** xs = <const double**> malloc(n_jobs * sizeof(const double*))
+ *     cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))
+ *     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))             # <<<<<<<<<<<<<<
+ *     cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))
+ *     cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))
+ */
+  __pyx_v_ns = ((int *)malloc((__pyx_v_n_jobs * (sizeof(int)))));
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":334
+ *     cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))
+ *     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
+ *     cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))             # <<<<<<<<<<<<<<
+ *     cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))
+ * 
+ */
+  __pyx_v_yqs = ((double **)malloc((__pyx_v_n_jobs * (sizeof(double *)))));
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":335
+ *     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
+ *     cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))
+ *     cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))             # <<<<<<<<<<<<<<
+ * 
+ *     if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:
+ */
+  __pyx_v_known_is_V = ((int *)malloc((__pyx_v_n_jobs * (sizeof(int)))));
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":337
+ *     cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))
+ * 
+ *     if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:             # <<<<<<<<<<<<<<
+ *         if xs != NULL:       free(<void*> xs)
+ *         if ys != NULL:       free(<void*> ys)
+ */
+  __pyx_t_12 = (__pyx_v_xs == NULL);
+  if (!__pyx_t_12) {
+  } else {
+    __pyx_t_2 = __pyx_t_12;
+    goto __pyx_L5_bool_binop_done;
+  }
+  __pyx_t_12 = (__pyx_v_ys == NULL);
+  if (!__pyx_t_12) {
+  } else {
+    __pyx_t_2 = __pyx_t_12;
+    goto __pyx_L5_bool_binop_done;
+  }
+  __pyx_t_12 = (__pyx_v_ns == NULL);
+  if (!__pyx_t_12) {
+  } else {
+    __pyx_t_2 = __pyx_t_12;
+    goto __pyx_L5_bool_binop_done;
+  }
+  __pyx_t_12 = (__pyx_v_yqs == NULL);
+  if (!__pyx_t_12) {
+  } else {
+    __pyx_t_2 = __pyx_t_12;
+    goto __pyx_L5_bool_binop_done;
+  }
+  __pyx_t_12 = (__pyx_v_known_is_V == NULL);
+  __pyx_t_2 = __pyx_t_12;
+  __pyx_L5_bool_binop_done:;
+  if (__pyx_t_2) {
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":338
+ * 
+ *     if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:
+ *         if xs != NULL:       free(<void*> xs)             # <<<<<<<<<<<<<<
+ *         if ys != NULL:       free(<void*> ys)
+ *         if ns != NULL:       free(<void*> ns)
+ */
+    __pyx_t_2 = (__pyx_v_xs != NULL);
+    if (__pyx_t_2) {
+      free(((void *)__pyx_v_xs));
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":339
+ *     if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:
+ *         if xs != NULL:       free(<void*> xs)
+ *         if ys != NULL:       free(<void*> ys)             # <<<<<<<<<<<<<<
+ *         if ns != NULL:       free(<void*> ns)
+ *         if yqs != NULL:      free(<void*> yqs)
+ */
+    __pyx_t_2 = (__pyx_v_ys != NULL);
+    if (__pyx_t_2) {
+      free(((void *)__pyx_v_ys));
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":340
+ *         if xs != NULL:       free(<void*> xs)
+ *         if ys != NULL:       free(<void*> ys)
+ *         if ns != NULL:       free(<void*> ns)             # <<<<<<<<<<<<<<
+ *         if yqs != NULL:      free(<void*> yqs)
+ *         if known_is_V != NULL: free(<void*> known_is_V)
+ */
+    __pyx_t_2 = (__pyx_v_ns != NULL);
+    if (__pyx_t_2) {
+      free(((void *)__pyx_v_ns));
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":341
+ *         if ys != NULL:       free(<void*> ys)
+ *         if ns != NULL:       free(<void*> ns)
+ *         if yqs != NULL:      free(<void*> yqs)             # <<<<<<<<<<<<<<
+ *         if known_is_V != NULL: free(<void*> known_is_V)
+ *         raise MemoryError()
+ */
+    __pyx_t_2 = (__pyx_v_yqs != NULL);
+    if (__pyx_t_2) {
+      free(((void *)__pyx_v_yqs));
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":342
+ *         if ns != NULL:       free(<void*> ns)
+ *         if yqs != NULL:      free(<void*> yqs)
+ *         if known_is_V != NULL: free(<void*> known_is_V)             # <<<<<<<<<<<<<<
+ *         raise MemoryError()
+ * 
+ */
+    __pyx_t_2 = (__pyx_v_known_is_V != NULL);
+    if (__pyx_t_2) {
+      free(((void *)__pyx_v_known_is_V));
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":343
+ *         if yqs != NULL:      free(<void*> yqs)
+ *         if known_is_V != NULL: free(<void*> known_is_V)
+ *         raise MemoryError()             # <<<<<<<<<<<<<<
+ * 
+ *     cdef Py_ssize_t i
+ */
+    PyErr_NoMemory(); __PYX_ERR(0, 343, __pyx_L1_error)
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":337
+ *     cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))
+ * 
+ *     if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:             # <<<<<<<<<<<<<<
+ *         if xs != NULL:       free(<void*> xs)
+ *         if ys != NULL:       free(<void*> ys)
+ */
+  }
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":348
+ *     cdef double[:] xmv, ymv
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         # --------------------------------------------------------
+ *         # Build pointer lists for each job
+ */
+  /*try:*/ {
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":352
+ *         # Build pointer lists for each job
+ *         # --------------------------------------------------------
+ *         for i in range(n_jobs):             # <<<<<<<<<<<<<<
+ *             circuit_component = components[i]
+ * 
+ */
+    __pyx_t_1 = __pyx_v_n_jobs;
+    __pyx_t_13 = __pyx_t_1;
+    for (__pyx_t_14 = 0; __pyx_t_14 < __pyx_t_13; __pyx_t_14+=1) {
+      __pyx_v_i = __pyx_t_14;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":353
+ *         # --------------------------------------------------------
+ *         for i in range(n_jobs):
+ *             circuit_component = components[i]             # <<<<<<<<<<<<<<
+ * 
+ *             # Select which axis is X and which is Y
+ */
+      __pyx_t_5 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 353, __pyx_L16_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __Pyx_XDECREF_SET(__pyx_v_circuit_component, __pyx_t_5);
+      __pyx_t_5 = 0;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":356
+ * 
+ *             # Select which axis is X and which is Y
+ *             if circuit_component.operating_point[0] is not None:             # <<<<<<<<<<<<<<
+ *                 # X = V, Y = I, query in V -> solve I(V)
+ *                 known_is_V[i] = 1
+ */
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_operating_point); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 356, __pyx_L16_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __pyx_t_8 = __Pyx_GetItemInt(__pyx_t_5, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 356, __pyx_L16_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __pyx_t_2 = (__pyx_t_8 != Py_None);
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      if (__pyx_t_2) {
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":358
+ *             if circuit_component.operating_point[0] is not None:
+ *                 # X = V, Y = I, query in V -> solve I(V)
+ *                 known_is_V[i] = 1             # <<<<<<<<<<<<<<
+ *                 xmv = circuit_component.IV_V
+ *                 ymv = circuit_component.IV_I
+ */
+        (__pyx_v_known_is_V[__pyx_v_i]) = 1;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":359
+ *                 # X = V, Y = I, query in V -> solve I(V)
+ *                 known_is_V[i] = 1
+ *                 xmv = circuit_component.IV_V             # <<<<<<<<<<<<<<
+ *                 ymv = circuit_component.IV_I
+ *                 xqs_mv[i] = <double> circuit_component.operating_point[0]
+ */
+        __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_V); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 359, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_t_8, PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 359, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+        __PYX_XCLEAR_MEMVIEW(&__pyx_v_xmv, 1);
+        __pyx_v_xmv = __pyx_t_10;
+        __pyx_t_10.memview = NULL;
+        __pyx_t_10.data = NULL;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":360
+ *                 known_is_V[i] = 1
+ *                 xmv = circuit_component.IV_V
+ *                 ymv = circuit_component.IV_I             # <<<<<<<<<<<<<<
+ *                 xqs_mv[i] = <double> circuit_component.operating_point[0]
+ *             else:
+ */
+        __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_I); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 360, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_t_8, PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 360, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+        __PYX_XCLEAR_MEMVIEW(&__pyx_v_ymv, 1);
+        __pyx_v_ymv = __pyx_t_10;
+        __pyx_t_10.memview = NULL;
+        __pyx_t_10.data = NULL;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":361
+ *                 xmv = circuit_component.IV_V
+ *                 ymv = circuit_component.IV_I
+ *                 xqs_mv[i] = <double> circuit_component.operating_point[0]             # <<<<<<<<<<<<<<
+ *             else:
+ *                 # X = I, Y = V, query in I -> solve V(I)
+ */
+        __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_operating_point); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 361, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        __pyx_t_5 = __Pyx_GetItemInt(__pyx_t_8, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 361, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+        __pyx_t_15 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_15 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 361, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __pyx_t_16 = __pyx_v_i;
+        *((double *) ( /* dim=0 */ (__pyx_v_xqs_mv.data + __pyx_t_16 * __pyx_v_xqs_mv.strides[0]) )) = ((double)__pyx_t_15);
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":356
+ * 
+ *             # Select which axis is X and which is Y
+ *             if circuit_component.operating_point[0] is not None:             # <<<<<<<<<<<<<<
+ *                 # X = V, Y = I, query in V -> solve I(V)
+ *                 known_is_V[i] = 1
+ */
+        goto __pyx_L20;
+      }
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":364
+ *             else:
+ *                 # X = I, Y = V, query in I -> solve V(I)
+ *                 known_is_V[i] = 0             # <<<<<<<<<<<<<<
+ *                 xmv = circuit_component.IV_I
+ *                 ymv = circuit_component.IV_V
+ */
+      /*else*/ {
+        (__pyx_v_known_is_V[__pyx_v_i]) = 0;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":365
+ *                 # X = I, Y = V, query in I -> solve V(I)
+ *                 known_is_V[i] = 0
+ *                 xmv = circuit_component.IV_I             # <<<<<<<<<<<<<<
+ *                 ymv = circuit_component.IV_V
+ *                 xqs_mv[i] = <double> circuit_component.operating_point[1]
+ */
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_I); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 365, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 365, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __PYX_XCLEAR_MEMVIEW(&__pyx_v_xmv, 1);
+        __pyx_v_xmv = __pyx_t_10;
+        __pyx_t_10.memview = NULL;
+        __pyx_t_10.data = NULL;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":366
+ *                 known_is_V[i] = 0
+ *                 xmv = circuit_component.IV_I
+ *                 ymv = circuit_component.IV_V             # <<<<<<<<<<<<<<
+ *                 xqs_mv[i] = <double> circuit_component.operating_point[1]
+ * 
+ */
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_IV_V); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 366, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 366, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __PYX_XCLEAR_MEMVIEW(&__pyx_v_ymv, 1);
+        __pyx_v_ymv = __pyx_t_10;
+        __pyx_t_10.memview = NULL;
+        __pyx_t_10.data = NULL;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":367
+ *                 xmv = circuit_component.IV_I
+ *                 ymv = circuit_component.IV_V
+ *                 xqs_mv[i] = <double> circuit_component.operating_point[1]             # <<<<<<<<<<<<<<
+ * 
+ *             # Fill metadata for this job
+ */
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_operating_point); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 367, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __pyx_t_8 = __Pyx_GetItemInt(__pyx_t_5, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 367, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __pyx_t_15 = __pyx_PyFloat_AsDouble(__pyx_t_8); if (unlikely((__pyx_t_15 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 367, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+        __pyx_t_16 = __pyx_v_i;
+        *((double *) ( /* dim=0 */ (__pyx_v_xqs_mv.data + __pyx_t_16 * __pyx_v_xqs_mv.strides[0]) )) = ((double)__pyx_t_15);
+      }
+      __pyx_L20:;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":370
+ * 
+ *             # Fill metadata for this job
+ *             ns[i]  = <int> xmv.shape[0]             # <<<<<<<<<<<<<<
+ *             xs[i]  = &xmv[0]
+ *             ys[i]  = &ymv[0]
+ */
+      (__pyx_v_ns[__pyx_v_i]) = ((int)(__pyx_v_xmv.shape[0]));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":371
+ *             # Fill metadata for this job
+ *             ns[i]  = <int> xmv.shape[0]
+ *             xs[i]  = &xmv[0]             # <<<<<<<<<<<<<<
+ *             ys[i]  = &ymv[0]
+ *             yqs[i] = &yqs_mv[i]
+ */
+      __pyx_t_16 = 0;
+      (__pyx_v_xs[__pyx_v_i]) = (&(*((double *) ( /* dim=0 */ (__pyx_v_xmv.data + __pyx_t_16 * __pyx_v_xmv.strides[0]) ))));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":372
+ *             ns[i]  = <int> xmv.shape[0]
+ *             xs[i]  = &xmv[0]
+ *             ys[i]  = &ymv[0]             # <<<<<<<<<<<<<<
+ *             yqs[i] = &yqs_mv[i]
+ * 
+ */
+      __pyx_t_16 = 0;
+      (__pyx_v_ys[__pyx_v_i]) = (&(*((double *) ( /* dim=0 */ (__pyx_v_ymv.data + __pyx_t_16 * __pyx_v_ymv.strides[0]) ))));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":373
+ *             xs[i]  = &xmv[0]
+ *             ys[i]  = &ymv[0]
+ *             yqs[i] = &yqs_mv[i]             # <<<<<<<<<<<<<<
+ * 
+ *         with nogil:
+ */
+      __pyx_t_16 = __pyx_v_i;
+      (__pyx_v_yqs[__pyx_v_i]) = (&(*((double *) ( /* dim=0 */ (__pyx_v_yqs_mv.data + __pyx_t_16 * __pyx_v_yqs_mv.strides[0]) ))));
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":375
+ *             yqs[i] = &yqs_mv[i]
+ * 
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             interp_monotonic_inc_scalar(
+ *                 xs, ys, ns,
+ */
+    {
+        #ifdef WITH_THREAD
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        #endif
+        /*try:*/ {
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":378
+ *             interp_monotonic_inc_scalar(
+ *                 xs, ys, ns,
+ *                 &xqs_mv[0],             # <<<<<<<<<<<<<<
+ *                 yqs,
+ *                 <int> n_jobs,
+ */
+          __pyx_t_16 = 0;
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":376
+ * 
+ *         with nogil:
+ *             interp_monotonic_inc_scalar(             # <<<<<<<<<<<<<<
+ *                 xs, ys, ns,
+ *                 &xqs_mv[0],
+ */
+          interp_monotonic_inc_scalar(__pyx_v_xs, __pyx_v_ys, __pyx_v_ns, (&(*((double *) ( /* dim=0 */ (__pyx_v_xqs_mv.data + __pyx_t_16 * __pyx_v_xqs_mv.strides[0]) )))), __pyx_v_yqs, ((int)__pyx_v_n_jobs), __pyx_v_parallel_);
+        }
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":375
+ *             yqs[i] = &yqs_mv[i]
+ * 
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             interp_monotonic_inc_scalar(
+ *                 xs, ys, ns,
+ */
+        /*finally:*/ {
+          /*normal exit:*/{
+            #ifdef WITH_THREAD
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            #endif
+            goto __pyx_L23;
+          }
+          __pyx_L23:;
+        }
+    }
+
+    /* "PV_Circuit_Model/ivkernel_wrapper.pyx":384
+ *             )
+ * 
+ *         for i in range(n_jobs):             # <<<<<<<<<<<<<<
+ *             circuit_component = components[i]
+ *             operating_point = circuit_component.operating_point
+ */
+    __pyx_t_1 = __pyx_v_n_jobs;
+    __pyx_t_13 = __pyx_t_1;
+    for (__pyx_t_14 = 0; __pyx_t_14 < __pyx_t_13; __pyx_t_14+=1) {
+      __pyx_v_i = __pyx_t_14;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":385
+ * 
+ *         for i in range(n_jobs):
+ *             circuit_component = components[i]             # <<<<<<<<<<<<<<
+ *             operating_point = circuit_component.operating_point
+ *             if known_is_V[i]:
+ */
+      __pyx_t_8 = __Pyx_GetItemInt(__pyx_v_components, __pyx_v_i, Py_ssize_t, 1, PyInt_FromSsize_t, 0, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 385, __pyx_L16_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_XDECREF_SET(__pyx_v_circuit_component, __pyx_t_8);
+      __pyx_t_8 = 0;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":386
+ *         for i in range(n_jobs):
+ *             circuit_component = components[i]
+ *             operating_point = circuit_component.operating_point             # <<<<<<<<<<<<<<
+ *             if known_is_V[i]:
+ *                 operating_point[1] = yqs_arr[i]
+ */
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_operating_point); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 386, __pyx_L16_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_XDECREF_SET(__pyx_v_operating_point, __pyx_t_8);
+      __pyx_t_8 = 0;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":387
+ *             circuit_component = components[i]
+ *             operating_point = circuit_component.operating_point
+ *             if known_is_V[i]:             # <<<<<<<<<<<<<<
+ *                 operating_point[1] = yqs_arr[i]
+ *             else:
+ */
+      if ((__pyx_v_known_is_V[__pyx_v_i])) {
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":388
+ *             operating_point = circuit_component.operating_point
+ *             if known_is_V[i]:
+ *                 operating_point[1] = yqs_arr[i]             # <<<<<<<<<<<<<<
+ *             else:
+ *                 operating_point[0] = yqs_arr[i]
+ */
+        __pyx_t_16 = __pyx_v_i;
+        __pyx_t_8 = PyFloat_FromDouble((*__Pyx_BufPtrStrided1d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer.buf, __pyx_t_16, __pyx_pybuffernd_yqs_arr.diminfo[0].strides))); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 388, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        if (unlikely((__Pyx_SetItemInt(__pyx_v_operating_point, 1, __pyx_t_8, long, 1, __Pyx_PyInt_From_long, 0, 0, 0) < 0))) __PYX_ERR(0, 388, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":387
+ *             circuit_component = components[i]
+ *             operating_point = circuit_component.operating_point
+ *             if known_is_V[i]:             # <<<<<<<<<<<<<<
+ *                 operating_point[1] = yqs_arr[i]
+ *             else:
+ */
+        goto __pyx_L26;
+      }
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":390
+ *                 operating_point[1] = yqs_arr[i]
+ *             else:
+ *                 operating_point[0] = yqs_arr[i]             # <<<<<<<<<<<<<<
+ *             if circuit_component._type_number >= 5:
+ *                 is_series = False
+ */
+      /*else*/ {
+        __pyx_t_16 = __pyx_v_i;
+        __pyx_t_8 = PyFloat_FromDouble((*__Pyx_BufPtrStrided1d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer.buf, __pyx_t_16, __pyx_pybuffernd_yqs_arr.diminfo[0].strides))); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 390, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        if (unlikely((__Pyx_SetItemInt(__pyx_v_operating_point, 0, __pyx_t_8, long, 1, __Pyx_PyInt_From_long, 0, 0, 0) < 0))) __PYX_ERR(0, 390, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      }
+      __pyx_L26:;
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":391
+ *             else:
+ *                 operating_point[0] = yqs_arr[i]
+ *             if circuit_component._type_number >= 5:             # <<<<<<<<<<<<<<
+ *                 is_series = False
+ *                 if circuit_component.connection=="series":
+ */
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 391, __pyx_L16_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __pyx_t_5 = PyObject_RichCompare(__pyx_t_8, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_5); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 391, __pyx_L16_error)
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_5); if (unlikely((__pyx_t_2 < 0))) __PYX_ERR(0, 391, __pyx_L16_error)
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      if (__pyx_t_2) {
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":392
+ *                 operating_point[0] = yqs_arr[i]
+ *             if circuit_component._type_number >= 5:
+ *                 is_series = False             # <<<<<<<<<<<<<<
+ *                 if circuit_component.connection=="series":
+ *                     is_series = True
+ */
+        __pyx_v_is_series = 0;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":393
+ *             if circuit_component._type_number >= 5:
+ *                 is_series = False
+ *                 if circuit_component.connection=="series":             # <<<<<<<<<<<<<<
+ *                     is_series = True
+ *                 for child in circuit_component.subgroups:
+ */
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_connection); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 393, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __pyx_t_2 = (__Pyx_PyUnicode_Equals(__pyx_t_5, __pyx_n_u_series, Py_EQ)); if (unlikely((__pyx_t_2 < 0))) __PYX_ERR(0, 393, __pyx_L16_error)
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        if (__pyx_t_2) {
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":394
+ *                 is_series = False
+ *                 if circuit_component.connection=="series":
+ *                     is_series = True             # <<<<<<<<<<<<<<
+ *                 for child in circuit_component.subgroups:
+ *                     if is_series:
+ */
+          __pyx_v_is_series = 1;
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":393
+ *             if circuit_component._type_number >= 5:
+ *                 is_series = False
+ *                 if circuit_component.connection=="series":             # <<<<<<<<<<<<<<
+ *                     is_series = True
+ *                 for child in circuit_component.subgroups:
+ */
+        }
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":395
+ *                 if circuit_component.connection=="series":
+ *                     is_series = True
+ *                 for child in circuit_component.subgroups:             # <<<<<<<<<<<<<<
+ *                     if is_series:
+ *                         child.operating_point = [None, operating_point[1]]
+ */
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 395, __pyx_L16_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        if (likely(PyList_CheckExact(__pyx_t_5)) || PyTuple_CheckExact(__pyx_t_5)) {
+          __pyx_t_8 = __pyx_t_5; __Pyx_INCREF(__pyx_t_8);
+          __pyx_t_17 = 0;
+          __pyx_t_18 = NULL;
+        } else {
+          __pyx_t_17 = -1; __pyx_t_8 = PyObject_GetIter(__pyx_t_5); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 395, __pyx_L16_error)
+          __Pyx_GOTREF(__pyx_t_8);
+          __pyx_t_18 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_8); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 395, __pyx_L16_error)
+        }
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        for (;;) {
+          if (likely(!__pyx_t_18)) {
+            if (likely(PyList_CheckExact(__pyx_t_8))) {
+              {
+                Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_8);
+                #if !CYTHON_ASSUME_SAFE_MACROS
+                if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 395, __pyx_L16_error)
+                #endif
+                if (__pyx_t_17 >= __pyx_temp) break;
+              }
+              #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+              __pyx_t_5 = PyList_GET_ITEM(__pyx_t_8, __pyx_t_17); __Pyx_INCREF(__pyx_t_5); __pyx_t_17++; if (unlikely((0 < 0))) __PYX_ERR(0, 395, __pyx_L16_error)
+              #else
+              __pyx_t_5 = __Pyx_PySequence_ITEM(__pyx_t_8, __pyx_t_17); __pyx_t_17++; if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 395, __pyx_L16_error)
+              __Pyx_GOTREF(__pyx_t_5);
+              #endif
+            } else {
+              {
+                Py_ssize_t __pyx_temp = __Pyx_PyTuple_GET_SIZE(__pyx_t_8);
+                #if !CYTHON_ASSUME_SAFE_MACROS
+                if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 395, __pyx_L16_error)
+                #endif
+                if (__pyx_t_17 >= __pyx_temp) break;
+              }
+              #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+              __pyx_t_5 = PyTuple_GET_ITEM(__pyx_t_8, __pyx_t_17); __Pyx_INCREF(__pyx_t_5); __pyx_t_17++; if (unlikely((0 < 0))) __PYX_ERR(0, 395, __pyx_L16_error)
+              #else
+              __pyx_t_5 = __Pyx_PySequence_ITEM(__pyx_t_8, __pyx_t_17); __pyx_t_17++; if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 395, __pyx_L16_error)
+              __Pyx_GOTREF(__pyx_t_5);
+              #endif
+            }
+          } else {
+            __pyx_t_5 = __pyx_t_18(__pyx_t_8);
+            if (unlikely(!__pyx_t_5)) {
+              PyObject* exc_type = PyErr_Occurred();
+              if (exc_type) {
+                if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
+                else __PYX_ERR(0, 395, __pyx_L16_error)
+              }
+              break;
+            }
+            __Pyx_GOTREF(__pyx_t_5);
+          }
+          __Pyx_XDECREF_SET(__pyx_v_child, __pyx_t_5);
+          __pyx_t_5 = 0;
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":396
+ *                     is_series = True
+ *                 for child in circuit_component.subgroups:
+ *                     if is_series:             # <<<<<<<<<<<<<<
+ *                         child.operating_point = [None, operating_point[1]]
+ *                     else:
+ */
+          if (__pyx_v_is_series) {
+
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":397
+ *                 for child in circuit_component.subgroups:
+ *                     if is_series:
+ *                         child.operating_point = [None, operating_point[1]]             # <<<<<<<<<<<<<<
+ *                     else:
+ *                         child.operating_point = [operating_point[0], None]
+ */
+            __pyx_t_5 = __Pyx_GetItemInt(__pyx_v_operating_point, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 397, __pyx_L16_error)
+            __Pyx_GOTREF(__pyx_t_5);
+            __pyx_t_4 = PyList_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 397, __pyx_L16_error)
+            __Pyx_GOTREF(__pyx_t_4);
+            __Pyx_INCREF(Py_None);
+            __Pyx_GIVEREF(Py_None);
+            if (__Pyx_PyList_SET_ITEM(__pyx_t_4, 0, Py_None)) __PYX_ERR(0, 397, __pyx_L16_error);
+            __Pyx_GIVEREF(__pyx_t_5);
+            if (__Pyx_PyList_SET_ITEM(__pyx_t_4, 1, __pyx_t_5)) __PYX_ERR(0, 397, __pyx_L16_error);
+            __pyx_t_5 = 0;
+            if (__Pyx_PyObject_SetAttrStr(__pyx_v_child, __pyx_n_s_operating_point, __pyx_t_4) < 0) __PYX_ERR(0, 397, __pyx_L16_error)
+            __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+
+            /* "PV_Circuit_Model/ivkernel_wrapper.pyx":396
+ *                     is_series = True
+ *                 for child in circuit_component.subgroups:
+ *                     if is_series:             # <<<<<<<<<<<<<<
+ *                         child.operating_point = [None, operating_point[1]]
+ *                     else:
+ */
+            goto __pyx_L31;
+          }
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":399
+ *                         child.operating_point = [None, operating_point[1]]
+ *                     else:
+ *                         child.operating_point = [operating_point[0], None]             # <<<<<<<<<<<<<<
+ * 
+ *     finally:
+ */
+          /*else*/ {
+            __pyx_t_4 = __Pyx_GetItemInt(__pyx_v_operating_point, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 399, __pyx_L16_error)
+            __Pyx_GOTREF(__pyx_t_4);
+            __pyx_t_5 = PyList_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 399, __pyx_L16_error)
+            __Pyx_GOTREF(__pyx_t_5);
+            __Pyx_GIVEREF(__pyx_t_4);
+            if (__Pyx_PyList_SET_ITEM(__pyx_t_5, 0, __pyx_t_4)) __PYX_ERR(0, 399, __pyx_L16_error);
+            __Pyx_INCREF(Py_None);
+            __Pyx_GIVEREF(Py_None);
+            if (__Pyx_PyList_SET_ITEM(__pyx_t_5, 1, Py_None)) __PYX_ERR(0, 399, __pyx_L16_error);
+            __pyx_t_4 = 0;
+            if (__Pyx_PyObject_SetAttrStr(__pyx_v_child, __pyx_n_s_operating_point, __pyx_t_5) < 0) __PYX_ERR(0, 399, __pyx_L16_error)
+            __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+          }
+          __pyx_L31:;
+
+          /* "PV_Circuit_Model/ivkernel_wrapper.pyx":395
+ *                 if circuit_component.connection=="series":
+ *                     is_series = True
+ *                 for child in circuit_component.subgroups:             # <<<<<<<<<<<<<<
+ *                     if is_series:
+ *                         child.operating_point = [None, operating_point[1]]
+ */
+        }
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":391
+ *             else:
+ *                 operating_point[0] = yqs_arr[i]
+ *             if circuit_component._type_number >= 5:             # <<<<<<<<<<<<<<
+ *                 is_series = False
+ *                 if circuit_component.connection=="series":
+ */
+      }
+    }
+  }
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":402
+ * 
+ *     finally:
+ *         free(<void*> xs)             # <<<<<<<<<<<<<<
+ *         free(<void*> ys)
+ *         free(<void*> ns)
+ */
+  /*finally:*/ {
+    /*normal exit:*/{
+      free(((void *)__pyx_v_xs));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":403
+ *     finally:
+ *         free(<void*> xs)
+ *         free(<void*> ys)             # <<<<<<<<<<<<<<
+ *         free(<void*> ns)
+ *         free(<void*> yqs)
+ */
+      free(((void *)__pyx_v_ys));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":404
+ *         free(<void*> xs)
+ *         free(<void*> ys)
+ *         free(<void*> ns)             # <<<<<<<<<<<<<<
+ *         free(<void*> yqs)
+ *         free(<void*> known_is_V)
+ */
+      free(((void *)__pyx_v_ns));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":405
+ *         free(<void*> ys)
+ *         free(<void*> ns)
+ *         free(<void*> yqs)             # <<<<<<<<<<<<<<
+ *         free(<void*> known_is_V)
+ */
+      free(((void *)__pyx_v_yqs));
+
+      /* "PV_Circuit_Model/ivkernel_wrapper.pyx":406
+ *         free(<void*> ns)
+ *         free(<void*> yqs)
+ *         free(<void*> known_is_V)             # <<<<<<<<<<<<<<
+ */
+      free(((void *)__pyx_v_known_is_V));
+      goto __pyx_L17;
+    }
+    __pyx_L16_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0; __pyx_t_25 = 0; __pyx_t_26 = 0;
+      __PYX_XCLEAR_MEMVIEW(&__pyx_t_10, 1);
+      __pyx_t_10.memview = NULL; __pyx_t_10.data = NULL;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
+      if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_24, &__pyx_t_25, &__pyx_t_26);
+      if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_21, &__pyx_t_22, &__pyx_t_23) < 0)) __Pyx_ErrFetch(&__pyx_t_21, &__pyx_t_22, &__pyx_t_23);
+      __Pyx_XGOTREF(__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_23);
+      __Pyx_XGOTREF(__pyx_t_24);
+      __Pyx_XGOTREF(__pyx_t_25);
+      __Pyx_XGOTREF(__pyx_t_26);
+      __pyx_t_7 = __pyx_lineno; __pyx_t_19 = __pyx_clineno; __pyx_t_20 = __pyx_filename;
+      {
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":402
+ * 
+ *     finally:
+ *         free(<void*> xs)             # <<<<<<<<<<<<<<
+ *         free(<void*> ys)
+ *         free(<void*> ns)
+ */
+        free(((void *)__pyx_v_xs));
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":403
+ *     finally:
+ *         free(<void*> xs)
+ *         free(<void*> ys)             # <<<<<<<<<<<<<<
+ *         free(<void*> ns)
+ *         free(<void*> yqs)
+ */
+        free(((void *)__pyx_v_ys));
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":404
+ *         free(<void*> xs)
+ *         free(<void*> ys)
+ *         free(<void*> ns)             # <<<<<<<<<<<<<<
+ *         free(<void*> yqs)
+ *         free(<void*> known_is_V)
+ */
+        free(((void *)__pyx_v_ns));
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":405
+ *         free(<void*> ys)
+ *         free(<void*> ns)
+ *         free(<void*> yqs)             # <<<<<<<<<<<<<<
+ *         free(<void*> known_is_V)
+ */
+        free(((void *)__pyx_v_yqs));
+
+        /* "PV_Circuit_Model/ivkernel_wrapper.pyx":406
+ *         free(<void*> ns)
+ *         free(<void*> yqs)
+ *         free(<void*> known_is_V)             # <<<<<<<<<<<<<<
+ */
+        free(((void *)__pyx_v_known_is_V));
+      }
+      if (PY_MAJOR_VERSION >= 3) {
+        __Pyx_XGIVEREF(__pyx_t_24);
+        __Pyx_XGIVEREF(__pyx_t_25);
+        __Pyx_XGIVEREF(__pyx_t_26);
+        __Pyx_ExceptionReset(__pyx_t_24, __pyx_t_25, __pyx_t_26);
+      }
+      __Pyx_XGIVEREF(__pyx_t_21);
+      __Pyx_XGIVEREF(__pyx_t_22);
+      __Pyx_XGIVEREF(__pyx_t_23);
+      __Pyx_ErrRestore(__pyx_t_21, __pyx_t_22, __pyx_t_23);
+      __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0; __pyx_t_25 = 0; __pyx_t_26 = 0;
+      __pyx_lineno = __pyx_t_7; __pyx_clineno = __pyx_t_19; __pyx_filename = __pyx_t_20;
+      goto __pyx_L1_error;
+    }
+    __pyx_L17:;
+  }
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":313
+ *     return kernel_ms, packing_time, unpacking_time
+ * 
+ * def run_multiple_operating_points(components, bint parallel=False):             # <<<<<<<<<<<<<<
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:
+ */
+
+  /* function exit code */
+  __pyx_r = Py_None; __Pyx_INCREF(Py_None);
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_8);
+  __PYX_XCLEAR_MEMVIEW(&__pyx_t_10, 1);
+  { PyObject *__pyx_type, *__pyx_value, *__pyx_tb;
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    __Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_xqs_arr.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer);
+  __Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}
+  __Pyx_AddTraceback("PV_Circuit_Model.ivkernel.run_multiple_operating_points", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  goto __pyx_L2;
+  __pyx_L0:;
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_xqs_arr.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_yqs_arr.rcbuffer->pybuffer);
+  __pyx_L2:;
+  __Pyx_XDECREF((PyObject *)__pyx_v_yqs_arr);
+  __PYX_XCLEAR_MEMVIEW(&__pyx_v_yqs_mv, 1);
+  __Pyx_XDECREF((PyObject *)__pyx_v_xqs_arr);
+  __PYX_XCLEAR_MEMVIEW(&__pyx_v_xqs_mv, 1);
+  __PYX_XCLEAR_MEMVIEW(&__pyx_v_xmv, 1);
+  __PYX_XCLEAR_MEMVIEW(&__pyx_v_ymv, 1);
+  __Pyx_XDECREF(__pyx_v_circuit_component);
+  __Pyx_XDECREF(__pyx_v_operating_point);
+  __Pyx_XDECREF(__pyx_v_child);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -23510,7 +24873,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_ValueError, __pyx_k_ValueError, sizeof(__pyx_k_ValueError), 0, 0, 1, 1},
     {&__pyx_n_s_View_MemoryView, __pyx_k_View_MemoryView, sizeof(__pyx_k_View_MemoryView), 0, 0, 1, 1},
     {&__pyx_kp_u__2, __pyx_k__2, sizeof(__pyx_k__2), 0, 1, 0, 0},
-    {&__pyx_n_s__25, __pyx_k__25, sizeof(__pyx_k__25), 0, 0, 1, 1},
+    {&__pyx_n_s__28, __pyx_k__28, sizeof(__pyx_k__28), 0, 0, 1, 1},
     {&__pyx_n_s__3, __pyx_k__3, sizeof(__pyx_k__3), 0, 0, 1, 1},
     {&__pyx_kp_u__6, __pyx_k__6, sizeof(__pyx_k__6), 0, 1, 0, 0},
     {&__pyx_kp_u__7, __pyx_k__7, sizeof(__pyx_k__7), 0, 1, 0, 0},
@@ -23533,6 +24896,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_c, __pyx_k_c, sizeof(__pyx_k_c), 0, 0, 1, 1},
     {&__pyx_n_u_c, __pyx_k_c, sizeof(__pyx_k_c), 0, 1, 0, 1},
     {&__pyx_n_s_c_out_len_all, __pyx_k_c_out_len_all, sizeof(__pyx_k_c_out_len_all), 0, 0, 1, 1},
+    {&__pyx_n_s_child, __pyx_k_child, sizeof(__pyx_k_child), 0, 0, 1, 1},
     {&__pyx_n_s_child_base, __pyx_k_child_base, sizeof(__pyx_k_child_base), 0, 0, 1, 1},
     {&__pyx_n_s_children_views, __pyx_k_children_views, sizeof(__pyx_k_children_views), 0, 0, 1, 1},
     {&__pyx_n_s_circuit_component, __pyx_k_circuit_component, sizeof(__pyx_k_circuit_component), 0, 0, 1, 1},
@@ -23575,12 +24939,14 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_initializing, __pyx_k_initializing, sizeof(__pyx_k_initializing), 0, 0, 1, 1},
     {&__pyx_n_s_int32, __pyx_k_int32, sizeof(__pyx_k_int32), 0, 0, 1, 1},
     {&__pyx_n_s_is_coroutine, __pyx_k_is_coroutine, sizeof(__pyx_k_is_coroutine), 0, 0, 1, 1},
+    {&__pyx_n_s_is_series, __pyx_k_is_series, sizeof(__pyx_k_is_series), 0, 0, 1, 1},
     {&__pyx_kp_u_isenabled, __pyx_k_isenabled, sizeof(__pyx_k_isenabled), 0, 1, 0, 0},
     {&__pyx_n_s_itemsize, __pyx_k_itemsize, sizeof(__pyx_k_itemsize), 0, 0, 1, 1},
     {&__pyx_kp_s_itemsize_0_for_cython_array, __pyx_k_itemsize_0_for_cython_array, sizeof(__pyx_k_itemsize_0_for_cython_array), 0, 0, 1, 0},
     {&__pyx_n_s_j, __pyx_k_j, sizeof(__pyx_k_j), 0, 0, 1, 1},
     {&__pyx_n_s_jobs_c, __pyx_k_jobs_c, sizeof(__pyx_k_jobs_c), 0, 0, 1, 1},
     {&__pyx_n_s_kernel_ms, __pyx_k_kernel_ms, sizeof(__pyx_k_kernel_ms), 0, 0, 1, 1},
+    {&__pyx_n_s_known_is_V, __pyx_k_known_is_V, sizeof(__pyx_k_known_is_V), 0, 0, 1, 1},
     {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
     {&__pyx_n_s_max_I, __pyx_k_max_I, sizeof(__pyx_k_max_I), 0, 0, 1, 1},
     {&__pyx_n_s_max_num_points, __pyx_k_max_num_points, sizeof(__pyx_k_max_num_points), 0, 0, 1, 1},
@@ -23608,6 +24974,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_ni, __pyx_k_ni, sizeof(__pyx_k_ni), 0, 0, 1, 1},
     {&__pyx_kp_s_no_default___reduce___due_to_non, __pyx_k_no_default___reduce___due_to_non, sizeof(__pyx_k_no_default___reduce___due_to_non), 0, 0, 1, 0},
     {&__pyx_n_s_np, __pyx_k_np, sizeof(__pyx_k_np), 0, 0, 1, 1},
+    {&__pyx_n_s_ns, __pyx_k_ns, sizeof(__pyx_k_ns), 0, 0, 1, 1},
     {&__pyx_n_s_numpy, __pyx_k_numpy, sizeof(__pyx_k_numpy), 0, 0, 1, 1},
     {&__pyx_kp_u_numpy_core_multiarray_failed_to, __pyx_k_numpy_core_multiarray_failed_to, sizeof(__pyx_k_numpy_core_multiarray_failed_to), 0, 1, 0, 0},
     {&__pyx_kp_u_numpy_core_umath_failed_to_impor, __pyx_k_numpy_core_umath_failed_to_impor, sizeof(__pyx_k_numpy_core_umath_failed_to_impor), 0, 1, 0, 0},
@@ -23641,6 +25008,8 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_refine_mode, __pyx_k_refine_mode, sizeof(__pyx_k_refine_mode), 0, 0, 1, 1},
     {&__pyx_n_s_register, __pyx_k_register, sizeof(__pyx_k_register), 0, 0, 1, 1},
     {&__pyx_n_s_run_multiple_jobs, __pyx_k_run_multiple_jobs, sizeof(__pyx_k_run_multiple_jobs), 0, 0, 1, 1},
+    {&__pyx_n_s_run_multiple_operating_points, __pyx_k_run_multiple_operating_points, sizeof(__pyx_k_run_multiple_operating_points), 0, 0, 1, 1},
+    {&__pyx_n_u_series, __pyx_k_series, sizeof(__pyx_k_series), 0, 1, 0, 1},
     {&__pyx_n_s_setstate, __pyx_k_setstate, sizeof(__pyx_k_setstate), 0, 0, 1, 1},
     {&__pyx_n_s_setstate_cython, __pyx_k_setstate_cython, sizeof(__pyx_k_setstate_cython), 0, 0, 1, 1},
     {&__pyx_n_s_shape, __pyx_k_shape, sizeof(__pyx_k_shape), 0, 0, 1, 1},
@@ -23671,6 +25040,15 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_unpacking_time, __pyx_k_unpacking_time, sizeof(__pyx_k_unpacking_time), 0, 0, 1, 1},
     {&__pyx_n_s_update, __pyx_k_update, sizeof(__pyx_k_update), 0, 0, 1, 1},
     {&__pyx_n_s_version_info, __pyx_k_version_info, sizeof(__pyx_k_version_info), 0, 0, 1, 1},
+    {&__pyx_n_s_xmv, __pyx_k_xmv, sizeof(__pyx_k_xmv), 0, 0, 1, 1},
+    {&__pyx_n_s_xqs_arr, __pyx_k_xqs_arr, sizeof(__pyx_k_xqs_arr), 0, 0, 1, 1},
+    {&__pyx_n_s_xqs_mv, __pyx_k_xqs_mv, sizeof(__pyx_k_xqs_mv), 0, 0, 1, 1},
+    {&__pyx_n_s_xs, __pyx_k_xs, sizeof(__pyx_k_xs), 0, 0, 1, 1},
+    {&__pyx_n_s_ymv, __pyx_k_ymv, sizeof(__pyx_k_ymv), 0, 0, 1, 1},
+    {&__pyx_n_s_yqs, __pyx_k_yqs, sizeof(__pyx_k_yqs), 0, 0, 1, 1},
+    {&__pyx_n_s_yqs_arr, __pyx_k_yqs_arr, sizeof(__pyx_k_yqs_arr), 0, 0, 1, 1},
+    {&__pyx_n_s_yqs_mv, __pyx_k_yqs_mv, sizeof(__pyx_k_yqs_mv), 0, 0, 1, 1},
+    {&__pyx_n_s_ys, __pyx_k_ys, sizeof(__pyx_k_ys), 0, 0, 1, 1},
     {&__pyx_n_s_zeros, __pyx_k_zeros, sizeof(__pyx_k_zeros), 0, 0, 1, 1},
     {0, 0, 0, 0, 0, 0, 0}
   };
@@ -23678,10 +25056,10 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
 }
 /* #### Code section: cached_builtins ### */
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(0, 54, __pyx_L1_error)
-  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 66, __pyx_L1_error)
-  __pyx_builtin_AttributeError = __Pyx_GetBuiltinName(__pyx_n_s_AttributeError); if (!__pyx_builtin_AttributeError) __PYX_ERR(0, 142, __pyx_L1_error)
-  __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 290, __pyx_L1_error)
+  __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(0, 64, __pyx_L1_error)
+  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 76, __pyx_L1_error)
+  __pyx_builtin_AttributeError = __Pyx_GetBuiltinName(__pyx_n_s_AttributeError); if (!__pyx_builtin_AttributeError) __PYX_ERR(0, 152, __pyx_L1_error)
+  __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 300, __pyx_L1_error)
   __pyx_builtin___import__ = __Pyx_GetBuiltinName(__pyx_n_s_import); if (!__pyx_builtin___import__) __PYX_ERR(1, 100, __pyx_L1_error)
   __pyx_builtin_enumerate = __Pyx_GetBuiltinName(__pyx_n_s_enumerate); if (!__pyx_builtin_enumerate) __PYX_ERR(1, 159, __pyx_L1_error)
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(1, 2, __pyx_L1_error)
@@ -23758,6 +25136,17 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__10);
   __Pyx_GIVEREF(__pyx_tuple__10);
 
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":316
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:
+ *         return np.empty(0, dtype=np.float64)             # <<<<<<<<<<<<<<
+ * 
+ *     cdef int parallel_ = 1 if parallel else 0
+ */
+  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_int_0); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(0, 316, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__11);
+  __Pyx_GIVEREF(__pyx_tuple__11);
+
   /* "View.MemoryView":100
  * cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
  * try:
@@ -23765,12 +25154,12 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  *         __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
  *     else:
  */
-  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_n_s_sys); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(1, 100, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__11);
-  __Pyx_GIVEREF(__pyx_tuple__11);
-  __pyx_tuple__12 = PyTuple_Pack(2, __pyx_int_3, __pyx_int_3); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(1, 100, __pyx_L1_error)
+  __pyx_tuple__12 = PyTuple_Pack(1, __pyx_n_s_sys); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(1, 100, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__12);
   __Pyx_GIVEREF(__pyx_tuple__12);
+  __pyx_tuple__13 = PyTuple_Pack(2, __pyx_int_3, __pyx_int_3); if (unlikely(!__pyx_tuple__13)) __PYX_ERR(1, 100, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__13);
+  __Pyx_GIVEREF(__pyx_tuple__13);
 
   /* "View.MemoryView":101
  * try:
@@ -23779,9 +25168,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  *     else:
  *         __pyx_collections_abc_Sequence = __import__("collections").Sequence
  */
-  __pyx_tuple__13 = PyTuple_Pack(1, __pyx_kp_s_collections_abc); if (unlikely(!__pyx_tuple__13)) __PYX_ERR(1, 101, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__13);
-  __Pyx_GIVEREF(__pyx_tuple__13);
+  __pyx_tuple__14 = PyTuple_Pack(1, __pyx_kp_s_collections_abc); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(1, 101, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__14);
+  __Pyx_GIVEREF(__pyx_tuple__14);
 
   /* "View.MemoryView":103
  *         __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
@@ -23790,9 +25179,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * except:
  * 
  */
-  __pyx_tuple__14 = PyTuple_Pack(1, __pyx_n_s_collections); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(1, 103, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__14);
-  __Pyx_GIVEREF(__pyx_tuple__14);
+  __pyx_tuple__15 = PyTuple_Pack(1, __pyx_n_s_collections); if (unlikely(!__pyx_tuple__15)) __PYX_ERR(1, 103, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__15);
+  __Pyx_GIVEREF(__pyx_tuple__15);
 
   /* "View.MemoryView":309
  *         return self.name
@@ -23801,9 +25190,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * cdef strided = Enum("<strided and direct>") # default
  * cdef indirect = Enum("<strided and indirect>")
  */
-  __pyx_tuple__15 = PyTuple_Pack(1, __pyx_kp_s_strided_and_direct_or_indirect); if (unlikely(!__pyx_tuple__15)) __PYX_ERR(1, 309, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__15);
-  __Pyx_GIVEREF(__pyx_tuple__15);
+  __pyx_tuple__16 = PyTuple_Pack(1, __pyx_kp_s_strided_and_direct_or_indirect); if (unlikely(!__pyx_tuple__16)) __PYX_ERR(1, 309, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__16);
+  __Pyx_GIVEREF(__pyx_tuple__16);
 
   /* "View.MemoryView":310
  * 
@@ -23812,9 +25201,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * cdef indirect = Enum("<strided and indirect>")
  * 
  */
-  __pyx_tuple__16 = PyTuple_Pack(1, __pyx_kp_s_strided_and_direct); if (unlikely(!__pyx_tuple__16)) __PYX_ERR(1, 310, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__16);
-  __Pyx_GIVEREF(__pyx_tuple__16);
+  __pyx_tuple__17 = PyTuple_Pack(1, __pyx_kp_s_strided_and_direct); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(1, 310, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__17);
+  __Pyx_GIVEREF(__pyx_tuple__17);
 
   /* "View.MemoryView":311
  * cdef generic = Enum("<strided and direct or indirect>")
@@ -23823,9 +25212,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * 
  * 
  */
-  __pyx_tuple__17 = PyTuple_Pack(1, __pyx_kp_s_strided_and_indirect); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(1, 311, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__17);
-  __Pyx_GIVEREF(__pyx_tuple__17);
+  __pyx_tuple__18 = PyTuple_Pack(1, __pyx_kp_s_strided_and_indirect); if (unlikely(!__pyx_tuple__18)) __PYX_ERR(1, 311, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__18);
+  __Pyx_GIVEREF(__pyx_tuple__18);
 
   /* "View.MemoryView":314
  * 
@@ -23834,9 +25223,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * cdef indirect_contiguous = Enum("<contiguous and indirect>")
  * 
  */
-  __pyx_tuple__18 = PyTuple_Pack(1, __pyx_kp_s_contiguous_and_direct); if (unlikely(!__pyx_tuple__18)) __PYX_ERR(1, 314, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__18);
-  __Pyx_GIVEREF(__pyx_tuple__18);
+  __pyx_tuple__19 = PyTuple_Pack(1, __pyx_kp_s_contiguous_and_direct); if (unlikely(!__pyx_tuple__19)) __PYX_ERR(1, 314, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__19);
+  __Pyx_GIVEREF(__pyx_tuple__19);
 
   /* "View.MemoryView":315
  * 
@@ -23845,34 +25234,46 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * 
  * 
  */
-  __pyx_tuple__19 = PyTuple_Pack(1, __pyx_kp_s_contiguous_and_indirect); if (unlikely(!__pyx_tuple__19)) __PYX_ERR(1, 315, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__19);
-  __Pyx_GIVEREF(__pyx_tuple__19);
+  __pyx_tuple__20 = PyTuple_Pack(1, __pyx_kp_s_contiguous_and_indirect); if (unlikely(!__pyx_tuple__20)) __PYX_ERR(1, 315, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__20);
+  __Pyx_GIVEREF(__pyx_tuple__20);
 
   /* "(tree fragment)":1
  * def __pyx_unpickle_Enum(__pyx_type, long __pyx_checksum, __pyx_state):             # <<<<<<<<<<<<<<
  *     cdef object __pyx_PickleError
  *     cdef object __pyx_result
  */
-  __pyx_tuple__20 = PyTuple_Pack(5, __pyx_n_s_pyx_type, __pyx_n_s_pyx_checksum, __pyx_n_s_pyx_state, __pyx_n_s_pyx_PickleError, __pyx_n_s_pyx_result); if (unlikely(!__pyx_tuple__20)) __PYX_ERR(1, 1, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__20);
-  __Pyx_GIVEREF(__pyx_tuple__20);
-  __pyx_codeobj__21 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 5, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__20, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_pyx_unpickle_Enum, 1, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__21)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __pyx_tuple__21 = PyTuple_Pack(5, __pyx_n_s_pyx_type, __pyx_n_s_pyx_checksum, __pyx_n_s_pyx_state, __pyx_n_s_pyx_PickleError, __pyx_n_s_pyx_result); if (unlikely(!__pyx_tuple__21)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__21);
+  __Pyx_GIVEREF(__pyx_tuple__21);
+  __pyx_codeobj__22 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 5, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__21, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_pyx_unpickle_Enum, 1, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__22)) __PYX_ERR(1, 1, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":41
- *     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":51
+ *     ) nogil
  * 
  * def run_multiple_jobs(components,refine_mode=False,parallel=False):             # <<<<<<<<<<<<<<
  * 
  *     parallel_ = 0
  */
-  __pyx_tuple__22 = PyTuple_Pack(59, __pyx_n_s_components, __pyx_n_s_refine_mode, __pyx_n_s_parallel, __pyx_n_s_parallel_2, __pyx_n_s_n_jobs, __pyx_n_s_PARAMS_LEN, __pyx_n_s_params_all, __pyx_n_s_mv_params_all, __pyx_n_s_jobs_c, __pyx_n_s_out_len_array, __pyx_n_s_mv_out_len, __pyx_n_s_c_out_len_all, __pyx_n_s_total_children, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_circuit_component, __pyx_n_s_children_views, __pyx_n_s_pc_children_views, __pyx_n_s_mv_child_v, __pyx_n_s_mv_child_pc_v, __pyx_n_s_mv_child_i, __pyx_n_s_mv_child_pc_i, __pyx_n_s_mv_params, __pyx_n_s_mv_outV, __pyx_n_s_mv_outI, __pyx_n_s_circuit_component_type_number, __pyx_n_s_type_number_2, __pyx_n_s_n_children, __pyx_n_s_Ni, __pyx_n_s_abs_max_num_points, __pyx_n_s_area, __pyx_n_s_child_base, __pyx_n_s_kernel_ms, __pyx_n_s_olen, __pyx_n_s_tmp, __pyx_n_s_mv_big_v, __pyx_n_s_mv_big_i, __pyx_n_s_base, __pyx_n_s_stride_job, __pyx_n_s_offset, __pyx_n_s_sum_abs_max_num_points, __pyx_n_s_t1, __pyx_n_s_subgroups, __pyx_n_s_max_I, __pyx_n_s_base_type_number, __pyx_n_s_max_num_points, __pyx_n_s_connection, __pyx_n_s_element, __pyx_n_s_abs_max_num_points_multipier, __pyx_n_s_element_area, __pyx_n_s_photon_coupling_diodes, __pyx_n_s_op_pt_V, __pyx_n_s_op_pt, __pyx_n_s_big_out_V, __pyx_n_s_big_out_I, __pyx_n_s_base_v, __pyx_n_s_base_i, __pyx_n_s_packing_time, __pyx_n_s_unpacking_time); if (unlikely(!__pyx_tuple__22)) __PYX_ERR(0, 41, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__22);
-  __Pyx_GIVEREF(__pyx_tuple__22);
-  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 59, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_ivkernel_wrappe, __pyx_n_s_run_multiple_jobs, 41, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 41, __pyx_L1_error)
-  __pyx_tuple__24 = PyTuple_Pack(2, ((PyObject *)Py_False), ((PyObject *)Py_False)); if (unlikely(!__pyx_tuple__24)) __PYX_ERR(0, 41, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__24);
-  __Pyx_GIVEREF(__pyx_tuple__24);
+  __pyx_tuple__23 = PyTuple_Pack(59, __pyx_n_s_components, __pyx_n_s_refine_mode, __pyx_n_s_parallel, __pyx_n_s_parallel_2, __pyx_n_s_n_jobs, __pyx_n_s_PARAMS_LEN, __pyx_n_s_params_all, __pyx_n_s_mv_params_all, __pyx_n_s_jobs_c, __pyx_n_s_out_len_array, __pyx_n_s_mv_out_len, __pyx_n_s_c_out_len_all, __pyx_n_s_total_children, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_circuit_component, __pyx_n_s_children_views, __pyx_n_s_pc_children_views, __pyx_n_s_mv_child_v, __pyx_n_s_mv_child_pc_v, __pyx_n_s_mv_child_i, __pyx_n_s_mv_child_pc_i, __pyx_n_s_mv_params, __pyx_n_s_mv_outV, __pyx_n_s_mv_outI, __pyx_n_s_circuit_component_type_number, __pyx_n_s_type_number_2, __pyx_n_s_n_children, __pyx_n_s_Ni, __pyx_n_s_abs_max_num_points, __pyx_n_s_area, __pyx_n_s_child_base, __pyx_n_s_kernel_ms, __pyx_n_s_olen, __pyx_n_s_tmp, __pyx_n_s_mv_big_v, __pyx_n_s_mv_big_i, __pyx_n_s_base, __pyx_n_s_stride_job, __pyx_n_s_offset, __pyx_n_s_sum_abs_max_num_points, __pyx_n_s_t1, __pyx_n_s_subgroups, __pyx_n_s_max_I, __pyx_n_s_base_type_number, __pyx_n_s_max_num_points, __pyx_n_s_connection, __pyx_n_s_element, __pyx_n_s_abs_max_num_points_multipier, __pyx_n_s_element_area, __pyx_n_s_photon_coupling_diodes, __pyx_n_s_op_pt_V, __pyx_n_s_op_pt, __pyx_n_s_big_out_V, __pyx_n_s_big_out_I, __pyx_n_s_base_v, __pyx_n_s_base_i, __pyx_n_s_packing_time, __pyx_n_s_unpacking_time); if (unlikely(!__pyx_tuple__23)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__23);
+  __Pyx_GIVEREF(__pyx_tuple__23);
+  __pyx_codeobj__24 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 59, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__23, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_ivkernel_wrappe, __pyx_n_s_run_multiple_jobs, 51, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__24)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_tuple__25 = PyTuple_Pack(2, ((PyObject *)Py_False), ((PyObject *)Py_False)); if (unlikely(!__pyx_tuple__25)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__25);
+  __Pyx_GIVEREF(__pyx_tuple__25);
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":313
+ *     return kernel_ms, packing_time, unpacking_time
+ * 
+ * def run_multiple_operating_points(components, bint parallel=False):             # <<<<<<<<<<<<<<
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:
+ */
+  __pyx_tuple__26 = PyTuple_Pack(20, __pyx_n_s_components, __pyx_n_s_parallel, __pyx_n_s_n_jobs, __pyx_n_s_parallel_2, __pyx_n_s_yqs_arr, __pyx_n_s_yqs_mv, __pyx_n_s_xqs_arr, __pyx_n_s_xqs_mv, __pyx_n_s_xs, __pyx_n_s_ys, __pyx_n_s_ns, __pyx_n_s_yqs, __pyx_n_s_known_is_V, __pyx_n_s_i, __pyx_n_s_xmv, __pyx_n_s_ymv, __pyx_n_s_circuit_component, __pyx_n_s_operating_point, __pyx_n_s_is_series, __pyx_n_s_child); if (unlikely(!__pyx_tuple__26)) __PYX_ERR(0, 313, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__26);
+  __Pyx_GIVEREF(__pyx_tuple__26);
+  __pyx_codeobj__27 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 20, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__26, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_ivkernel_wrappe, __pyx_n_s_run_multiple_operating_points, 313, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__27)) __PYX_ERR(0, 313, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -24494,12 +25895,12 @@ if (!__Pyx_RefNanny) {
  *         __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
  *     else:
  */
-      __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin___import__, __pyx_tuple__11, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 100, __pyx_L2_error)
+      __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin___import__, __pyx_tuple__12, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 100, __pyx_L2_error)
       __Pyx_GOTREF(__pyx_t_4);
       __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_version_info); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 100, __pyx_L2_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = PyObject_RichCompare(__pyx_t_5, __pyx_tuple__12, Py_GE); __Pyx_XGOTREF(__pyx_t_4); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 100, __pyx_L2_error)
+      __pyx_t_4 = PyObject_RichCompare(__pyx_t_5, __pyx_tuple__13, Py_GE); __Pyx_XGOTREF(__pyx_t_4); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 100, __pyx_L2_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_4); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(1, 100, __pyx_L2_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
@@ -24512,7 +25913,7 @@ if (!__Pyx_RefNanny) {
  *     else:
  *         __pyx_collections_abc_Sequence = __import__("collections").Sequence
  */
-        __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin___import__, __pyx_tuple__13, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 101, __pyx_L2_error)
+        __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin___import__, __pyx_tuple__14, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 101, __pyx_L2_error)
         __Pyx_GOTREF(__pyx_t_4);
         __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_abc); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 101, __pyx_L2_error)
         __Pyx_GOTREF(__pyx_t_5);
@@ -24543,7 +25944,7 @@ if (!__Pyx_RefNanny) {
  * 
  */
       /*else*/ {
-        __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin___import__, __pyx_tuple__14, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 103, __pyx_L2_error)
+        __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin___import__, __pyx_tuple__15, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 103, __pyx_L2_error)
         __Pyx_GOTREF(__pyx_t_4);
         __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_Sequence); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 103, __pyx_L2_error)
         __Pyx_GOTREF(__pyx_t_5);
@@ -24708,7 +26109,7 @@ if (!__Pyx_RefNanny) {
  * cdef strided = Enum("<strided and direct>") # default
  * cdef indirect = Enum("<strided and indirect>")
  */
-  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__15, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 309, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__16, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 309, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_XGOTREF(generic);
   __Pyx_DECREF_SET(generic, __pyx_t_7);
@@ -24722,7 +26123,7 @@ if (!__Pyx_RefNanny) {
  * cdef indirect = Enum("<strided and indirect>")
  * 
  */
-  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__16, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 310, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__17, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 310, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_XGOTREF(strided);
   __Pyx_DECREF_SET(strided, __pyx_t_7);
@@ -24736,7 +26137,7 @@ if (!__Pyx_RefNanny) {
  * 
  * 
  */
-  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__17, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 311, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__18, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_XGOTREF(indirect);
   __Pyx_DECREF_SET(indirect, __pyx_t_7);
@@ -24750,7 +26151,7 @@ if (!__Pyx_RefNanny) {
  * cdef indirect_contiguous = Enum("<contiguous and indirect>")
  * 
  */
-  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__18, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 314, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__19, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_XGOTREF(contiguous);
   __Pyx_DECREF_SET(contiguous, __pyx_t_7);
@@ -24764,7 +26165,7 @@ if (!__Pyx_RefNanny) {
  * 
  * 
  */
-  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__19, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 315, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(((PyObject *)__pyx_MemviewEnum_type), __pyx_tuple__20, NULL); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 315, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_XGOTREF(indirect_contiguous);
   __Pyx_DECREF_SET(indirect_contiguous, __pyx_t_7);
@@ -25008,17 +26409,38 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_7) < 0) __PYX_ERR(0, 11, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":41
- *     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":51
+ *     ) nogil
  * 
  * def run_multiple_jobs(components,refine_mode=False,parallel=False):             # <<<<<<<<<<<<<<
  * 
  *     parallel_ = 0
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_8ivkernel_1run_multiple_jobs, 0, __pyx_n_s_run_multiple_jobs, NULL, __pyx_n_s_PV_Circuit_Model_ivkernel, __pyx_d, ((PyObject *)__pyx_codeobj__23)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 41, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_8ivkernel_1run_multiple_jobs, 0, __pyx_n_s_run_multiple_jobs, NULL, __pyx_n_s_PV_Circuit_Model_ivkernel, __pyx_d, ((PyObject *)__pyx_codeobj__24)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 51, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_7, __pyx_tuple__24);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_run_multiple_jobs, __pyx_t_7) < 0) __PYX_ERR(0, 41, __pyx_L1_error)
+  __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_7, __pyx_tuple__25);
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_run_multiple_jobs, __pyx_t_7) < 0) __PYX_ERR(0, 51, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+
+  /* "PV_Circuit_Model/ivkernel_wrapper.pyx":313
+ *     return kernel_ms, packing_time, unpacking_time
+ * 
+ * def run_multiple_operating_points(components, bint parallel=False):             # <<<<<<<<<<<<<<
+ *     cdef Py_ssize_t n_jobs = len(components)
+ *     if n_jobs == 0:
+ */
+  __pyx_t_7 = __Pyx_PyBool_FromLong(((int)0)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 313, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_7);
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 313, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __Pyx_GIVEREF(__pyx_t_7);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_7)) __PYX_ERR(0, 313, __pyx_L1_error);
+  __pyx_t_7 = 0;
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_8ivkernel_3run_multiple_operating_points, 0, __pyx_n_s_run_multiple_operating_points, NULL, __pyx_n_s_PV_Circuit_Model_ivkernel, __pyx_d, ((PyObject *)__pyx_codeobj__27)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 313, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_7);
+  __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_7, __pyx_t_4);
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_run_multiple_operating_points, __pyx_t_7) < 0) __PYX_ERR(0, 313, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
   /* "PV_Circuit_Model/ivkernel_wrapper.pyx":1
@@ -31081,6 +32503,29 @@ __pyx_fail:
     return result;
 }
 
+/* ObjectToMemviewSlice */
+  static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_ds_double(PyObject *obj, int writable_flag) {
+    __Pyx_memviewslice result = { 0, 0, { 0 }, { 0 }, { 0 } };
+    __Pyx_BufFmt_StackElem stack[1];
+    int axes_specs[] = { (__Pyx_MEMVIEW_DIRECT | __Pyx_MEMVIEW_STRIDED) };
+    int retcode;
+    if (obj == Py_None) {
+        result.memview = (struct __pyx_memoryview_obj *) Py_None;
+        return result;
+    }
+    retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, 0,
+                                                 PyBUF_RECORDS_RO | writable_flag, 1,
+                                                 &__Pyx_TypeInfo_double, stack,
+                                                 &result, obj);
+    if (unlikely(retcode == -1))
+        goto __pyx_fail;
+    return result;
+__pyx_fail:
+    result.memview = NULL;
+    result.data = NULL;
+    return result;
+}
+
 /* Declarations */
   #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
   #ifdef __cplusplus
@@ -32548,7 +33993,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
         Py_XDECREF(name);
-        name = __Pyx_NewRef(__pyx_n_s__25);
+        name = __Pyx_NewRef(__pyx_n_s__28);
     }
     return name;
 }
