@@ -19,128 +19,38 @@ def set_parallel_mode(enabled: bool):
 
 cdef class IV_Job_Heap:
     cdef public list components
+    cdef list min_child_id
     cdef Py_ssize_t job_done_index
     cdef Py_ssize_t n_components
 
-    # C child layout
-    cdef Py_ssize_t* child_offsets
-    cdef int*        child_counts
-    cdef int*        child_ids
-    cdef int*        min_child_id
-    cdef Py_ssize_t  total_children
-
     def __cinit__(self, object circuit_component):
         # initialize pointers to NULL so __dealloc__ is safe
-        self.child_offsets = NULL
-        self.child_counts  = NULL
-        self.child_ids     = NULL
-        self.min_child_id  = NULL
-        self.total_children = 0
         self.n_components   = 0
-
         self.components = [circuit_component]
+        self.min_child_id = [-1]
         self.job_done_index = 1  # will reset in build()
 
     def __init__(self, object circuit_component):
         # build the heap structure
         self.build()
 
-    def __dealloc__(self):
-        if self.child_offsets != NULL:
-            free(<void*> self.child_offsets)
-        if self.child_counts != NULL:
-            free(<void*> self.child_counts)
-        if self.child_ids != NULL:
-            free(<void*> self.child_ids)
-        if self.min_child_id != NULL:
-            free(<void*> self.min_child_id)
-
     cpdef void build(self):
         cdef Py_ssize_t pos = 0
+        cdef Py_ssize_t child_idx
         cdef object circuit_component, subgroups, element
-
-        # First, BFS and collect children as Python list-of-lists
-        cdef list children_lists = [[]]  # children_lists[i] -> list of child indices
 
         while pos < len(self.components):
             circuit_component = self.components[pos]
             if circuit_component._type_number >= 5: # is circuitgroup
                 for element in circuit_component.subgroups:
+                    child_idx = len(self.components)
                     self.components.append(element)
-                    children_lists.append([])
-                    children_lists[pos].append(len(self.components) - 1)
+                    self.min_child_id.append(-1)
+                    if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:
+                        self.min_child_id[pos] = child_idx
             pos += 1
-
         self.n_components = len(self.components)
         self.job_done_index = self.n_components
-
-        # Free any old C arrays if build() is called again
-        if self.child_offsets != NULL:
-            free(<void*> self.child_offsets)
-            self.child_offsets = NULL
-        if self.child_counts != NULL:
-            free(<void*> self.child_counts)
-            self.child_counts = NULL
-        if self.child_ids != NULL:
-            free(<void*> self.child_ids)
-            self.child_ids = NULL
-        if self.min_child_id != NULL:
-            free(<void*> self.min_child_id)
-            self.min_child_id = NULL
-
-        # Flatten children_lists into C arrays
-        self._build_child_arrays(children_lists)
-
-    cdef void _build_child_arrays(self, list children_lists):
-        cdef Py_ssize_t i, j, n = self.n_components
-        cdef list lst
-        cdef Py_ssize_t total = 0
-        cdef int child_idx, minv
-        cdef Py_ssize_t offset
-
-        # Compute total number of children
-        for i in range(n):
-            lst = children_lists[i]
-            total += len(lst)
-
-        self.total_children = total
-
-        # Allocate arrays
-        self.child_offsets = <Py_ssize_t*> malloc(n * sizeof(Py_ssize_t))
-        self.child_counts  = <int*>        malloc(n * sizeof(int))
-        self.child_ids     = <int*>        malloc(total * sizeof(int))
-        self.min_child_id  = <int*>        malloc(n * sizeof(int))
-
-        if (self.child_offsets == NULL or self.child_counts == NULL or
-            self.child_ids == NULL or self.min_child_id == NULL):
-            if self.child_offsets != NULL: free(<void*> self.child_offsets)
-            if self.child_counts  != NULL: free(<void*> self.child_counts)
-            if self.child_ids     != NULL: free(<void*> self.child_ids)
-            if self.min_child_id  != NULL: free(<void*> self.min_child_id)
-            self.child_offsets = self.child_counts = NULL
-            self.child_ids = self.min_child_id = NULL
-            raise MemoryError()
-
-        # Fill arrays and precompute min_child_id
-        offset = 0
-        for i in range(n):
-            lst = children_lists[i]
-            self.child_offsets[i] = offset
-            self.child_counts[i]  = <int> len(lst)
-
-            if len(lst) == 0:
-                self.min_child_id[i] = -1
-            else:
-                # copy children into flat array
-                minv = 2147483647  # big int (2^31-1)
-                for j in range(len(lst)):
-                    child_idx = <int> lst[j]
-                    self.child_ids[offset + j] = child_idx
-                    if child_idx < minv:
-                        minv = child_idx
-                self.min_child_id[i] = minv
-
-            offset += len(lst)
 
     cpdef list get_runnable_iv_jobs(self, bint forward=True):
         cdef list runnable = []
