@@ -143,7 +143,7 @@ cdef class IV_Job_Heap:
             offset += len(lst)
 
     cpdef list get_runnable_iv_jobs(self, bint forward=True):
-        cdef list include_indices = []
+        cdef list runnable = []
         cdef Py_ssize_t start_job_index = self.job_done_index
         cdef Py_ssize_t i, n
         cdef int child_min
@@ -158,7 +158,7 @@ cdef class IV_Job_Heap:
                     break
                 self.job_done_index = i
                 if self.components[i].IV_V is None:
-                    include_indices.append(i)
+                    runnable.append(self.components[i])
                 i -= 1
         else:
             n = self.n_components
@@ -171,10 +171,10 @@ cdef class IV_Job_Heap:
                 if child_min != -1 and child_min < min_id:
                     min_id = child_min
                 self.job_done_index = i + 1
-                include_indices.append(i)
+                runnable.append(self.components[i])
                 i += 1
 
-        return [self.components[j] for j in include_indices]
+        return runnable
 
     cpdef void reset(self, bint forward=True):
         if forward:
@@ -182,7 +182,7 @@ cdef class IV_Job_Heap:
         else:
             self.job_done_index = 0
 
-    def set_operating_point(self, V=None, I=None):
+    cpdef void set_operating_point(self, V=None, I=None):
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
@@ -208,7 +208,7 @@ cdef class IV_Job_Heap:
         if pbar is not None:
             pbar.close()
 
-    def run_IV(self, bint refine_mode=False):
+    cpdef void run_IV(self, bint refine_mode=False):
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
