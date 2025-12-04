@@ -84,9 +84,9 @@ void merge_children_kway_ptr(
 }
 
 void build_current_source_iv(
-    const double* circuit_element_parameters,
-    double* out_V,
-    double* out_I,
+    const double* __restrict circuit_element_parameters,
+    double* __restrict out_V,
+    double* __restrict out_I,
     int* out_len,
     int abs_max_num_points
 ) {
@@ -100,9 +100,9 @@ void build_current_source_iv(
 }
 
 void build_resistor_iv(
-    const double* circuit_element_parameters,
-    double* out_V,
-    double* out_I,
+    const double* __restrict circuit_element_parameters,
+    double* __restrict out_V,
+    double* __restrict out_I,
     int* out_len,
     int abs_max_num_points
 ) {
@@ -116,12 +116,12 @@ void build_resistor_iv(
 }
 
 void interp_monotonic_inc(
-    const double* x,   // size n, increasing
-    const double* y,   // size n
+    const double* __restrict x,   // size n, increasing
+    const double* __restrict y,   // size n
     int n,
-    const double* xq,  // size m, increasing
+    const double* __restrict xq,  // size m, increasing
     int m,
-    double* yq,         // size m, output
+    double* __restrict yq,         // size m, output
     bool additive        // true: adds to yq
 ) {
     if (!x || !y || !xq || !yq || n <= 0 || m <= 0) return;
@@ -177,11 +177,11 @@ void interp_monotonic_inc(
 }
 
 void interp_monotonic_inc_scalar(
-    const double** xs,   // size n, strictly increasing
-    const double** ys,   // size n
-    const int* ns,
-    const double* xqs,         // single query points
-    double** yqs,        // output (single values)
+    const double** __restrict xs,   // size n, strictly increasing
+    const double** __restrict ys,   // size n
+    const int* __restrict ns,
+    const double* __restrict xqs,         // single query points
+    double** __restrict yqs,        // output (single values)
     int n_jobs,
     int parallel
 ) {
@@ -193,11 +193,11 @@ void interp_monotonic_inc_scalar(
 
     #pragma omp parallel for num_threads(num_threads) if(parallel && n_jobs>1)
     for (int i = 0; i < n_jobs; i ++) {
-        const double* x = xs[i];
-        const double* y = ys[i];
+        const double* __restrict x = xs[i];
+        const double* __restrict y = ys[i];
         int n = ns[i];
         double xq = xqs[i];
-        double* yq = yqs[i];
+        double* __restrict yq = yqs[i];
 
         if (!x || !y || !yq || n <= 0) continue;
 
@@ -253,7 +253,7 @@ void interp_monotonic_inc_scalar(
 }
 
 void calc_intrinsic_Si_I(
-    const double* V,          // input voltages, length n_V
+    const double* __restrict V,          // input voltages, length n_V
     int n_V,
     double ni,
     double  VT,
@@ -261,7 +261,7 @@ void calc_intrinsic_Si_I(
     int base_type_number,   // 0-p, 1-n
     double base_thickness,
     double area,               // area is actually always 1
-    double* out_I,             // output: I(V) or dI/dV, length n_V
+    double* __restrict out_I,             // output: I(V) or dI/dV, length n_V
     bool additive
 ) {
     const double q = 1.602e-19;
@@ -292,6 +292,7 @@ void calc_intrinsic_Si_I(
     std::vector<double> pn(n_V);
 
     // Compute delta_n first
+    #pragma omp simd
     for (int i = 0; i < n_V; ++i) {
         double expv = std::exp(V[i]/VT);
         pn[i] = ni * ni * expv;
@@ -335,6 +336,7 @@ void calc_intrinsic_Si_I(
 
     double termA = 2.5e-31 * geeh * n0;
     double termB = 8.5e-32 * gehh * p0;
+    #pragma omp simd
     for (int i = 0; i < n_V; ++i) {
         // ni_eff = ni * exp(BGN/(2*VT))
         double ni_eff = ni * std::exp(BGN[i] / (2.0 * VT));
@@ -351,7 +353,8 @@ void calc_intrinsic_Si_I(
     }
 }
 
-std::vector<double> get_V_range(const double* circuit_element_parameters,int max_num_points,bool intrinsic_Si_calc,double op_pt_V,bool is_reverse_diode) {
+int get_V_range(const double* __restrict circuit_element_parameters,
+    int max_num_points,bool intrinsic_Si_calc,double op_pt_V,bool is_reverse_diode,double* out_V) {
     // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
@@ -387,25 +390,30 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
         if (I0 > 0) Voc = n*VT*std::log(max_I/I0);
     }
     
-
-    std::vector<double> V;
     int N = (int)std::floor(max_num_points_);
-    V.reserve(N + 3);
-
-    // First 5 fixed points
-    V.push_back(V_shift - 1.1);
-    V.push_back(V_shift - 1.0);
-    V.push_back(V_shift);
-
-    // Now generate the log-spaced part
-    // Python: np.arange(1, max_num_points)
-    for (int k = 1; k < max_num_points_; ++k) {
-        double frac = std::log((double)k) / std::log(max_num_points_ - 1);
-        double v = V_shift + Voc * frac;
-        V.push_back(v);
+    if (is_reverse_diode) { // reverse order
+        out_V[N+2] = -V_shift + 1.1;
+        out_V[N+1] = -V_shift + 1.0;
+        out_V[N] = -V_shift;
+        int pos = N-1;
+        for (int k = 1; k < N + 1; ++k) {
+            double frac = std::log((double)k) / std::log(max_num_points_ - 1);
+            out_V[pos] = -V_shift - Voc * frac;
+            --pos;
+        }
+    } else {
+        out_V[0] = V_shift - 1.1;
+        out_V[1] = V_shift - 1.0;
+        out_V[2] = V_shift;
+        int pos = 3;
+        for (int k = 1; k < N + 1; ++k) {
+            double frac = std::log((double)k) / std::log(max_num_points_ - 1);
+            out_V[pos] = V_shift + Voc * frac;
+            ++pos;
+        }
     }
 
-    return V;
+    return N+3;
 }
 
 inline double calc_forward_diode_I(double I0, double n, double VT, double V_shift, double V) {
@@ -416,14 +424,14 @@ inline double calc_reverse_diode_I(double I0, double n, double VT, double V_shif
     return -I0 * std::exp((-V - V_shift) / (n * VT));
 }
 
-void build_forward_diode_iv(
-    const double* circuit_element_parameters,
+void build_diode_iv(
+    const double* __restrict circuit_element_parameters,
     int max_num_points,
-    double* out_V,
-    double* out_I,
+    double* __restrict out_V,
+    double* __restrict out_I,
     int* out_len,
     int abs_max_num_points,
-    double op_pt_V
+    double op_pt_V,bool is_reverse_diode
 ) {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -431,76 +439,37 @@ void build_forward_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,false);
-    std::vector<double> I(V.size());
-    for (size_t i = 0; i < V.size(); ++i) 
-        I[i] = calc_forward_diode_I(I0, n, VT, V_shift, V[i]);
+    int size = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,is_reverse_diode,out_V);
 
-    // Write to output buffer
-    int outN = (int)V.size();
-    for (int i = 0; i < outN; ++i) {
-        out_V[i] = V[i];
-        out_I[i] = I[i];
+    if (is_reverse_diode) {
+        #pragma omp simd
+        for (size_t i = 0; i < size; ++i) 
+            out_I[i] = calc_forward_diode_I(I0, n, VT, V_shift, out_V[i]);
+    } else {
+        #pragma omp simd
+        for (size_t i = 0; i < size; ++i) 
+            out_I[i] = calc_reverse_diode_I(I0, n, VT, V_shift, out_V[i]);
     }
-    *out_len = outN;
-}
-
-void build_reverse_diode_iv(
-    const double* circuit_element_parameters,
-    int max_num_points,
-    double* out_V,
-    double* out_I,
-    int* out_len,
-    int abs_max_num_points,
-    double op_pt_V)
- {
-    // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
-    double I0 = circuit_element_parameters[0];
-    double n = circuit_element_parameters[1];
-    double VT = circuit_element_parameters[2];
-    double V_shift = circuit_element_parameters[3];
-
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,true);
-    std::vector<double> I(V.size());
-    for (size_t i = 0; i < V.size(); ++i) {
-        V[i] *= -1;
-        I[i] = calc_reverse_diode_I(I0, n, VT, V_shift, V[i]);
-    }
-
-    // Write to output buffer
-    int outN = (int)V.size();
-    for (int i = 0; i < outN; ++i) {
-        out_V[i] = V[outN-i-1];
-        out_I[i] = I[outN-i-1];
-    }
-    *out_len = outN;
+    *out_len = size;
 }
 
 void build_Si_intrinsic_diode_iv(
-    const double* circuit_element_parameters,
+    const double* __restrict circuit_element_parameters,
     int max_num_points,
-    double* out_V,
-    double* out_I,
+    double* __restrict out_V,
+    double* __restrict out_I,
     int* out_len,
     int abs_max_num_points,
     double op_pt_V
 ) {
-    std::vector<double> V = get_V_range(circuit_element_parameters, max_num_points,true,op_pt_V,false);
-    std::vector<double> I(V.size());
+    int size = get_V_range(circuit_element_parameters, max_num_points,true,op_pt_V,false,out_V);
     double ni = circuit_element_parameters[5];
     int base_type_number = static_cast<int>(circuit_element_parameters[6]);
     double base_doping = circuit_element_parameters[0];
     double base_thickness = circuit_element_parameters[3];
     double VT = circuit_element_parameters[2];
-    calc_intrinsic_Si_I(V.data(),(int)V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data(),false);
-
-    // Write to output buffer
-    int outN = (int)V.size();
-    for (int i = 0; i < outN; ++i) {
-        out_V[i] = V[i];
-        out_I[i] = I[i];
-    }
-    *out_len = outN;
+    calc_intrinsic_Si_I(out_V,size,ni,VT,base_doping,base_type_number,base_thickness,1.0,out_I,false);
+    *out_len = size;
 }
 
 void combine_iv_job(int connection,
@@ -535,10 +504,10 @@ void combine_iv_job(int connection,
                 build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);;
                 break;
             case 2: // ForwardDiode
-                build_forward_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
+                build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,false);
                 break;
             case 3: // ReverseDiode
-                build_reverse_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
+                build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,true);
                 break;
             case 4: // Intrinsic Si Diode
                 build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
@@ -616,6 +585,7 @@ void combine_iv_job(int connection,
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
                             interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
+                            #pragma omp simd
                             for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
@@ -709,6 +679,7 @@ void combine_iv_job(int connection,
     }
     
     if (area != 1) {
+        #pragma omp simd
         for (int i=0; i<vs_len; i++) Is[i] *= area;
     }
     *out_len = vs_len;
@@ -832,8 +803,7 @@ void remesh_IV(
     for (int i = 0; i < n_out; ++i) {
         int k = idx[i];
         out_V[i] = Vs[k];
-        double I_val = Is[k];
-        out_I[i] = I_val;
+        out_I[i] = Is[k];
     }
     *out_len = n_out;
 } 
