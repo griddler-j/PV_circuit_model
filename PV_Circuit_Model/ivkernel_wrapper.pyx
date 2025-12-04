@@ -264,7 +264,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             jobs_c[i].abs_max_num_points = abs_max_num_points
             op_pt_V = 0
             op_pt = circuit_component.operating_point
-            if op_pt:
+            if op_pt and op_pt[0]:
                 op_pt_V = op_pt[0]
             jobs_c[i].op_pt_V = op_pt_V 
 

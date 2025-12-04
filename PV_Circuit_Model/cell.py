@@ -331,8 +331,8 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
     if hasattr(self,"shape"): # a solar cell
         shapes.append(self.shape.copy())
         names.append(self.name)
-        if self.operating_point is not None and len(self.operating_point)==3:
-            Vints.append(self.operating_point[2])
+        if self.operating_point is not None:
+            Vints.append(self.diode_branch.operating_point[0])
             Is.append(self.operating_point[1])
         if self.aux is not None and "EL_Vint" in self.aux:
             EL_Vints.append(self.aux["EL_Vint"])

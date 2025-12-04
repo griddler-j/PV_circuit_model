@@ -227,16 +227,12 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         plt.plot(self.IV_V,-self.IV_I)
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],-self.operating_point[1],marker='o')
-            # if len(self.operating_point)==3:
-            #     plt.plot(self.operating_point[2],-self.operating_point[1],marker='o')
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:
         plt.plot(self.IV_V,self.IV_I)
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
-            if len(self.operating_point)==3:
-                plt.plot(self.operating_point[2],self.operating_point[1],marker='o')
     if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
         y_space = 0.07
         plt.plot(Voc,0,marker='o',color="blue")
