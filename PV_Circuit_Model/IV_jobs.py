@@ -164,9 +164,12 @@ class IV_Job_Heap:
                             is_series = False
                             if component.connection=="series":
                                 is_series = True
+                            current_ = component.operating_point[1]
+                            if component._type_number>=5:
+                                current_ /= component.area
                             for child in component.subgroups:
                                 if is_series:
-                                    child.operating_point = [None, component.operating_point[1]]
+                                    child.operating_point = [None, current_]
                                 else:
                                     child.operating_point = [component.operating_point[0], None]
             if pbar is not None:
@@ -196,6 +199,7 @@ class IV_Job_Heap:
         if pbar is not None:
             pbar.close()
     def refine_IV(self):
+        self.components[0].null_all_IV(max_num_pts_only=True)
         self.run_IV(refine_mode=True)
 
 
@@ -237,4 +241,6 @@ class IV_Job_Pool():
         if pbar is not None:
             pbar.close()
     def refine_IV(self):
+        for heap in self.heap_list:
+            heap.components[0].null_all_IV(max_num_pts_only=True)
         self.run_IV(refine_mode=True)

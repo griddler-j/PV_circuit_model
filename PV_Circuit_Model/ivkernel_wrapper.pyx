@@ -392,9 +392,12 @@ def run_multiple_operating_points(components, bint parallel=False):
                 is_series = False
                 if circuit_component.connection=="series":
                     is_series = True
+                current_ = operating_point[1]
+                if circuit_component._type_number == 6: # cell
+                     current_ /= circuit_component.area
                 for child in circuit_component.subgroups:
                     if is_series:
-                        child.operating_point = [None, operating_point[1]]
+                        child.operating_point = [None, current_]
                     else:
                         child.operating_point = [operating_point[0], None]
 

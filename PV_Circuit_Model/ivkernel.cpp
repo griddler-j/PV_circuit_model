@@ -191,63 +191,125 @@ void interp_monotonic_inc_scalar(
     if (n_jobs < max_threads) num_threads = max_threads/4;
     if (n_jobs < max_threads/4) num_threads = n_jobs;
 
-    #pragma omp parallel for num_threads(num_threads)
-    for (int i = 0; i < n_jobs; i ++) {
-        const double* x = xs[i];
-        const double* y = ys[i];
-        int n = ns[i];
-        double xq = xqs[i];
-        double* yq = yqs[i];
+    if (parallel==1) {
+        #pragma omp parallel for num_threads(num_threads)
+        for (int i = 0; i < n_jobs; i ++) {
+            const double* x = xs[i];
+            const double* y = ys[i];
+            int n = ns[i];
+            double xq = xqs[i];
+            double* yq = yqs[i];
 
-        if (!x || !y || !yq || n <= 0) continue;
+            if (!x || !y || !yq || n <= 0) continue;
 
-        // n == 1: constant function (like IL)
-        if (n == 1) {
-            *yq = y[0];
-            continue;
-        }
-
-        // n == 2: simple line (like R)
-        if (n == 2) {
-            double slope = (y[1] - y[0]) / (x[1] - x[0]);
-            *yq = (y[0] + (xq - x[0]) * slope);
-            continue;
-        }
-
-        // n >= 3 from here on
-
-        // --- Left extrapolation: xq <= x[0] ---
-        if (xq <= x[0]) {
-            double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
-            *yq = (y[0] + (xq - x[0]) * slope_left);
-            continue;
-        }
-
-        // --- Right extrapolation: xq >= x[n-1] ---
-        if (xq >= x[n-1]) {
-            double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
-            *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
-            continue;
-        }
-
-        // --- Main interpolation region: x[0] < xq < x[n-1] ---
-        // Binary search for i such that x[i] <= xq <= x[i+1]
-        int low = 0;
-        int high = n - 1;
-
-        // Invariant: x[low] <= xq < x[high]
-        while (high - low > 1) {
-            int mid = (low + high) / 2;
-            if (x[mid] <= xq) {
-                low = mid;
-            } else {
-                high = mid;
+            // n == 1: constant function (like IL)
+            if (n == 1) {
+                *yq = y[0];
+                continue;
             }
+
+            // n == 2: simple line (like R)
+            if (n == 2) {
+                double slope = (y[1] - y[0]) / (x[1] - x[0]);
+                *yq = (y[0] + (xq - x[0]) * slope);
+                continue;
+            }
+
+            // n >= 3 from here on
+
+            // --- Left extrapolation: xq <= x[0] ---
+            if (xq <= x[0]) {
+                double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
+                *yq = (y[0] + (xq - x[0]) * slope_left);
+                continue;
+            }
+
+            // --- Right extrapolation: xq >= x[n-1] ---
+            if (xq >= x[n-1]) {
+                double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
+                *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
+                continue;
+            }
+
+            // --- Main interpolation region: x[0] < xq < x[n-1] ---
+            // Binary search for i such that x[i] <= xq <= x[i+1]
+            int low = 0;
+            int high = n - 1;
+
+            // Invariant: x[low] <= xq < x[high]
+            while (high - low > 1) {
+                int mid = (low + high) / 2;
+                if (x[mid] <= xq) {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+            }
+
+            int j = low;
+            double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+            *yq = (y[j] + slope * (xq - x[j]));
+        }
+    }
+    else {
+        for (int i = 0; i < n_jobs; i ++) {
+            const double* x = xs[i];
+            const double* y = ys[i];
+            int n = ns[i];
+            double xq = xqs[i];
+            double* yq = yqs[i];
+
+            if (!x || !y || !yq || n <= 0) continue;
+
+            // n == 1: constant function (like IL)
+            if (n == 1) {
+                *yq = y[0];
+                continue;
+            }
+
+            // n == 2: simple line (like R)
+            if (n == 2) {
+                double slope = (y[1] - y[0]) / (x[1] - x[0]);
+                *yq = (y[0] + (xq - x[0]) * slope);
+                continue;
+            }
+
+            // n >= 3 from here on
+
+            // --- Left extrapolation: xq <= x[0] ---
+            if (xq <= x[0]) {
+                double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
+                *yq = (y[0] + (xq - x[0]) * slope_left);
+                continue;
+            }
+
+            // --- Right extrapolation: xq >= x[n-1] ---
+            if (xq >= x[n-1]) {
+                double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
+                *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
+                continue;
+            }
+
+            // --- Main interpolation region: x[0] < xq < x[n-1] ---
+            // Binary search for i such that x[i] <= xq <= x[i+1]
+            int low = 0;
+            int high = n - 1;
+
+            // Invariant: x[low] <= xq < x[high]
+            while (high - low > 1) {
+                int mid = (low + high) / 2;
+                if (x[mid] <= xq) {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+            }
+
+            int j = low;
+            double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+            *yq = (y[j] + slope * (xq - x[j]));
         }
 
-        int j = low;
-        double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
-        *yq = (y[j] + slope * (xq - x[j]));
     }
 }
 
@@ -504,7 +566,6 @@ void build_Si_intrinsic_diode_iv(
 double combine_iv_job(int connection,
     int circuit_component_type_number,
     double op_pt_V,
-    int refine_mode,
     int n_children,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
@@ -778,8 +839,10 @@ void remesh_IV(
                 change = std::sqrt(dx*dx + dy*dy);
             }
             accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
-            if (refine_mode==1 && std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) {
-                accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change;
+            if (refine_mode==1 && mpp_points > 0) {
+                double change_ = 0;
+                if (std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) change_ = change;
+                accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change_;
             }
         }
         last_unit_vector_x = unit_vector_x;
@@ -808,7 +871,7 @@ void remesh_IV(
             idx.push_back(i);
             while (accum_abs_dir_change[i] >= count * variation_segment)
                 ++count;
-        } else if (refine_mode==1 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
+        } else if (refine_mode==1 && mpp_points > 0 && variation_segment_mpp>0 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
             idx.push_back(i);
             while (accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp)
                 ++countmpp;
@@ -844,7 +907,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.connection,
                 job.circuit_component_type_number,
                 job.op_pt_V,
-                job.refine_mode,
                 job.n_children,
                 job.children_IVs,
                 job.children_pc_IVs,
@@ -866,7 +928,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.connection,
                 job.circuit_component_type_number,
                 job.op_pt_V,
-                job.refine_mode,
                 job.n_children,
                 job.children_IVs,
                 job.children_pc_IVs,
