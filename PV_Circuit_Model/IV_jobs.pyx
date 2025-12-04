@@ -1,9 +1,6 @@
 # IV_jobs.pyx
 # cython: boundscheck=False, wraparound=False, nonecheck=False, initializedcheck=False
-
-from libc.stdlib cimport malloc, free
-from libc.stdint cimport int32_t
-from cpython.ref cimport PyObject
+# cython: cdivision=True, infer_types=True
 
 from tqdm import tqdm
 import warnings
@@ -38,21 +35,25 @@ cdef class IV_Job_Heap:
         cdef Py_ssize_t pos = 0
         cdef Py_ssize_t child_idx
         cdef object circuit_component, subgroups, element
+        cdef list comps = self.components
+        cdef list min_child = self.min_child_id
 
-        while pos < len(self.components):
-            circuit_component = self.components[pos]
+        while pos < len(comps):
+            circuit_component = comps[pos]
             if circuit_component._type_number >= 5: # is circuitgroup
                 for element in circuit_component.subgroups:
-                    child_idx = len(self.components)
-                    self.components.append(element)
-                    self.min_child_id.append(-1)
-                    if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:
-                        self.min_child_id[pos] = child_idx
+                    child_idx = len(comps)
+                    comps.append(element)
+                    min_child.append(-1)
+                    if min_child[pos] == -1 or child_idx < min_child[pos]:
+                        min_child[pos] = child_idx
             pos += 1
-        self.n_components = len(self.components)
+        self.n_components = len(comps)
         self.job_done_index = self.n_components
 
     cpdef list get_runnable_iv_jobs(self, bint forward=True):
+        cdef list comps = self.components
+        cdef list min_child = self.min_child_id
         cdef list runnable = []
         cdef Py_ssize_t start_job_index = self.job_done_index
         cdef Py_ssize_t i, n
@@ -63,12 +64,12 @@ cdef class IV_Job_Heap:
             # walk backward until a node that depends on a future job
             i = start_job_index - 1
             while i >= 0:
-                child_min = self.min_child_id[i]
+                child_min = min_child[i]
                 if child_min != -1 and child_min < start_job_index:
                     break
                 self.job_done_index = i
-                if self.components[i].IV_V is None:
-                    runnable.append(self.components[i])
+                if comps[i].IV_V is None:
+                    runnable.append(comps[i])
                 i -= 1
         else:
             n = self.n_components
@@ -77,11 +78,11 @@ cdef class IV_Job_Heap:
 
             i = start_job_index
             while i < n and i < min_id:
-                child_min = self.min_child_id[i]
+                child_min = min_child[i]
                 if child_min != -1 and child_min < min_id:
                     min_id = child_min
                 self.job_done_index = i + 1
-                runnable.append(self.components[i])
+                runnable.append(comps[i])
                 i += 1
 
         return runnable

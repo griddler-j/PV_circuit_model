@@ -3,7 +3,6 @@
 /* BEGIN: Cython Metadata
 {
     "distutils": {
-        "depends": [],
         "language": "c++",
         "name": "PV_Circuit_Model.IV_jobs_cython",
         "sources": [
@@ -1210,10 +1209,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 #define __PYX_HAVE__PV_Circuit_Model__IV_jobs_cython
 #define __PYX_HAVE_API__PV_Circuit_Model__IV_jobs_cython
 /* Early includes */
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif /* _OPENMP */
@@ -1481,7 +1476,6 @@ static const char *__pyx_filename;
 static const char *__pyx_f[] = {
   "<stringsource>",
   "PV_Circuit_Model\\\\IV_jobs.pyx",
-  "type.pxd",
 };
 /* #### Code section: utility_code_proto_before_types ### */
 /* ForceInitThreads.proto */
@@ -1500,19 +1494,19 @@ struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset;
 struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operating_point;
 struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV;
 
-/* "PV_Circuit_Model/IV_jobs.pyx":55
+/* "PV_Circuit_Model/IV_jobs.pyx":54
  *         self.job_done_index = self.n_components
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):             # <<<<<<<<<<<<<<
- *         cdef list runnable = []
- *         cdef Py_ssize_t start_job_index = self.job_done_index
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id
  */
 struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_runnable_iv_jobs {
   int __pyx_n;
   int forward;
 };
 
-/* "PV_Circuit_Model/IV_jobs.pyx":89
+/* "PV_Circuit_Model/IV_jobs.pyx":90
  *         return runnable
  * 
  *     cpdef void reset(self, bint forward=True):             # <<<<<<<<<<<<<<
@@ -1524,7 +1518,7 @@ struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset {
   int forward;
 };
 
-/* "PV_Circuit_Model/IV_jobs.pyx":95
+/* "PV_Circuit_Model/IV_jobs.pyx":96
  *             self.job_done_index = 0
  * 
  *     cpdef void set_operating_point(self, V=None, I=None):             # <<<<<<<<<<<<<<
@@ -1537,7 +1531,7 @@ struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_oper
   PyObject *I;
 };
 
-/* "PV_Circuit_Model/IV_jobs.pyx":121
+/* "PV_Circuit_Model/IV_jobs.pyx":122
  *             pbar.close()
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):             # <<<<<<<<<<<<<<
@@ -1549,7 +1543,7 @@ struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV {
   int refine_mode;
 };
 
-/* "PV_Circuit_Model/IV_jobs.pyx":20
+/* "PV_Circuit_Model/IV_jobs.pyx":17
  *     _PARALLEL_MODE = bool(enabled)
  * 
  * cdef class IV_Job_Heap:             # <<<<<<<<<<<<<<
@@ -2005,25 +1999,6 @@ static int __Pyx_MergeVtables(PyTypeObject *type);
 static int __Pyx_setup_reduce(PyObject* type_obj);
 #endif
 
-/* TypeImport.proto */
-#ifndef __PYX_HAVE_RT_ImportType_proto_3_0_7
-#define __PYX_HAVE_RT_ImportType_proto_3_0_7
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#include <stdalign.h>
-#endif
-#if (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || __cplusplus >= 201103L
-#define __PYX_GET_STRUCT_ALIGNMENT_3_0_7(s) alignof(s)
-#else
-#define __PYX_GET_STRUCT_ALIGNMENT_3_0_7(s) sizeof(void*)
-#endif
-enum __Pyx_ImportType_CheckSize_3_0_7 {
-   __Pyx_ImportType_CheckSize_Error_3_0_7 = 0,
-   __Pyx_ImportType_CheckSize_Warn_3_0_7 = 1,
-   __Pyx_ImportType_CheckSize_Ignore_3_0_7 = 2
-};
-static PyTypeObject *__Pyx_ImportType_3_0_7(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_3_0_7 check_size);
-#endif
-
 /* Import.proto */
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level);
 
@@ -2262,24 +2237,6 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
 static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operating_point(struct __pyx_obj_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *__pyx_v_self, int __pyx_skip_dispatch, struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operating_point *__pyx_optional_args); /* proto*/
 static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(struct __pyx_obj_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *__pyx_v_self, int __pyx_skip_dispatch, struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV *__pyx_optional_args); /* proto*/
 
-/* Module declarations from "libc.string" */
-
-/* Module declarations from "libc.stdlib" */
-
-/* Module declarations from "libc.stdint" */
-
-/* Module declarations from "libc.stdio" */
-
-/* Module declarations from "__builtin__" */
-
-/* Module declarations from "cpython.type" */
-
-/* Module declarations from "cpython" */
-
-/* Module declarations from "cpython.object" */
-
-/* Module declarations from "cpython.ref" */
-
 /* Module declarations from "PV_Circuit_Model.IV_jobs_cython" */
 static int __pyx_v_16PV_Circuit_Model_14IV_jobs_cython__PARALLEL_MODE;
 /* #### Code section: typeinfo ### */
@@ -2409,25 +2366,6 @@ typedef struct {
   #endif
   #ifdef __Pyx_Coroutine_USED
   PyTypeObject *__pyx_CoroutineType;
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  PyTypeObject *__pyx_ptype_7cpython_4type_type;
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
-  #endif
-  #if CYTHON_USE_MODULE_STATE
   #endif
   #if CYTHON_USE_MODULE_STATE
   PyObject *__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap;
@@ -2571,7 +2509,6 @@ static int __pyx_m_clear(PyObject *m) {
   #ifdef __Pyx_FusedFunction_USED
   Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
   #endif
-  Py_CLEAR(clear_module_state->__pyx_ptype_7cpython_4type_type);
   Py_CLEAR(clear_module_state->__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
   Py_CLEAR(clear_module_state->__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
   Py_CLEAR(clear_module_state->__pyx_kp_u_);
@@ -2690,7 +2627,6 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   #ifdef __Pyx_FusedFunction_USED
   Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
   #endif
-  Py_VISIT(traverse_module_state->__pyx_ptype_7cpython_4type_type);
   Py_VISIT(traverse_module_state->__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
   Py_VISIT(traverse_module_state->__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
   Py_VISIT(traverse_module_state->__pyx_kp_u_);
@@ -2818,25 +2754,6 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_CoroutineType __pyx_mstate_global->__pyx_CoroutineType
 #endif
 #if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#define __pyx_ptype_7cpython_4type_type __pyx_mstate_global->__pyx_ptype_7cpython_4type_type
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
-#endif
-#if CYTHON_USE_MODULE_STATE
 #define __pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap __pyx_mstate_global->__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap
 #endif
 #define __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap __pyx_mstate_global->__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap
@@ -2938,7 +2855,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_codeobj__21 __pyx_mstate_global->__pyx_codeobj__21
 /* #### Code section: module_code ### */
 
-/* "PV_Circuit_Model/IV_jobs.pyx":16
+/* "PV_Circuit_Model/IV_jobs.pyx":13
  * cdef bint _PARALLEL_MODE = True
  * 
  * def set_parallel_mode(enabled: bool):             # <<<<<<<<<<<<<<
@@ -2999,12 +2916,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 16, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 13, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "set_parallel_mode") < 0)) __PYX_ERR(1, 16, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "set_parallel_mode") < 0)) __PYX_ERR(1, 13, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
@@ -3015,7 +2932,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("set_parallel_mode", 1, 1, 1, __pyx_nargs); __PYX_ERR(1, 16, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("set_parallel_mode", 1, 1, 1, __pyx_nargs); __PYX_ERR(1, 13, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -3051,17 +2968,17 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_set_parallel_mode(
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("set_parallel_mode", 1);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":18
+  /* "PV_Circuit_Model/IV_jobs.pyx":15
  * def set_parallel_mode(enabled: bool):
  *     global _PARALLEL_MODE
  *     _PARALLEL_MODE = bool(enabled)             # <<<<<<<<<<<<<<
  * 
  * cdef class IV_Job_Heap:
  */
-  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_enabled); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(1, 18, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_enabled); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(1, 15, __pyx_L1_error)
   __pyx_v_16PV_Circuit_Model_14IV_jobs_cython__PARALLEL_MODE = (!(!__pyx_t_1));
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":16
+  /* "PV_Circuit_Model/IV_jobs.pyx":13
  * cdef bint _PARALLEL_MODE = True
  * 
  * def set_parallel_mode(enabled: bool):             # <<<<<<<<<<<<<<
@@ -3081,7 +2998,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_set_parallel_mode(
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":26
+/* "PV_Circuit_Model/IV_jobs.pyx":23
  *     cdef Py_ssize_t n_components
  * 
  *     def __cinit__(self, object circuit_component):             # <<<<<<<<<<<<<<
@@ -3125,12 +3042,12 @@ static int __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_1__cinit__
           (void)__Pyx_Arg_NewRef_VARARGS(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 26, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 23, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__cinit__") < 0)) __PYX_ERR(1, 26, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__cinit__") < 0)) __PYX_ERR(1, 23, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
@@ -3141,7 +3058,7 @@ static int __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_1__cinit__
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__cinit__", 1, 1, 1, __pyx_nargs); __PYX_ERR(1, 26, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__cinit__", 1, 1, 1, __pyx_nargs); __PYX_ERR(1, 23, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -3177,7 +3094,7 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap___cinit__(
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__cinit__", 1);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":28
+  /* "PV_Circuit_Model/IV_jobs.pyx":25
  *     def __cinit__(self, object circuit_component):
  *         # initialize pointers to NULL so __dealloc__ is safe
  *         self.n_components   = 0             # <<<<<<<<<<<<<<
@@ -3186,43 +3103,43 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap___cinit__(
  */
   __pyx_v_self->n_components = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":29
+  /* "PV_Circuit_Model/IV_jobs.pyx":26
  *         # initialize pointers to NULL so __dealloc__ is safe
  *         self.n_components   = 0
  *         self.components = [circuit_component]             # <<<<<<<<<<<<<<
  *         self.min_child_id = [-1]
  *         self.job_done_index = 1  # will reset in build()
  */
-  __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 29, __pyx_L1_error)
+  __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 26, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_INCREF(__pyx_v_circuit_component);
   __Pyx_GIVEREF(__pyx_v_circuit_component);
-  if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, __pyx_v_circuit_component)) __PYX_ERR(1, 29, __pyx_L1_error);
+  if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, __pyx_v_circuit_component)) __PYX_ERR(1, 26, __pyx_L1_error);
   __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v_self->components);
   __Pyx_DECREF(__pyx_v_self->components);
   __pyx_v_self->components = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":30
+  /* "PV_Circuit_Model/IV_jobs.pyx":27
  *         self.n_components   = 0
  *         self.components = [circuit_component]
  *         self.min_child_id = [-1]             # <<<<<<<<<<<<<<
  *         self.job_done_index = 1  # will reset in build()
  * 
  */
-  __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 30, __pyx_L1_error)
+  __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 27, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_INCREF(__pyx_int_neg_1);
   __Pyx_GIVEREF(__pyx_int_neg_1);
-  if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, __pyx_int_neg_1)) __PYX_ERR(1, 30, __pyx_L1_error);
+  if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, __pyx_int_neg_1)) __PYX_ERR(1, 27, __pyx_L1_error);
   __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v_self->min_child_id);
   __Pyx_DECREF(__pyx_v_self->min_child_id);
   __pyx_v_self->min_child_id = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":31
+  /* "PV_Circuit_Model/IV_jobs.pyx":28
  *         self.components = [circuit_component]
  *         self.min_child_id = [-1]
  *         self.job_done_index = 1  # will reset in build()             # <<<<<<<<<<<<<<
@@ -3231,7 +3148,7 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap___cinit__(
  */
   __pyx_v_self->job_done_index = 1;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":26
+  /* "PV_Circuit_Model/IV_jobs.pyx":23
  *     cdef Py_ssize_t n_components
  * 
  *     def __cinit__(self, object circuit_component):             # <<<<<<<<<<<<<<
@@ -3251,7 +3168,7 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap___cinit__(
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":33
+/* "PV_Circuit_Model/IV_jobs.pyx":30
  *         self.job_done_index = 1  # will reset in build()
  * 
  *     def __init__(self, object circuit_component):             # <<<<<<<<<<<<<<
@@ -3295,12 +3212,12 @@ static int __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_3__init__(
           (void)__Pyx_Arg_NewRef_VARARGS(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 33, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 30, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__init__") < 0)) __PYX_ERR(1, 33, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__init__") < 0)) __PYX_ERR(1, 30, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
@@ -3311,7 +3228,7 @@ static int __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_3__init__(
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__init__", 1, 1, 1, __pyx_nargs); __PYX_ERR(1, 33, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__init__", 1, 1, 1, __pyx_nargs); __PYX_ERR(1, 30, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -3344,16 +3261,16 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_2__init__(
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":35
+  /* "PV_Circuit_Model/IV_jobs.pyx":32
  *     def __init__(self, object circuit_component):
  *         # build the heap structure
  *         self.build()             # <<<<<<<<<<<<<<
  * 
  *     cpdef void build(self):
  */
-  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->build(__pyx_v_self, 0); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 35, __pyx_L1_error)
+  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->build(__pyx_v_self, 0); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 32, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":33
+  /* "PV_Circuit_Model/IV_jobs.pyx":30
  *         self.job_done_index = 1  # will reset in build()
  * 
  *     def __init__(self, object circuit_component):             # <<<<<<<<<<<<<<
@@ -3371,7 +3288,7 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_2__init__(
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":37
+/* "PV_Circuit_Model/IV_jobs.pyx":34
  *         self.build()
  * 
  *     cpdef void build(self):             # <<<<<<<<<<<<<<
@@ -3391,6 +3308,8 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
   Py_ssize_t __pyx_v_child_idx;
   PyObject *__pyx_v_circuit_component = 0;
   PyObject *__pyx_v_element = 0;
+  PyObject *__pyx_v_comps = 0;
+  PyObject *__pyx_v_min_child = 0;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
   PyObject *__pyx_t_2 = NULL;
@@ -3416,7 +3335,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_typedict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_build); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 37, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_build); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 34, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!__Pyx_IsSameCFunction(__pyx_t_1, (void*) __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_5build)) {
         __Pyx_INCREF(__pyx_t_1);
@@ -3438,7 +3357,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
           PyObject *__pyx_callargs[2] = {__pyx_t_4, NULL};
           __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_5, 0+__pyx_t_5);
           __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 37, __pyx_L1_error)
+          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 34, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_2);
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         }
@@ -3459,7 +3378,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
     #endif
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":38
+  /* "PV_Circuit_Model/IV_jobs.pyx":35
  * 
  *     cpdef void build(self):
  *         cdef Py_ssize_t pos = 0             # <<<<<<<<<<<<<<
@@ -3468,73 +3387,94 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
  */
   __pyx_v_pos = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":42
+  /* "PV_Circuit_Model/IV_jobs.pyx":38
+ *         cdef Py_ssize_t child_idx
  *         cdef object circuit_component, subgroups, element
+ *         cdef list comps = self.components             # <<<<<<<<<<<<<<
+ *         cdef list min_child = self.min_child_id
  * 
- *         while pos < len(self.components):             # <<<<<<<<<<<<<<
- *             circuit_component = self.components[pos]
+ */
+  __pyx_t_1 = __pyx_v_self->components;
+  __Pyx_INCREF(__pyx_t_1);
+  __pyx_v_comps = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "PV_Circuit_Model/IV_jobs.pyx":39
+ *         cdef object circuit_component, subgroups, element
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id             # <<<<<<<<<<<<<<
+ * 
+ *         while pos < len(comps):
+ */
+  __pyx_t_1 = __pyx_v_self->min_child_id;
+  __Pyx_INCREF(__pyx_t_1);
+  __pyx_v_min_child = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "PV_Circuit_Model/IV_jobs.pyx":41
+ *         cdef list min_child = self.min_child_id
+ * 
+ *         while pos < len(comps):             # <<<<<<<<<<<<<<
+ *             circuit_component = comps[pos]
  *             if circuit_component._type_number >= 5: # is circuitgroup
  */
   while (1) {
-    __pyx_t_1 = __pyx_v_self->components;
-    __Pyx_INCREF(__pyx_t_1);
-    if (unlikely(__pyx_t_1 == Py_None)) {
+    if (unlikely(__pyx_v_comps == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-      __PYX_ERR(1, 42, __pyx_L1_error)
+      __PYX_ERR(1, 41, __pyx_L1_error)
     }
-    __pyx_t_6 = __Pyx_PyList_GET_SIZE(__pyx_t_1); if (unlikely(__pyx_t_6 == ((Py_ssize_t)-1))) __PYX_ERR(1, 42, __pyx_L1_error)
-    __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __pyx_t_6 = __Pyx_PyList_GET_SIZE(__pyx_v_comps); if (unlikely(__pyx_t_6 == ((Py_ssize_t)-1))) __PYX_ERR(1, 41, __pyx_L1_error)
     __pyx_t_7 = (__pyx_v_pos < __pyx_t_6);
     if (!__pyx_t_7) break;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":43
+    /* "PV_Circuit_Model/IV_jobs.pyx":42
  * 
- *         while pos < len(self.components):
- *             circuit_component = self.components[pos]             # <<<<<<<<<<<<<<
+ *         while pos < len(comps):
+ *             circuit_component = comps[pos]             # <<<<<<<<<<<<<<
  *             if circuit_component._type_number >= 5: # is circuitgroup
  *                 for element in circuit_component.subgroups:
  */
-    if (unlikely(__pyx_v_self->components == Py_None)) {
+    if (unlikely(__pyx_v_comps == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-      __PYX_ERR(1, 43, __pyx_L1_error)
+      __PYX_ERR(1, 42, __pyx_L1_error)
     }
-    __pyx_t_1 = PyList_GET_ITEM(__pyx_v_self->components, __pyx_v_pos);
+    __pyx_t_1 = PyList_GET_ITEM(__pyx_v_comps, __pyx_v_pos);
     __Pyx_INCREF(__pyx_t_1);
     __Pyx_XDECREF_SET(__pyx_v_circuit_component, __pyx_t_1);
     __pyx_t_1 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":44
- *         while pos < len(self.components):
- *             circuit_component = self.components[pos]
+    /* "PV_Circuit_Model/IV_jobs.pyx":43
+ *         while pos < len(comps):
+ *             circuit_component = comps[pos]
  *             if circuit_component._type_number >= 5: # is circuitgroup             # <<<<<<<<<<<<<<
  *                 for element in circuit_component.subgroups:
- *                     child_idx = len(self.components)
+ *                     child_idx = len(comps)
  */
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 44, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_type_number); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 43, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = PyObject_RichCompare(__pyx_t_1, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 44, __pyx_L1_error)
+    __pyx_t_2 = PyObject_RichCompare(__pyx_t_1, __pyx_int_5, Py_GE); __Pyx_XGOTREF(__pyx_t_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 43, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_t_7 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_7 < 0))) __PYX_ERR(1, 44, __pyx_L1_error)
+    __pyx_t_7 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_7 < 0))) __PYX_ERR(1, 43, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_7) {
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":45
- *             circuit_component = self.components[pos]
+      /* "PV_Circuit_Model/IV_jobs.pyx":44
+ *             circuit_component = comps[pos]
  *             if circuit_component._type_number >= 5: # is circuitgroup
  *                 for element in circuit_component.subgroups:             # <<<<<<<<<<<<<<
- *                     child_idx = len(self.components)
- *                     self.components.append(element)
+ *                     child_idx = len(comps)
+ *                     comps.append(element)
  */
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 45, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_circuit_component, __pyx_n_s_subgroups); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 44, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       if (likely(PyList_CheckExact(__pyx_t_2)) || PyTuple_CheckExact(__pyx_t_2)) {
         __pyx_t_1 = __pyx_t_2; __Pyx_INCREF(__pyx_t_1);
         __pyx_t_6 = 0;
         __pyx_t_8 = NULL;
       } else {
-        __pyx_t_6 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 45, __pyx_L1_error)
+        __pyx_t_6 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 44, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_1);
-        __pyx_t_8 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_1); if (unlikely(!__pyx_t_8)) __PYX_ERR(1, 45, __pyx_L1_error)
+        __pyx_t_8 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_1); if (unlikely(!__pyx_t_8)) __PYX_ERR(1, 44, __pyx_L1_error)
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       for (;;) {
@@ -3543,28 +3483,28 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
             {
               Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_1);
               #if !CYTHON_ASSUME_SAFE_MACROS
-              if (unlikely((__pyx_temp < 0))) __PYX_ERR(1, 45, __pyx_L1_error)
+              if (unlikely((__pyx_temp < 0))) __PYX_ERR(1, 44, __pyx_L1_error)
               #endif
               if (__pyx_t_6 >= __pyx_temp) break;
             }
             #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-            __pyx_t_2 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely((0 < 0))) __PYX_ERR(1, 45, __pyx_L1_error)
+            __pyx_t_2 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely((0 < 0))) __PYX_ERR(1, 44, __pyx_L1_error)
             #else
-            __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 45, __pyx_L1_error)
+            __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 44, __pyx_L1_error)
             __Pyx_GOTREF(__pyx_t_2);
             #endif
           } else {
             {
               Py_ssize_t __pyx_temp = __Pyx_PyTuple_GET_SIZE(__pyx_t_1);
               #if !CYTHON_ASSUME_SAFE_MACROS
-              if (unlikely((__pyx_temp < 0))) __PYX_ERR(1, 45, __pyx_L1_error)
+              if (unlikely((__pyx_temp < 0))) __PYX_ERR(1, 44, __pyx_L1_error)
               #endif
               if (__pyx_t_6 >= __pyx_temp) break;
             }
             #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-            __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely((0 < 0))) __PYX_ERR(1, 45, __pyx_L1_error)
+            __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely((0 < 0))) __PYX_ERR(1, 44, __pyx_L1_error)
             #else
-            __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 45, __pyx_L1_error)
+            __pyx_t_2 = __Pyx_PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 44, __pyx_L1_error)
             __Pyx_GOTREF(__pyx_t_2);
             #endif
           }
@@ -3574,7 +3514,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
             PyObject* exc_type = PyErr_Occurred();
             if (exc_type) {
               if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-              else __PYX_ERR(1, 45, __pyx_L1_error)
+              else __PYX_ERR(1, 44, __pyx_L1_error)
             }
             break;
           }
@@ -3583,154 +3523,148 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
         __Pyx_XDECREF_SET(__pyx_v_element, __pyx_t_2);
         __pyx_t_2 = 0;
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":46
+        /* "PV_Circuit_Model/IV_jobs.pyx":45
  *             if circuit_component._type_number >= 5: # is circuitgroup
  *                 for element in circuit_component.subgroups:
- *                     child_idx = len(self.components)             # <<<<<<<<<<<<<<
- *                     self.components.append(element)
- *                     self.min_child_id.append(-1)
+ *                     child_idx = len(comps)             # <<<<<<<<<<<<<<
+ *                     comps.append(element)
+ *                     min_child.append(-1)
  */
-        __pyx_t_2 = __pyx_v_self->components;
-        __Pyx_INCREF(__pyx_t_2);
-        if (unlikely(__pyx_t_2 == Py_None)) {
+        if (unlikely(__pyx_v_comps == Py_None)) {
           PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-          __PYX_ERR(1, 46, __pyx_L1_error)
+          __PYX_ERR(1, 45, __pyx_L1_error)
         }
-        __pyx_t_9 = __Pyx_PyList_GET_SIZE(__pyx_t_2); if (unlikely(__pyx_t_9 == ((Py_ssize_t)-1))) __PYX_ERR(1, 46, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+        __pyx_t_9 = __Pyx_PyList_GET_SIZE(__pyx_v_comps); if (unlikely(__pyx_t_9 == ((Py_ssize_t)-1))) __PYX_ERR(1, 45, __pyx_L1_error)
         __pyx_v_child_idx = __pyx_t_9;
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":47
+        /* "PV_Circuit_Model/IV_jobs.pyx":46
  *                 for element in circuit_component.subgroups:
- *                     child_idx = len(self.components)
- *                     self.components.append(element)             # <<<<<<<<<<<<<<
- *                     self.min_child_id.append(-1)
- *                     if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:
+ *                     child_idx = len(comps)
+ *                     comps.append(element)             # <<<<<<<<<<<<<<
+ *                     min_child.append(-1)
+ *                     if min_child[pos] == -1 or child_idx < min_child[pos]:
  */
-        if (unlikely(__pyx_v_self->components == Py_None)) {
+        if (unlikely(__pyx_v_comps == Py_None)) {
+          PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%.30s'", "append");
+          __PYX_ERR(1, 46, __pyx_L1_error)
+        }
+        __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_comps, __pyx_v_element); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 46, __pyx_L1_error)
+
+        /* "PV_Circuit_Model/IV_jobs.pyx":47
+ *                     child_idx = len(comps)
+ *                     comps.append(element)
+ *                     min_child.append(-1)             # <<<<<<<<<<<<<<
+ *                     if min_child[pos] == -1 or child_idx < min_child[pos]:
+ *                         min_child[pos] = child_idx
+ */
+        if (unlikely(__pyx_v_min_child == Py_None)) {
           PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%.30s'", "append");
           __PYX_ERR(1, 47, __pyx_L1_error)
         }
-        __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_self->components, __pyx_v_element); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 47, __pyx_L1_error)
+        __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_min_child, __pyx_int_neg_1); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 47, __pyx_L1_error)
 
         /* "PV_Circuit_Model/IV_jobs.pyx":48
- *                     child_idx = len(self.components)
- *                     self.components.append(element)
- *                     self.min_child_id.append(-1)             # <<<<<<<<<<<<<<
- *                     if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:
- *                         self.min_child_id[pos] = child_idx
- */
-        if (unlikely(__pyx_v_self->min_child_id == Py_None)) {
-          PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%.30s'", "append");
-          __PYX_ERR(1, 48, __pyx_L1_error)
-        }
-        __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_self->min_child_id, __pyx_int_neg_1); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 48, __pyx_L1_error)
-
-        /* "PV_Circuit_Model/IV_jobs.pyx":49
- *                     self.components.append(element)
- *                     self.min_child_id.append(-1)
- *                     if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:             # <<<<<<<<<<<<<<
- *                         self.min_child_id[pos] = child_idx
+ *                     comps.append(element)
+ *                     min_child.append(-1)
+ *                     if min_child[pos] == -1 or child_idx < min_child[pos]:             # <<<<<<<<<<<<<<
+ *                         min_child[pos] = child_idx
  *             pos += 1
  */
-        if (unlikely(__pyx_v_self->min_child_id == Py_None)) {
+        if (unlikely(__pyx_v_min_child == Py_None)) {
           PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-          __PYX_ERR(1, 49, __pyx_L1_error)
+          __PYX_ERR(1, 48, __pyx_L1_error)
         }
-        __pyx_t_11 = (__Pyx_PyInt_BoolEqObjC(PyList_GET_ITEM(__pyx_v_self->min_child_id, __pyx_v_pos), __pyx_int_neg_1, -1L, 0)); if (unlikely((__pyx_t_11 < 0))) __PYX_ERR(1, 49, __pyx_L1_error)
+        __pyx_t_11 = (__Pyx_PyInt_BoolEqObjC(PyList_GET_ITEM(__pyx_v_min_child, __pyx_v_pos), __pyx_int_neg_1, -1L, 0)); if (unlikely((__pyx_t_11 < 0))) __PYX_ERR(1, 48, __pyx_L1_error)
         if (!__pyx_t_11) {
         } else {
           __pyx_t_7 = __pyx_t_11;
           goto __pyx_L9_bool_binop_done;
         }
-        __pyx_t_2 = PyInt_FromSsize_t(__pyx_v_child_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 49, __pyx_L1_error)
+        __pyx_t_2 = PyInt_FromSsize_t(__pyx_v_child_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 48, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
-        if (unlikely(__pyx_v_self->min_child_id == Py_None)) {
+        if (unlikely(__pyx_v_min_child == Py_None)) {
           PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-          __PYX_ERR(1, 49, __pyx_L1_error)
+          __PYX_ERR(1, 48, __pyx_L1_error)
         }
-        __pyx_t_3 = PyObject_RichCompare(__pyx_t_2, PyList_GET_ITEM(__pyx_v_self->min_child_id, __pyx_v_pos), Py_LT); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 49, __pyx_L1_error)
+        __pyx_t_3 = PyObject_RichCompare(__pyx_t_2, PyList_GET_ITEM(__pyx_v_min_child, __pyx_v_pos), Py_LT); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 48, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        __pyx_t_11 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_11 < 0))) __PYX_ERR(1, 49, __pyx_L1_error)
+        __pyx_t_11 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_11 < 0))) __PYX_ERR(1, 48, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __pyx_t_7 = __pyx_t_11;
         __pyx_L9_bool_binop_done:;
         if (__pyx_t_7) {
 
-          /* "PV_Circuit_Model/IV_jobs.pyx":50
- *                     self.min_child_id.append(-1)
- *                     if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:
- *                         self.min_child_id[pos] = child_idx             # <<<<<<<<<<<<<<
+          /* "PV_Circuit_Model/IV_jobs.pyx":49
+ *                     min_child.append(-1)
+ *                     if min_child[pos] == -1 or child_idx < min_child[pos]:
+ *                         min_child[pos] = child_idx             # <<<<<<<<<<<<<<
  *             pos += 1
- *         self.n_components = len(self.components)
+ *         self.n_components = len(comps)
  */
-          __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_child_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 50, __pyx_L1_error)
+          __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_child_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 49, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_3);
-          if (unlikely(__pyx_v_self->min_child_id == Py_None)) {
+          if (unlikely(__pyx_v_min_child == Py_None)) {
             PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-            __PYX_ERR(1, 50, __pyx_L1_error)
+            __PYX_ERR(1, 49, __pyx_L1_error)
           }
-          if (unlikely((__Pyx_SetItemInt(__pyx_v_self->min_child_id, __pyx_v_pos, __pyx_t_3, Py_ssize_t, 1, PyInt_FromSsize_t, 1, 0, 0) < 0))) __PYX_ERR(1, 50, __pyx_L1_error)
+          if (unlikely((__Pyx_SetItemInt(__pyx_v_min_child, __pyx_v_pos, __pyx_t_3, Py_ssize_t, 1, PyInt_FromSsize_t, 1, 0, 0) < 0))) __PYX_ERR(1, 49, __pyx_L1_error)
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-          /* "PV_Circuit_Model/IV_jobs.pyx":49
- *                     self.components.append(element)
- *                     self.min_child_id.append(-1)
- *                     if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:             # <<<<<<<<<<<<<<
- *                         self.min_child_id[pos] = child_idx
+          /* "PV_Circuit_Model/IV_jobs.pyx":48
+ *                     comps.append(element)
+ *                     min_child.append(-1)
+ *                     if min_child[pos] == -1 or child_idx < min_child[pos]:             # <<<<<<<<<<<<<<
+ *                         min_child[pos] = child_idx
  *             pos += 1
  */
         }
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":45
- *             circuit_component = self.components[pos]
+        /* "PV_Circuit_Model/IV_jobs.pyx":44
+ *             circuit_component = comps[pos]
  *             if circuit_component._type_number >= 5: # is circuitgroup
  *                 for element in circuit_component.subgroups:             # <<<<<<<<<<<<<<
- *                     child_idx = len(self.components)
- *                     self.components.append(element)
+ *                     child_idx = len(comps)
+ *                     comps.append(element)
  */
       }
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":44
- *         while pos < len(self.components):
- *             circuit_component = self.components[pos]
+      /* "PV_Circuit_Model/IV_jobs.pyx":43
+ *         while pos < len(comps):
+ *             circuit_component = comps[pos]
  *             if circuit_component._type_number >= 5: # is circuitgroup             # <<<<<<<<<<<<<<
  *                 for element in circuit_component.subgroups:
- *                     child_idx = len(self.components)
+ *                     child_idx = len(comps)
  */
     }
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":51
- *                     if self.min_child_id[pos] == -1 or child_idx < self.min_child_id[pos]:
- *                         self.min_child_id[pos] = child_idx
+    /* "PV_Circuit_Model/IV_jobs.pyx":50
+ *                     if min_child[pos] == -1 or child_idx < min_child[pos]:
+ *                         min_child[pos] = child_idx
  *             pos += 1             # <<<<<<<<<<<<<<
- *         self.n_components = len(self.components)
+ *         self.n_components = len(comps)
  *         self.job_done_index = self.n_components
  */
     __pyx_v_pos = (__pyx_v_pos + 1);
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":52
- *                         self.min_child_id[pos] = child_idx
+  /* "PV_Circuit_Model/IV_jobs.pyx":51
+ *                         min_child[pos] = child_idx
  *             pos += 1
- *         self.n_components = len(self.components)             # <<<<<<<<<<<<<<
+ *         self.n_components = len(comps)             # <<<<<<<<<<<<<<
  *         self.job_done_index = self.n_components
  * 
  */
-  __pyx_t_1 = __pyx_v_self->components;
-  __Pyx_INCREF(__pyx_t_1);
-  if (unlikely(__pyx_t_1 == Py_None)) {
+  if (unlikely(__pyx_v_comps == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(1, 52, __pyx_L1_error)
+    __PYX_ERR(1, 51, __pyx_L1_error)
   }
-  __pyx_t_6 = __Pyx_PyList_GET_SIZE(__pyx_t_1); if (unlikely(__pyx_t_6 == ((Py_ssize_t)-1))) __PYX_ERR(1, 52, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_6 = __Pyx_PyList_GET_SIZE(__pyx_v_comps); if (unlikely(__pyx_t_6 == ((Py_ssize_t)-1))) __PYX_ERR(1, 51, __pyx_L1_error)
   __pyx_v_self->n_components = __pyx_t_6;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":53
+  /* "PV_Circuit_Model/IV_jobs.pyx":52
  *             pos += 1
- *         self.n_components = len(self.components)
+ *         self.n_components = len(comps)
  *         self.job_done_index = self.n_components             # <<<<<<<<<<<<<<
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):
@@ -3738,7 +3672,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
   __pyx_t_6 = __pyx_v_self->n_components;
   __pyx_v_self->job_done_index = __pyx_t_6;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":37
+  /* "PV_Circuit_Model/IV_jobs.pyx":34
  *         self.build()
  * 
  *     cpdef void build(self):             # <<<<<<<<<<<<<<
@@ -3757,6 +3691,8 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(stru
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_circuit_component);
   __Pyx_XDECREF(__pyx_v_element);
+  __Pyx_XDECREF(__pyx_v_comps);
+  __Pyx_XDECREF(__pyx_v_min_child);
   __Pyx_RefNannyFinishContext();
 }
 
@@ -3810,8 +3746,8 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_4bui
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("build", 1);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(__pyx_v_self, 1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 37, __pyx_L1_error)
-  __pyx_t_1 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 37, __pyx_L1_error)
+  __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_build(__pyx_v_self, 1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 34, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 34, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -3828,12 +3764,12 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_4bui
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":55
+/* "PV_Circuit_Model/IV_jobs.pyx":54
  *         self.job_done_index = self.n_components
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):             # <<<<<<<<<<<<<<
- *         cdef list runnable = []
- *         cdef Py_ssize_t start_job_index = self.job_done_index
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id
  */
 
 static PyObject *__pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_7get_runnable_iv_jobs(PyObject *__pyx_v_self, 
@@ -3845,6 +3781,8 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 ); /*proto*/
 static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_runnable_iv_jobs(struct __pyx_obj_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *__pyx_v_self, int __pyx_skip_dispatch, struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_runnable_iv_jobs *__pyx_optional_args) {
   int __pyx_v_forward = ((int)1);
+  PyObject *__pyx_v_comps = 0;
+  PyObject *__pyx_v_min_child = 0;
   PyObject *__pyx_v_runnable = 0;
   Py_ssize_t __pyx_v_start_job_index;
   Py_ssize_t __pyx_v_i;
@@ -3881,11 +3819,11 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_typedict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_get_runnable_iv_jobs); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 55, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_get_runnable_iv_jobs); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 54, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!__Pyx_IsSameCFunction(__pyx_t_1, (void*) __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_7get_runnable_iv_jobs)) {
         __Pyx_XDECREF(__pyx_r);
-        __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_forward); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 55, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_forward); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 54, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_INCREF(__pyx_t_1);
         __pyx_t_4 = __pyx_t_1; __pyx_t_5 = NULL;
@@ -3907,11 +3845,11 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
           __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
           __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 55, __pyx_L1_error)
+          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 54, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_2);
           __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         }
-        if (!(likely(PyList_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None) || __Pyx_RaiseUnexpectedTypeError("list", __pyx_t_2))) __PYX_ERR(1, 55, __pyx_L1_error)
+        if (!(likely(PyList_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None) || __Pyx_RaiseUnexpectedTypeError("list", __pyx_t_2))) __PYX_ERR(1, 54, __pyx_L1_error)
         __pyx_r = ((PyObject*)__pyx_t_2);
         __pyx_t_2 = 0;
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -3930,20 +3868,44 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
     #endif
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":56
+  /* "PV_Circuit_Model/IV_jobs.pyx":55
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):
+ *         cdef list comps = self.components             # <<<<<<<<<<<<<<
+ *         cdef list min_child = self.min_child_id
+ *         cdef list runnable = []
+ */
+  __pyx_t_1 = __pyx_v_self->components;
+  __Pyx_INCREF(__pyx_t_1);
+  __pyx_v_comps = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "PV_Circuit_Model/IV_jobs.pyx":56
+ *     cpdef list get_runnable_iv_jobs(self, bint forward=True):
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id             # <<<<<<<<<<<<<<
+ *         cdef list runnable = []
+ *         cdef Py_ssize_t start_job_index = self.job_done_index
+ */
+  __pyx_t_1 = __pyx_v_self->min_child_id;
+  __Pyx_INCREF(__pyx_t_1);
+  __pyx_v_min_child = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "PV_Circuit_Model/IV_jobs.pyx":57
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id
  *         cdef list runnable = []             # <<<<<<<<<<<<<<
  *         cdef Py_ssize_t start_job_index = self.job_done_index
  *         cdef Py_ssize_t i, n
  */
-  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 56, __pyx_L1_error)
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 57, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_runnable = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":57
- *     cpdef list get_runnable_iv_jobs(self, bint forward=True):
+  /* "PV_Circuit_Model/IV_jobs.pyx":58
+ *         cdef list min_child = self.min_child_id
  *         cdef list runnable = []
  *         cdef Py_ssize_t start_job_index = self.job_done_index             # <<<<<<<<<<<<<<
  *         cdef Py_ssize_t i, n
@@ -3952,7 +3914,7 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
   __pyx_t_7 = __pyx_v_self->job_done_index;
   __pyx_v_start_job_index = __pyx_t_7;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":62
+  /* "PV_Circuit_Model/IV_jobs.pyx":63
  *         cdef Py_ssize_t min_id
  * 
  *         if forward:             # <<<<<<<<<<<<<<
@@ -3961,43 +3923,43 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
  */
   if (__pyx_v_forward) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":64
+    /* "PV_Circuit_Model/IV_jobs.pyx":65
  *         if forward:
  *             # walk backward until a node that depends on a future job
  *             i = start_job_index - 1             # <<<<<<<<<<<<<<
  *             while i >= 0:
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  */
     __pyx_v_i = (__pyx_v_start_job_index - 1);
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":65
+    /* "PV_Circuit_Model/IV_jobs.pyx":66
  *             # walk backward until a node that depends on a future job
  *             i = start_job_index - 1
  *             while i >= 0:             # <<<<<<<<<<<<<<
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < start_job_index:
  */
     while (1) {
       __pyx_t_8 = (__pyx_v_i >= 0);
       if (!__pyx_t_8) break;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":66
+      /* "PV_Circuit_Model/IV_jobs.pyx":67
  *             i = start_job_index - 1
  *             while i >= 0:
- *                 child_min = self.min_child_id[i]             # <<<<<<<<<<<<<<
+ *                 child_min = min_child[i]             # <<<<<<<<<<<<<<
  *                 if child_min != -1 and child_min < start_job_index:
  *                     break
  */
-      if (unlikely(__pyx_v_self->min_child_id == Py_None)) {
+      if (unlikely(__pyx_v_min_child == Py_None)) {
         PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-        __PYX_ERR(1, 66, __pyx_L1_error)
+        __PYX_ERR(1, 67, __pyx_L1_error)
       }
-      __pyx_t_6 = __Pyx_PyInt_As_int(PyList_GET_ITEM(__pyx_v_self->min_child_id, __pyx_v_i)); if (unlikely((__pyx_t_6 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 66, __pyx_L1_error)
+      __pyx_t_6 = __Pyx_PyInt_As_int(PyList_GET_ITEM(__pyx_v_min_child, __pyx_v_i)); if (unlikely((__pyx_t_6 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 67, __pyx_L1_error)
       __pyx_v_child_min = __pyx_t_6;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":67
+      /* "PV_Circuit_Model/IV_jobs.pyx":68
  *             while i >= 0:
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < start_job_index:             # <<<<<<<<<<<<<<
  *                     break
  *                 self.job_done_index = i
@@ -4013,78 +3975,78 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
       __pyx_L7_bool_binop_done:;
       if (__pyx_t_8) {
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":68
- *                 child_min = self.min_child_id[i]
+        /* "PV_Circuit_Model/IV_jobs.pyx":69
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < start_job_index:
  *                     break             # <<<<<<<<<<<<<<
  *                 self.job_done_index = i
- *                 if self.components[i].IV_V is None:
+ *                 if comps[i].IV_V is None:
  */
         goto __pyx_L5_break;
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":67
+        /* "PV_Circuit_Model/IV_jobs.pyx":68
  *             while i >= 0:
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < start_job_index:             # <<<<<<<<<<<<<<
  *                     break
  *                 self.job_done_index = i
  */
       }
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":69
+      /* "PV_Circuit_Model/IV_jobs.pyx":70
  *                 if child_min != -1 and child_min < start_job_index:
  *                     break
  *                 self.job_done_index = i             # <<<<<<<<<<<<<<
- *                 if self.components[i].IV_V is None:
- *                     runnable.append(self.components[i])
+ *                 if comps[i].IV_V is None:
+ *                     runnable.append(comps[i])
  */
       __pyx_v_self->job_done_index = __pyx_v_i;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":70
+      /* "PV_Circuit_Model/IV_jobs.pyx":71
  *                     break
  *                 self.job_done_index = i
- *                 if self.components[i].IV_V is None:             # <<<<<<<<<<<<<<
- *                     runnable.append(self.components[i])
+ *                 if comps[i].IV_V is None:             # <<<<<<<<<<<<<<
+ *                     runnable.append(comps[i])
  *                 i -= 1
  */
-      if (unlikely(__pyx_v_self->components == Py_None)) {
+      if (unlikely(__pyx_v_comps == Py_None)) {
         PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-        __PYX_ERR(1, 70, __pyx_L1_error)
+        __PYX_ERR(1, 71, __pyx_L1_error)
       }
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, __pyx_v_i), __pyx_n_s_IV_V); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 70, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_comps, __pyx_v_i), __pyx_n_s_IV_V); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 71, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_t_8 = (__pyx_t_1 == Py_None);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       if (__pyx_t_8) {
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":71
+        /* "PV_Circuit_Model/IV_jobs.pyx":72
  *                 self.job_done_index = i
- *                 if self.components[i].IV_V is None:
- *                     runnable.append(self.components[i])             # <<<<<<<<<<<<<<
+ *                 if comps[i].IV_V is None:
+ *                     runnable.append(comps[i])             # <<<<<<<<<<<<<<
  *                 i -= 1
  *         else:
  */
-        if (unlikely(__pyx_v_self->components == Py_None)) {
+        if (unlikely(__pyx_v_comps == Py_None)) {
           PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-          __PYX_ERR(1, 71, __pyx_L1_error)
+          __PYX_ERR(1, 72, __pyx_L1_error)
         }
-        __pyx_t_1 = PyList_GET_ITEM(__pyx_v_self->components, __pyx_v_i);
+        __pyx_t_1 = PyList_GET_ITEM(__pyx_v_comps, __pyx_v_i);
         __Pyx_INCREF(__pyx_t_1);
-        __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_runnable, __pyx_t_1); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 71, __pyx_L1_error)
+        __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_runnable, __pyx_t_1); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 72, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":70
+        /* "PV_Circuit_Model/IV_jobs.pyx":71
  *                     break
  *                 self.job_done_index = i
- *                 if self.components[i].IV_V is None:             # <<<<<<<<<<<<<<
- *                     runnable.append(self.components[i])
+ *                 if comps[i].IV_V is None:             # <<<<<<<<<<<<<<
+ *                     runnable.append(comps[i])
  *                 i -= 1
  */
       }
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":72
- *                 if self.components[i].IV_V is None:
- *                     runnable.append(self.components[i])
+      /* "PV_Circuit_Model/IV_jobs.pyx":73
+ *                 if comps[i].IV_V is None:
+ *                     runnable.append(comps[i])
  *                 i -= 1             # <<<<<<<<<<<<<<
  *         else:
  *             n = self.n_components
@@ -4093,7 +4055,7 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
     }
     __pyx_L5_break:;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":62
+    /* "PV_Circuit_Model/IV_jobs.pyx":63
  *         cdef Py_ssize_t min_id
  * 
  *         if forward:             # <<<<<<<<<<<<<<
@@ -4103,7 +4065,7 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
     goto __pyx_L3;
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":74
+  /* "PV_Circuit_Model/IV_jobs.pyx":75
  *                 i -= 1
  *         else:
  *             n = self.n_components             # <<<<<<<<<<<<<<
@@ -4114,7 +4076,7 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
     __pyx_t_7 = __pyx_v_self->n_components;
     __pyx_v_n = __pyx_t_7;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":76
+    /* "PV_Circuit_Model/IV_jobs.pyx":77
  *             n = self.n_components
  *             # sentinel: larger than any valid index
  *             min_id = n + 100             # <<<<<<<<<<<<<<
@@ -4123,20 +4085,20 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
  */
     __pyx_v_min_id = (__pyx_v_n + 0x64);
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":78
+    /* "PV_Circuit_Model/IV_jobs.pyx":79
  *             min_id = n + 100
  * 
  *             i = start_job_index             # <<<<<<<<<<<<<<
  *             while i < n and i < min_id:
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  */
     __pyx_v_i = __pyx_v_start_job_index;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":79
+    /* "PV_Circuit_Model/IV_jobs.pyx":80
  * 
  *             i = start_job_index
  *             while i < n and i < min_id:             # <<<<<<<<<<<<<<
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < min_id:
  */
     while (1) {
@@ -4151,23 +4113,23 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
       __pyx_L12_bool_binop_done:;
       if (!__pyx_t_8) break;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":80
+      /* "PV_Circuit_Model/IV_jobs.pyx":81
  *             i = start_job_index
  *             while i < n and i < min_id:
- *                 child_min = self.min_child_id[i]             # <<<<<<<<<<<<<<
+ *                 child_min = min_child[i]             # <<<<<<<<<<<<<<
  *                 if child_min != -1 and child_min < min_id:
  *                     min_id = child_min
  */
-      if (unlikely(__pyx_v_self->min_child_id == Py_None)) {
+      if (unlikely(__pyx_v_min_child == Py_None)) {
         PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-        __PYX_ERR(1, 80, __pyx_L1_error)
+        __PYX_ERR(1, 81, __pyx_L1_error)
       }
-      __pyx_t_6 = __Pyx_PyInt_As_int(PyList_GET_ITEM(__pyx_v_self->min_child_id, __pyx_v_i)); if (unlikely((__pyx_t_6 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 80, __pyx_L1_error)
+      __pyx_t_6 = __Pyx_PyInt_As_int(PyList_GET_ITEM(__pyx_v_min_child, __pyx_v_i)); if (unlikely((__pyx_t_6 == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 81, __pyx_L1_error)
       __pyx_v_child_min = __pyx_t_6;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":81
+      /* "PV_Circuit_Model/IV_jobs.pyx":82
  *             while i < n and i < min_id:
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < min_id:             # <<<<<<<<<<<<<<
  *                     min_id = child_min
  *                 self.job_done_index = i + 1
@@ -4183,52 +4145,52 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
       __pyx_L15_bool_binop_done:;
       if (__pyx_t_8) {
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":82
- *                 child_min = self.min_child_id[i]
+        /* "PV_Circuit_Model/IV_jobs.pyx":83
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < min_id:
  *                     min_id = child_min             # <<<<<<<<<<<<<<
  *                 self.job_done_index = i + 1
- *                 runnable.append(self.components[i])
+ *                 runnable.append(comps[i])
  */
         __pyx_v_min_id = __pyx_v_child_min;
 
-        /* "PV_Circuit_Model/IV_jobs.pyx":81
+        /* "PV_Circuit_Model/IV_jobs.pyx":82
  *             while i < n and i < min_id:
- *                 child_min = self.min_child_id[i]
+ *                 child_min = min_child[i]
  *                 if child_min != -1 and child_min < min_id:             # <<<<<<<<<<<<<<
  *                     min_id = child_min
  *                 self.job_done_index = i + 1
  */
       }
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":83
+      /* "PV_Circuit_Model/IV_jobs.pyx":84
  *                 if child_min != -1 and child_min < min_id:
  *                     min_id = child_min
  *                 self.job_done_index = i + 1             # <<<<<<<<<<<<<<
- *                 runnable.append(self.components[i])
+ *                 runnable.append(comps[i])
  *                 i += 1
  */
       __pyx_v_self->job_done_index = (__pyx_v_i + 1);
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":84
+      /* "PV_Circuit_Model/IV_jobs.pyx":85
  *                     min_id = child_min
  *                 self.job_done_index = i + 1
- *                 runnable.append(self.components[i])             # <<<<<<<<<<<<<<
+ *                 runnable.append(comps[i])             # <<<<<<<<<<<<<<
  *                 i += 1
  * 
  */
-      if (unlikely(__pyx_v_self->components == Py_None)) {
+      if (unlikely(__pyx_v_comps == Py_None)) {
         PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-        __PYX_ERR(1, 84, __pyx_L1_error)
+        __PYX_ERR(1, 85, __pyx_L1_error)
       }
-      __pyx_t_1 = PyList_GET_ITEM(__pyx_v_self->components, __pyx_v_i);
+      __pyx_t_1 = PyList_GET_ITEM(__pyx_v_comps, __pyx_v_i);
       __Pyx_INCREF(__pyx_t_1);
-      __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_runnable, __pyx_t_1); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 84, __pyx_L1_error)
+      __pyx_t_10 = __Pyx_PyList_Append(__pyx_v_runnable, __pyx_t_1); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(1, 85, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":85
+      /* "PV_Circuit_Model/IV_jobs.pyx":86
  *                 self.job_done_index = i + 1
- *                 runnable.append(self.components[i])
+ *                 runnable.append(comps[i])
  *                 i += 1             # <<<<<<<<<<<<<<
  * 
  *         return runnable
@@ -4238,7 +4200,7 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
   }
   __pyx_L3:;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":87
+  /* "PV_Circuit_Model/IV_jobs.pyx":88
  *                 i += 1
  * 
  *         return runnable             # <<<<<<<<<<<<<<
@@ -4250,12 +4212,12 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
   __pyx_r = __pyx_v_runnable;
   goto __pyx_L0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":55
+  /* "PV_Circuit_Model/IV_jobs.pyx":54
  *         self.job_done_index = self.n_components
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):             # <<<<<<<<<<<<<<
- *         cdef list runnable = []
- *         cdef Py_ssize_t start_job_index = self.job_done_index
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id
  */
 
   /* function exit code */
@@ -4268,6 +4230,8 @@ static PyObject *__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_r
   __Pyx_AddTraceback("PV_Circuit_Model.IV_jobs_cython.IV_Job_Heap.get_runnable_iv_jobs", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_comps);
+  __Pyx_XDECREF(__pyx_v_min_child);
   __Pyx_XDECREF(__pyx_v_runnable);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
@@ -4326,12 +4290,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_forward);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 55, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 54, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "get_runnable_iv_jobs") < 0)) __PYX_ERR(1, 55, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "get_runnable_iv_jobs") < 0)) __PYX_ERR(1, 54, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -4342,14 +4306,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       }
     }
     if (values[0]) {
-      __pyx_v_forward = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_forward == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 55, __pyx_L3_error)
+      __pyx_v_forward = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_forward == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 54, __pyx_L3_error)
     } else {
       __pyx_v_forward = ((int)1);
     }
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("get_runnable_iv_jobs", 0, 0, 1, __pyx_nargs); __PYX_ERR(1, 55, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("get_runnable_iv_jobs", 0, 0, 1, __pyx_nargs); __PYX_ERR(1, 54, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4388,7 +4352,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_6get
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.forward = __pyx_v_forward;
-  __pyx_t_1 = __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->get_runnable_iv_jobs(__pyx_v_self, 1, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 55, __pyx_L1_error)
+  __pyx_t_1 = __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->get_runnable_iv_jobs(__pyx_v_self, 1, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 54, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -4405,7 +4369,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_6get
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":89
+/* "PV_Circuit_Model/IV_jobs.pyx":90
  *         return runnable
  * 
  *     cpdef void reset(self, bint forward=True):             # <<<<<<<<<<<<<<
@@ -4448,10 +4412,10 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_typedict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_reset); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 89, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_reset); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 90, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!__Pyx_IsSameCFunction(__pyx_t_1, (void*) __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_9reset)) {
-        __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_forward); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 89, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_forward); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 90, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_INCREF(__pyx_t_1);
         __pyx_t_4 = __pyx_t_1; __pyx_t_5 = NULL;
@@ -4473,7 +4437,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
           __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
           __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 89, __pyx_L1_error)
+          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 90, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_2);
           __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         }
@@ -4494,7 +4458,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
     #endif
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":90
+  /* "PV_Circuit_Model/IV_jobs.pyx":91
  * 
  *     cpdef void reset(self, bint forward=True):
  *         if forward:             # <<<<<<<<<<<<<<
@@ -4503,7 +4467,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
  */
   if (__pyx_v_forward) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":91
+    /* "PV_Circuit_Model/IV_jobs.pyx":92
  *     cpdef void reset(self, bint forward=True):
  *         if forward:
  *             self.job_done_index = self.n_components             # <<<<<<<<<<<<<<
@@ -4513,7 +4477,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
     __pyx_t_7 = __pyx_v_self->n_components;
     __pyx_v_self->job_done_index = __pyx_t_7;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":90
+    /* "PV_Circuit_Model/IV_jobs.pyx":91
  * 
  *     cpdef void reset(self, bint forward=True):
  *         if forward:             # <<<<<<<<<<<<<<
@@ -4523,7 +4487,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
     goto __pyx_L3;
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":93
+  /* "PV_Circuit_Model/IV_jobs.pyx":94
  *             self.job_done_index = self.n_components
  *         else:
  *             self.job_done_index = 0             # <<<<<<<<<<<<<<
@@ -4535,7 +4499,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset(stru
   }
   __pyx_L3:;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":89
+  /* "PV_Circuit_Model/IV_jobs.pyx":90
  *         return runnable
  * 
  *     cpdef void reset(self, bint forward=True):             # <<<<<<<<<<<<<<
@@ -4608,12 +4572,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_forward);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 89, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 90, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "reset") < 0)) __PYX_ERR(1, 89, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "reset") < 0)) __PYX_ERR(1, 90, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -4624,14 +4588,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       }
     }
     if (values[0]) {
-      __pyx_v_forward = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_forward == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 89, __pyx_L3_error)
+      __pyx_v_forward = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_forward == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 90, __pyx_L3_error)
     } else {
       __pyx_v_forward = ((int)1);
     }
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("reset", 0, 0, 1, __pyx_nargs); __PYX_ERR(1, 89, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("reset", 0, 0, 1, __pyx_nargs); __PYX_ERR(1, 90, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4670,8 +4634,8 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_8res
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_1.__pyx_n = 1;
   __pyx_t_1.forward = __pyx_v_forward;
-  __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->reset(__pyx_v_self, 1, &__pyx_t_1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 89, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 89, __pyx_L1_error)
+  __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->reset(__pyx_v_self, 1, &__pyx_t_1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 90, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 90, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_r = __pyx_t_2;
   __pyx_t_2 = 0;
@@ -4688,7 +4652,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_8res
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":95
+/* "PV_Circuit_Model/IV_jobs.pyx":96
  *             self.job_done_index = 0
  * 
  *     cpdef void set_operating_point(self, V=None, I=None):             # <<<<<<<<<<<<<<
@@ -4708,7 +4672,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   PyObject *__pyx_v_I = ((PyObject *)Py_None);
   int __pyx_v_parallel;
   PyObject *__pyx_v_pbar = NULL;
-  PyObject *__pyx_v_job_done_index_before = NULL;
+  Py_ssize_t __pyx_v_job_done_index_before;
   PyObject *__pyx_v_components_ = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -4719,7 +4683,8 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   int __pyx_t_6;
   int __pyx_t_7;
   struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_reset __pyx_t_8;
-  struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_runnable_iv_jobs __pyx_t_9;
+  Py_ssize_t __pyx_t_9;
+  struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_get_runnable_iv_jobs __pyx_t_10;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -4741,7 +4706,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_typedict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_set_operating_point); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 95, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_set_operating_point); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 96, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!__Pyx_IsSameCFunction(__pyx_t_1, (void*) __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_11set_operating_point)) {
         __Pyx_INCREF(__pyx_t_1);
@@ -4763,7 +4728,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
           PyObject *__pyx_callargs[3] = {__pyx_t_4, __pyx_v_V, __pyx_v_I};
           __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_5, 2+__pyx_t_5);
           __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 95, __pyx_L1_error)
+          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 96, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_2);
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         }
@@ -4784,7 +4749,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     #endif
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":96
+  /* "PV_Circuit_Model/IV_jobs.pyx":97
  * 
  *     cpdef void set_operating_point(self, V=None, I=None):
  *         cdef bint parallel = False             # <<<<<<<<<<<<<<
@@ -4793,7 +4758,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
   __pyx_v_parallel = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":97
+  /* "PV_Circuit_Model/IV_jobs.pyx":98
  *     cpdef void set_operating_point(self, V=None, I=None):
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:             # <<<<<<<<<<<<<<
@@ -4807,9 +4772,9 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   }
   if (unlikely(__pyx_v_self->components == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-    __PYX_ERR(1, 97, __pyx_L1_error)
+    __PYX_ERR(1, 98, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_max_num_points); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 97, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_max_num_points); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 98, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_7 = (__pyx_t_1 != Py_None);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -4817,7 +4782,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   __pyx_L4_bool_binop_done:;
   if (__pyx_t_6) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":98
+    /* "PV_Circuit_Model/IV_jobs.pyx":99
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  *             parallel = True             # <<<<<<<<<<<<<<
@@ -4826,7 +4791,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
     __pyx_v_parallel = 1;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":97
+    /* "PV_Circuit_Model/IV_jobs.pyx":98
  *     cpdef void set_operating_point(self, V=None, I=None):
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:             # <<<<<<<<<<<<<<
@@ -4835,7 +4800,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":99
+  /* "PV_Circuit_Model/IV_jobs.pyx":100
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  *             parallel = True
  *         self.reset(forward=False)             # <<<<<<<<<<<<<<
@@ -4844,9 +4809,9 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
   __pyx_t_8.__pyx_n = 1;
   __pyx_t_8.forward = 0;
-  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->reset(__pyx_v_self, 0, &__pyx_t_8); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 99, __pyx_L1_error)
+  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->reset(__pyx_v_self, 0, &__pyx_t_8); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 100, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":100
+  /* "PV_Circuit_Model/IV_jobs.pyx":101
  *             parallel = True
  *         self.reset(forward=False)
  *         pbar = None             # <<<<<<<<<<<<<<
@@ -4856,7 +4821,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   __Pyx_INCREF(Py_None);
   __pyx_v_pbar = Py_None;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":102
+  /* "PV_Circuit_Model/IV_jobs.pyx":103
  *         pbar = None
  * 
  *         if V is not None:             # <<<<<<<<<<<<<<
@@ -4866,29 +4831,29 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   __pyx_t_6 = (__pyx_v_V != Py_None);
   if (__pyx_t_6) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":103
+    /* "PV_Circuit_Model/IV_jobs.pyx":104
  * 
  *         if V is not None:
  *             self.components[0].operating_point = [V, None]             # <<<<<<<<<<<<<<
  *         else:
  *             self.components[0].operating_point = [None, I]
  */
-    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 103, __pyx_L1_error)
+    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 104, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_INCREF(__pyx_v_V);
     __Pyx_GIVEREF(__pyx_v_V);
-    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, __pyx_v_V)) __PYX_ERR(1, 103, __pyx_L1_error);
+    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, __pyx_v_V)) __PYX_ERR(1, 104, __pyx_L1_error);
     __Pyx_INCREF(Py_None);
     __Pyx_GIVEREF(Py_None);
-    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 1, Py_None)) __PYX_ERR(1, 103, __pyx_L1_error);
+    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 1, Py_None)) __PYX_ERR(1, 104, __pyx_L1_error);
     if (unlikely(__pyx_v_self->components == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-      __PYX_ERR(1, 103, __pyx_L1_error)
+      __PYX_ERR(1, 104, __pyx_L1_error)
     }
-    if (__Pyx_PyObject_SetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_operating_point, __pyx_t_1) < 0) __PYX_ERR(1, 103, __pyx_L1_error)
+    if (__Pyx_PyObject_SetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_operating_point, __pyx_t_1) < 0) __PYX_ERR(1, 104, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":102
+    /* "PV_Circuit_Model/IV_jobs.pyx":103
  *         pbar = None
  * 
  *         if V is not None:             # <<<<<<<<<<<<<<
@@ -4898,7 +4863,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     goto __pyx_L6;
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":105
+  /* "PV_Circuit_Model/IV_jobs.pyx":106
  *             self.components[0].operating_point = [V, None]
  *         else:
  *             self.components[0].operating_point = [None, I]             # <<<<<<<<<<<<<<
@@ -4906,24 +4871,24 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  *         if self.n_components > 100000:
  */
   /*else*/ {
-    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 105, __pyx_L1_error)
+    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 106, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_INCREF(Py_None);
     __Pyx_GIVEREF(Py_None);
-    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, Py_None)) __PYX_ERR(1, 105, __pyx_L1_error);
+    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 0, Py_None)) __PYX_ERR(1, 106, __pyx_L1_error);
     __Pyx_INCREF(__pyx_v_I);
     __Pyx_GIVEREF(__pyx_v_I);
-    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 1, __pyx_v_I)) __PYX_ERR(1, 105, __pyx_L1_error);
+    if (__Pyx_PyList_SET_ITEM(__pyx_t_1, 1, __pyx_v_I)) __PYX_ERR(1, 106, __pyx_L1_error);
     if (unlikely(__pyx_v_self->components == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-      __PYX_ERR(1, 105, __pyx_L1_error)
+      __PYX_ERR(1, 106, __pyx_L1_error)
     }
-    if (__Pyx_PyObject_SetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_operating_point, __pyx_t_1) < 0) __PYX_ERR(1, 105, __pyx_L1_error)
+    if (__Pyx_PyObject_SetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_operating_point, __pyx_t_1) < 0) __PYX_ERR(1, 106, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   }
   __pyx_L6:;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":107
+  /* "PV_Circuit_Model/IV_jobs.pyx":108
  *             self.components[0].operating_point = [None, I]
  * 
  *         if self.n_components > 100000:             # <<<<<<<<<<<<<<
@@ -4933,30 +4898,30 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   __pyx_t_6 = (__pyx_v_self->n_components > 0x186A0);
   if (__pyx_t_6) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":108
+    /* "PV_Circuit_Model/IV_jobs.pyx":109
  * 
  *         if self.n_components > 100000:
  *             pbar = tqdm(total=self.n_components, desc="Processing the circuit hierarchy: ")             # <<<<<<<<<<<<<<
  * 
  *         while self.job_done_index < self.n_components:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_tqdm); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 108, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_tqdm); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 109, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 108, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 109, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_self->n_components); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 108, __pyx_L1_error)
+    __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_self->n_components); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 109, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_total, __pyx_t_3) < 0) __PYX_ERR(1, 108, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_total, __pyx_t_3) < 0) __PYX_ERR(1, 109, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_desc, __pyx_kp_u_Processing_the_circuit_hierarchy) < 0) __PYX_ERR(1, 108, __pyx_L1_error)
-    __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 108, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_desc, __pyx_kp_u_Processing_the_circuit_hierarchy) < 0) __PYX_ERR(1, 109, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 109, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF_SET(__pyx_v_pbar, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":107
+    /* "PV_Circuit_Model/IV_jobs.pyx":108
  *             self.components[0].operating_point = [None, I]
  * 
  *         if self.n_components > 100000:             # <<<<<<<<<<<<<<
@@ -4965,7 +4930,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":110
+  /* "PV_Circuit_Model/IV_jobs.pyx":111
  *             pbar = tqdm(total=self.n_components, desc="Processing the circuit hierarchy: ")
  * 
  *         while self.job_done_index < self.n_components:             # <<<<<<<<<<<<<<
@@ -4976,33 +4941,31 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     __pyx_t_6 = (__pyx_v_self->job_done_index < __pyx_v_self->n_components);
     if (!__pyx_t_6) break;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":111
+    /* "PV_Circuit_Model/IV_jobs.pyx":112
  * 
  *         while self.job_done_index < self.n_components:
  *             job_done_index_before = self.job_done_index             # <<<<<<<<<<<<<<
  *             components_ = self.get_runnable_iv_jobs(forward=False)
  *             if components_:
  */
-    __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_self->job_done_index); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 111, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_XDECREF_SET(__pyx_v_job_done_index_before, __pyx_t_3);
-    __pyx_t_3 = 0;
+    __pyx_t_9 = __pyx_v_self->job_done_index;
+    __pyx_v_job_done_index_before = __pyx_t_9;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":112
+    /* "PV_Circuit_Model/IV_jobs.pyx":113
  *         while self.job_done_index < self.n_components:
  *             job_done_index_before = self.job_done_index
  *             components_ = self.get_runnable_iv_jobs(forward=False)             # <<<<<<<<<<<<<<
  *             if components_:
  *                 ivkernel.run_multiple_operating_points(components_, parallel=parallel)
  */
-    __pyx_t_9.__pyx_n = 1;
-    __pyx_t_9.forward = 0;
-    __pyx_t_3 = ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->get_runnable_iv_jobs(__pyx_v_self, 0, &__pyx_t_9); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 112, __pyx_L1_error)
+    __pyx_t_10.__pyx_n = 1;
+    __pyx_t_10.forward = 0;
+    __pyx_t_3 = ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->get_runnable_iv_jobs(__pyx_v_self, 0, &__pyx_t_10); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 113, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_XDECREF_SET(__pyx_v_components_, ((PyObject*)__pyx_t_3));
     __pyx_t_3 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":113
+    /* "PV_Circuit_Model/IV_jobs.pyx":114
  *             job_done_index_before = self.job_done_index
  *             components_ = self.get_runnable_iv_jobs(forward=False)
  *             if components_:             # <<<<<<<<<<<<<<
@@ -5012,37 +4975,37 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     __pyx_t_6 = (__pyx_v_components_ != Py_None)&&(PyList_GET_SIZE(__pyx_v_components_) != 0);
     if (__pyx_t_6) {
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":114
+      /* "PV_Circuit_Model/IV_jobs.pyx":115
  *             components_ = self.get_runnable_iv_jobs(forward=False)
  *             if components_:
  *                 ivkernel.run_multiple_operating_points(components_, parallel=parallel)             # <<<<<<<<<<<<<<
  *             if pbar is not None:
  *                 pbar.update(self.job_done_index - job_done_index_before)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_ivkernel); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 114, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_ivkernel); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_run_multiple_operating_points); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 114, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_run_multiple_operating_points); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 114, __pyx_L1_error)
+      __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_INCREF(__pyx_v_components_);
       __Pyx_GIVEREF(__pyx_v_components_);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_v_components_)) __PYX_ERR(1, 114, __pyx_L1_error);
-      __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 114, __pyx_L1_error)
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_v_components_)) __PYX_ERR(1, 115, __pyx_L1_error);
+      __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_4 = __Pyx_PyBool_FromLong(__pyx_v_parallel); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 114, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyBool_FromLong(__pyx_v_parallel); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_parallel, __pyx_t_4) < 0) __PYX_ERR(1, 114, __pyx_L1_error)
+      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_parallel, __pyx_t_4) < 0) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 114, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 115, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":113
+      /* "PV_Circuit_Model/IV_jobs.pyx":114
  *             job_done_index_before = self.job_done_index
  *             components_ = self.get_runnable_iv_jobs(forward=False)
  *             if components_:             # <<<<<<<<<<<<<<
@@ -5051,7 +5014,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
     }
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":115
+    /* "PV_Circuit_Model/IV_jobs.pyx":116
  *             if components_:
  *                 ivkernel.run_multiple_operating_points(components_, parallel=parallel)
  *             if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5061,28 +5024,25 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     __pyx_t_6 = (__pyx_v_pbar != Py_None);
     if (__pyx_t_6) {
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":116
+      /* "PV_Circuit_Model/IV_jobs.pyx":117
  *                 ivkernel.run_multiple_operating_points(components_, parallel=parallel)
  *             if pbar is not None:
  *                 pbar.update(self.job_done_index - job_done_index_before)             # <<<<<<<<<<<<<<
  * 
  *         if pbar is not None:
  */
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_update); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 116, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_update); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 117, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_3 = PyInt_FromSsize_t(__pyx_v_self->job_done_index); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 116, __pyx_L1_error)
+      __pyx_t_3 = PyInt_FromSsize_t((__pyx_v_self->job_done_index - __pyx_v_job_done_index_before)); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 117, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_2 = PyNumber_Subtract(__pyx_t_3, __pyx_v_job_done_index_before); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 116, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = NULL;
+      __pyx_t_2 = NULL;
       __pyx_t_5 = 0;
       #if CYTHON_UNPACK_METHODS
       if (likely(PyMethod_Check(__pyx_t_1))) {
-        __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_1);
-        if (likely(__pyx_t_3)) {
+        __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_1);
+        if (likely(__pyx_t_2)) {
           PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
-          __Pyx_INCREF(__pyx_t_3);
+          __Pyx_INCREF(__pyx_t_2);
           __Pyx_INCREF(function);
           __Pyx_DECREF_SET(__pyx_t_1, function);
           __pyx_t_5 = 1;
@@ -5090,17 +5050,17 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
       }
       #endif
       {
-        PyObject *__pyx_callargs[2] = {__pyx_t_3, __pyx_t_2};
+        PyObject *__pyx_callargs[2] = {__pyx_t_2, __pyx_t_3};
         __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_5, 1+__pyx_t_5);
-        __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-        __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 116, __pyx_L1_error)
+        __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 117, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_4);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":115
+      /* "PV_Circuit_Model/IV_jobs.pyx":116
  *             if components_:
  *                 ivkernel.run_multiple_operating_points(components_, parallel=parallel)
  *             if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5110,7 +5070,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     }
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":118
+  /* "PV_Circuit_Model/IV_jobs.pyx":119
  *                 pbar.update(self.job_done_index - job_done_index_before)
  * 
  *         if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5120,23 +5080,23 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   __pyx_t_6 = (__pyx_v_pbar != Py_None);
   if (__pyx_t_6) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":119
+    /* "PV_Circuit_Model/IV_jobs.pyx":120
  * 
  *         if pbar is not None:
  *             pbar.close()             # <<<<<<<<<<<<<<
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):
  */
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_close); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 119, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_close); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 120, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = NULL;
+    __pyx_t_3 = NULL;
     __pyx_t_5 = 0;
     #if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(__pyx_t_1))) {
-      __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_1);
-      if (likely(__pyx_t_2)) {
+      __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_1);
+      if (likely(__pyx_t_3)) {
         PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
-        __Pyx_INCREF(__pyx_t_2);
+        __Pyx_INCREF(__pyx_t_3);
         __Pyx_INCREF(function);
         __Pyx_DECREF_SET(__pyx_t_1, function);
         __pyx_t_5 = 1;
@@ -5144,16 +5104,16 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
     }
     #endif
     {
-      PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+      PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
       __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_5, 0+__pyx_t_5);
-      __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 119, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 120, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     }
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":118
+    /* "PV_Circuit_Model/IV_jobs.pyx":119
  *                 pbar.update(self.job_done_index - job_done_index_before)
  * 
  *         if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5162,7 +5122,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
  */
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":95
+  /* "PV_Circuit_Model/IV_jobs.pyx":96
  *             self.job_done_index = 0
  * 
  *     cpdef void set_operating_point(self, V=None, I=None):             # <<<<<<<<<<<<<<
@@ -5180,7 +5140,6 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operat
   __Pyx_AddTraceback("PV_Circuit_Model.IV_jobs_cython.IV_Job_Heap.set_operating_point", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_pbar);
-  __Pyx_XDECREF(__pyx_v_job_done_index_before);
   __Pyx_XDECREF(__pyx_v_components_);
   __Pyx_RefNannyFinishContext();
 }
@@ -5242,19 +5201,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_V);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 95, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 96, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  1:
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_I);
           if (value) { values[1] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 95, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 96, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "set_operating_point") < 0)) __PYX_ERR(1, 95, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "set_operating_point") < 0)) __PYX_ERR(1, 96, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -5271,7 +5230,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("set_operating_point", 0, 0, 2, __pyx_nargs); __PYX_ERR(1, 95, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("set_operating_point", 0, 0, 2, __pyx_nargs); __PYX_ERR(1, 96, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5311,8 +5270,8 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_10se
   __pyx_t_1.__pyx_n = 2;
   __pyx_t_1.V = __pyx_v_V;
   __pyx_t_1.I = __pyx_v_I;
-  __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->set_operating_point(__pyx_v_self, 1, &__pyx_t_1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 95, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 95, __pyx_L1_error)
+  __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->set_operating_point(__pyx_v_self, 1, &__pyx_t_1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 96, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 96, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_r = __pyx_t_2;
   __pyx_t_2 = 0;
@@ -5329,7 +5288,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_10se
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":121
+/* "PV_Circuit_Model/IV_jobs.pyx":122
  *             pbar.close()
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):             # <<<<<<<<<<<<<<
@@ -5348,7 +5307,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   int __pyx_v_refine_mode = ((int)0);
   int __pyx_v_parallel;
   PyObject *__pyx_v_pbar = NULL;
-  PyObject *__pyx_v_job_done_index_before = NULL;
+  Py_ssize_t __pyx_v_job_done_index_before;
   PyObject *__pyx_v_components_ = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -5359,6 +5318,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   int __pyx_t_6;
   int __pyx_t_7;
   int __pyx_t_8;
+  Py_ssize_t __pyx_t_9;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -5377,10 +5337,10 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_typedict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_run_IV); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 121, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_run_IV); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 122, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!__Pyx_IsSameCFunction(__pyx_t_1, (void*) __pyx_pw_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_13run_IV)) {
-        __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_refine_mode); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 121, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_refine_mode); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 122, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_INCREF(__pyx_t_1);
         __pyx_t_4 = __pyx_t_1; __pyx_t_5 = NULL;
@@ -5402,7 +5362,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
           __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
           __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 121, __pyx_L1_error)
+          if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 122, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_2);
           __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         }
@@ -5423,7 +5383,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     #endif
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":122
+  /* "PV_Circuit_Model/IV_jobs.pyx":123
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):
  *         cdef bint parallel = False             # <<<<<<<<<<<<<<
@@ -5432,7 +5392,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
  */
   __pyx_v_parallel = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":123
+  /* "PV_Circuit_Model/IV_jobs.pyx":124
  *     cpdef void run_IV(self, bint refine_mode=False):
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:             # <<<<<<<<<<<<<<
@@ -5446,9 +5406,9 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   }
   if (unlikely(__pyx_v_self->components == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-    __PYX_ERR(1, 123, __pyx_L1_error)
+    __PYX_ERR(1, 124, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_max_num_points); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 123, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_max_num_points); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 124, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_8 = (__pyx_t_1 != Py_None);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -5456,7 +5416,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   __pyx_L4_bool_binop_done:;
   if (__pyx_t_7) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":124
+    /* "PV_Circuit_Model/IV_jobs.pyx":125
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  *             parallel = True             # <<<<<<<<<<<<<<
@@ -5465,7 +5425,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
  */
     __pyx_v_parallel = 1;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":123
+    /* "PV_Circuit_Model/IV_jobs.pyx":124
  *     cpdef void run_IV(self, bint refine_mode=False):
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:             # <<<<<<<<<<<<<<
@@ -5474,16 +5434,16 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
  */
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":125
+  /* "PV_Circuit_Model/IV_jobs.pyx":126
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  *             parallel = True
  *         self.reset()             # <<<<<<<<<<<<<<
  *         pbar = None
  *         if self.job_done_index > 100000:
  */
-  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->reset(__pyx_v_self, 0, NULL); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 125, __pyx_L1_error)
+  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->reset(__pyx_v_self, 0, NULL); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 126, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":126
+  /* "PV_Circuit_Model/IV_jobs.pyx":127
  *             parallel = True
  *         self.reset()
  *         pbar = None             # <<<<<<<<<<<<<<
@@ -5493,7 +5453,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   __Pyx_INCREF(Py_None);
   __pyx_v_pbar = Py_None;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":127
+  /* "PV_Circuit_Model/IV_jobs.pyx":128
  *         self.reset()
  *         pbar = None
  *         if self.job_done_index > 100000:             # <<<<<<<<<<<<<<
@@ -5503,30 +5463,30 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   __pyx_t_7 = (__pyx_v_self->job_done_index > 0x186A0);
   if (__pyx_t_7) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":128
+    /* "PV_Circuit_Model/IV_jobs.pyx":129
  *         pbar = None
  *         if self.job_done_index > 100000:
  *             pbar = tqdm(total=self.job_done_index, desc="Processing the circuit hierarchy: ")             # <<<<<<<<<<<<<<
  * 
  *         while self.job_done_index > 0:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_tqdm); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 128, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_tqdm); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 129, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 128, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 129, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_self->job_done_index); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 128, __pyx_L1_error)
+    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_self->job_done_index); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 129, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_total, __pyx_t_4) < 0) __PYX_ERR(1, 128, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_total, __pyx_t_4) < 0) __PYX_ERR(1, 129, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_desc, __pyx_kp_u_Processing_the_circuit_hierarchy) < 0) __PYX_ERR(1, 128, __pyx_L1_error)
-    __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 128, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_desc, __pyx_kp_u_Processing_the_circuit_hierarchy) < 0) __PYX_ERR(1, 129, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 129, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF_SET(__pyx_v_pbar, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":127
+    /* "PV_Circuit_Model/IV_jobs.pyx":128
  *         self.reset()
  *         pbar = None
  *         if self.job_done_index > 100000:             # <<<<<<<<<<<<<<
@@ -5535,7 +5495,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
  */
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":130
+  /* "PV_Circuit_Model/IV_jobs.pyx":131
  *             pbar = tqdm(total=self.job_done_index, desc="Processing the circuit hierarchy: ")
  * 
  *         while self.job_done_index > 0:             # <<<<<<<<<<<<<<
@@ -5546,31 +5506,29 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     __pyx_t_7 = (__pyx_v_self->job_done_index > 0);
     if (!__pyx_t_7) break;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":131
+    /* "PV_Circuit_Model/IV_jobs.pyx":132
  * 
  *         while self.job_done_index > 0:
  *             job_done_index_before = self.job_done_index             # <<<<<<<<<<<<<<
  *             components_ = self.get_runnable_iv_jobs()
  *             if components_:
  */
-    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_self->job_done_index); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 131, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_4);
-    __Pyx_XDECREF_SET(__pyx_v_job_done_index_before, __pyx_t_4);
-    __pyx_t_4 = 0;
+    __pyx_t_9 = __pyx_v_self->job_done_index;
+    __pyx_v_job_done_index_before = __pyx_t_9;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":132
+    /* "PV_Circuit_Model/IV_jobs.pyx":133
  *         while self.job_done_index > 0:
  *             job_done_index_before = self.job_done_index
  *             components_ = self.get_runnable_iv_jobs()             # <<<<<<<<<<<<<<
  *             if components_:
  *                 ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)
  */
-    __pyx_t_4 = ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->get_runnable_iv_jobs(__pyx_v_self, 0, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 132, __pyx_L1_error)
+    __pyx_t_4 = ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->get_runnable_iv_jobs(__pyx_v_self, 0, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 133, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_XDECREF_SET(__pyx_v_components_, ((PyObject*)__pyx_t_4));
     __pyx_t_4 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":133
+    /* "PV_Circuit_Model/IV_jobs.pyx":134
  *             job_done_index_before = self.job_done_index
  *             components_ = self.get_runnable_iv_jobs()
  *             if components_:             # <<<<<<<<<<<<<<
@@ -5580,41 +5538,41 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     __pyx_t_7 = (__pyx_v_components_ != Py_None)&&(PyList_GET_SIZE(__pyx_v_components_) != 0);
     if (__pyx_t_7) {
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":134
+      /* "PV_Circuit_Model/IV_jobs.pyx":135
  *             components_ = self.get_runnable_iv_jobs()
  *             if components_:
  *                 ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)             # <<<<<<<<<<<<<<
  *             if pbar is not None:
  *                 pbar.update(job_done_index_before - self.job_done_index)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_ivkernel); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 134, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_ivkernel); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_run_multiple_jobs); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 134, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_run_multiple_jobs); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 134, __pyx_L1_error)
+      __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_INCREF(__pyx_v_components_);
       __Pyx_GIVEREF(__pyx_v_components_);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_v_components_)) __PYX_ERR(1, 134, __pyx_L1_error);
-      __pyx_t_1 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 134, __pyx_L1_error)
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_v_components_)) __PYX_ERR(1, 135, __pyx_L1_error);
+      __pyx_t_1 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_refine_mode); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 134, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_refine_mode); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_refine_mode, __pyx_t_3) < 0) __PYX_ERR(1, 134, __pyx_L1_error)
+      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_refine_mode, __pyx_t_3) < 0) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_parallel); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 134, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_parallel); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_parallel, __pyx_t_3) < 0) __PYX_ERR(1, 134, __pyx_L1_error)
+      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_parallel, __pyx_t_3) < 0) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_4, __pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 134, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_4, __pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 135, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":133
+      /* "PV_Circuit_Model/IV_jobs.pyx":134
  *             job_done_index_before = self.job_done_index
  *             components_ = self.get_runnable_iv_jobs()
  *             if components_:             # <<<<<<<<<<<<<<
@@ -5623,7 +5581,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
  */
     }
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":135
+    /* "PV_Circuit_Model/IV_jobs.pyx":136
  *             if components_:
  *                 ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)
  *             if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5633,28 +5591,25 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     __pyx_t_7 = (__pyx_v_pbar != Py_None);
     if (__pyx_t_7) {
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":136
+      /* "PV_Circuit_Model/IV_jobs.pyx":137
  *                 ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)
  *             if pbar is not None:
  *                 pbar.update(job_done_index_before - self.job_done_index)             # <<<<<<<<<<<<<<
  * 
  *         if pbar is not None:
  */
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_update); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 136, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_update); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 137, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_self->job_done_index); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 136, __pyx_L1_error)
+      __pyx_t_4 = PyInt_FromSsize_t((__pyx_v_job_done_index_before - __pyx_v_self->job_done_index)); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 137, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_2 = PyNumber_Subtract(__pyx_v_job_done_index_before, __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 136, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = NULL;
+      __pyx_t_2 = NULL;
       __pyx_t_6 = 0;
       #if CYTHON_UNPACK_METHODS
       if (likely(PyMethod_Check(__pyx_t_1))) {
-        __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_1);
-        if (likely(__pyx_t_4)) {
+        __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_1);
+        if (likely(__pyx_t_2)) {
           PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
-          __Pyx_INCREF(__pyx_t_4);
+          __Pyx_INCREF(__pyx_t_2);
           __Pyx_INCREF(function);
           __Pyx_DECREF_SET(__pyx_t_1, function);
           __pyx_t_6 = 1;
@@ -5662,17 +5617,17 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
       }
       #endif
       {
-        PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_t_2};
+        PyObject *__pyx_callargs[2] = {__pyx_t_2, __pyx_t_4};
         __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
-        __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-        __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 136, __pyx_L1_error)
+        __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+        __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+        if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 137, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "PV_Circuit_Model/IV_jobs.pyx":135
+      /* "PV_Circuit_Model/IV_jobs.pyx":136
  *             if components_:
  *                 ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)
  *             if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5682,7 +5637,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     }
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":138
+  /* "PV_Circuit_Model/IV_jobs.pyx":139
  *                 pbar.update(job_done_index_before - self.job_done_index)
  * 
  *         if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5692,23 +5647,23 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   __pyx_t_7 = (__pyx_v_pbar != Py_None);
   if (__pyx_t_7) {
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":139
+    /* "PV_Circuit_Model/IV_jobs.pyx":140
  * 
  *         if pbar is not None:
  *             pbar.close()             # <<<<<<<<<<<<<<
  * 
  *     def refine_IV(self):
  */
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_close); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 139, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pbar, __pyx_n_s_close); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 140, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = NULL;
+    __pyx_t_4 = NULL;
     __pyx_t_6 = 0;
     #if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(__pyx_t_1))) {
-      __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_1);
-      if (likely(__pyx_t_2)) {
+      __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_1);
+      if (likely(__pyx_t_4)) {
         PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
-        __Pyx_INCREF(__pyx_t_2);
+        __Pyx_INCREF(__pyx_t_4);
         __Pyx_INCREF(function);
         __Pyx_DECREF_SET(__pyx_t_1, function);
         __pyx_t_6 = 1;
@@ -5716,16 +5671,16 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
     }
     #endif
     {
-      PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
+      PyObject *__pyx_callargs[2] = {__pyx_t_4, NULL};
       __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_6, 0+__pyx_t_6);
-      __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 139, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 140, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "PV_Circuit_Model/IV_jobs.pyx":138
+    /* "PV_Circuit_Model/IV_jobs.pyx":139
  *                 pbar.update(job_done_index_before - self.job_done_index)
  * 
  *         if pbar is not None:             # <<<<<<<<<<<<<<
@@ -5734,7 +5689,7 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
  */
   }
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":121
+  /* "PV_Circuit_Model/IV_jobs.pyx":122
  *             pbar.close()
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):             # <<<<<<<<<<<<<<
@@ -5753,7 +5708,6 @@ static void __pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV(str
   __Pyx_AddTraceback("PV_Circuit_Model.IV_jobs_cython.IV_Job_Heap.run_IV", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_pbar);
-  __Pyx_XDECREF(__pyx_v_job_done_index_before);
   __Pyx_XDECREF(__pyx_v_components_);
   __Pyx_RefNannyFinishContext();
 }
@@ -5810,12 +5764,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_refine_mode);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 121, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 122, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "run_IV") < 0)) __PYX_ERR(1, 121, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "run_IV") < 0)) __PYX_ERR(1, 122, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -5826,14 +5780,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       }
     }
     if (values[0]) {
-      __pyx_v_refine_mode = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_refine_mode == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 121, __pyx_L3_error)
+      __pyx_v_refine_mode = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_refine_mode == (int)-1) && PyErr_Occurred())) __PYX_ERR(1, 122, __pyx_L3_error)
     } else {
       __pyx_v_refine_mode = ((int)0);
     }
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("run_IV", 0, 0, 1, __pyx_nargs); __PYX_ERR(1, 121, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("run_IV", 0, 0, 1, __pyx_nargs); __PYX_ERR(1, 122, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5872,8 +5826,8 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_12ru
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_1.__pyx_n = 1;
   __pyx_t_1.refine_mode = __pyx_v_refine_mode;
-  __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->run_IV(__pyx_v_self, 1, &__pyx_t_1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 121, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 121, __pyx_L1_error)
+  __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->run_IV(__pyx_v_self, 1, &__pyx_t_1); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 122, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_void_to_None(NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_r = __pyx_t_2;
   __pyx_t_2 = 0;
@@ -5890,7 +5844,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_12ru
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":141
+/* "PV_Circuit_Model/IV_jobs.pyx":142
  *             pbar.close()
  * 
  *     def refine_IV(self):             # <<<<<<<<<<<<<<
@@ -5951,7 +5905,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_14re
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("refine_IV", 1);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":142
+  /* "PV_Circuit_Model/IV_jobs.pyx":143
  * 
  *     def refine_IV(self):
  *         self.components[0].null_all_IV(max_num_pts_only=True)             # <<<<<<<<<<<<<<
@@ -5959,29 +5913,29 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_14re
  */
   if (unlikely(__pyx_v_self->components == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-    __PYX_ERR(1, 142, __pyx_L1_error)
+    __PYX_ERR(1, 143, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_null_all_IV); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 142, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(PyList_GET_ITEM(__pyx_v_self->components, 0), __pyx_n_s_null_all_IV); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 143, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 142, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 143, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_max_num_pts_only, Py_True) < 0) __PYX_ERR(1, 142, __pyx_L1_error)
-  __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 142, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_max_num_pts_only, Py_True) < 0) __PYX_ERR(1, 143, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 143, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":143
+  /* "PV_Circuit_Model/IV_jobs.pyx":144
  *     def refine_IV(self):
  *         self.components[0].null_all_IV(max_num_pts_only=True)
  *         self.run_IV(refine_mode=True)             # <<<<<<<<<<<<<<
  */
   __pyx_t_4.__pyx_n = 1;
   __pyx_t_4.refine_mode = 1;
-  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->run_IV(__pyx_v_self, 0, &__pyx_t_4); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 143, __pyx_L1_error)
+  ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->run_IV(__pyx_v_self, 0, &__pyx_t_4); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 144, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":141
+  /* "PV_Circuit_Model/IV_jobs.pyx":142
  *             pbar.close()
  * 
  *     def refine_IV(self):             # <<<<<<<<<<<<<<
@@ -6004,7 +5958,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_14re
   return __pyx_r;
 }
 
-/* "PV_Circuit_Model/IV_jobs.pyx":21
+/* "PV_Circuit_Model/IV_jobs.pyx":18
  * 
  * cdef class IV_Job_Heap:
  *     cdef public list components             # <<<<<<<<<<<<<<
@@ -6066,7 +6020,7 @@ static int __pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_10componen
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 1);
-  if (!(likely(PyList_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None) || __Pyx_RaiseUnexpectedTypeError("list", __pyx_v_value))) __PYX_ERR(1, 21, __pyx_L1_error)
+  if (!(likely(PyList_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None) || __Pyx_RaiseUnexpectedTypeError("list", __pyx_v_value))) __PYX_ERR(1, 18, __pyx_L1_error)
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -6638,95 +6592,95 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":16
+  /* "PV_Circuit_Model/IV_jobs.pyx":13
  * cdef bint _PARALLEL_MODE = True
  * 
  * def set_parallel_mode(enabled: bool):             # <<<<<<<<<<<<<<
  *     global _PARALLEL_MODE
  *     _PARALLEL_MODE = bool(enabled)
  */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_s_enabled); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(1, 16, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_s_enabled); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(1, 13, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
-  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_set_parallel_mode, 16, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(1, 16, __pyx_L1_error)
+  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_set_parallel_mode, 13, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(1, 13, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":37
+  /* "PV_Circuit_Model/IV_jobs.pyx":34
  *         self.build()
  * 
  *     cpdef void build(self):             # <<<<<<<<<<<<<<
  *         cdef Py_ssize_t pos = 0
  *         cdef Py_ssize_t child_idx
  */
-  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(1, 37, __pyx_L1_error)
+  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(1, 34, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__5);
   __Pyx_GIVEREF(__pyx_tuple__5);
-  __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__5, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_build, 37, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(1, 37, __pyx_L1_error)
+  __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__5, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_build, 34, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(1, 34, __pyx_L1_error)
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":55
+  /* "PV_Circuit_Model/IV_jobs.pyx":54
  *         self.job_done_index = self.n_components
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):             # <<<<<<<<<<<<<<
- *         cdef list runnable = []
- *         cdef Py_ssize_t start_job_index = self.job_done_index
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id
  */
-  __pyx_tuple__7 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_forward); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(1, 55, __pyx_L1_error)
+  __pyx_tuple__7 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_forward); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(1, 54, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__7);
   __Pyx_GIVEREF(__pyx_tuple__7);
-  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_get_runnable_iv_jobs, 55, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(1, 55, __pyx_L1_error)
-  __pyx_tuple__9 = PyTuple_Pack(1, Py_True); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(1, 55, __pyx_L1_error)
+  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_get_runnable_iv_jobs, 54, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(1, 54, __pyx_L1_error)
+  __pyx_tuple__9 = PyTuple_Pack(1, Py_True); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(1, 54, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__9);
   __Pyx_GIVEREF(__pyx_tuple__9);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":89
+  /* "PV_Circuit_Model/IV_jobs.pyx":90
  *         return runnable
  * 
  *     cpdef void reset(self, bint forward=True):             # <<<<<<<<<<<<<<
  *         if forward:
  *             self.job_done_index = self.n_components
  */
-  __pyx_codeobj__10 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_reset, 89, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__10)) __PYX_ERR(1, 89, __pyx_L1_error)
-  __pyx_tuple__11 = PyTuple_Pack(1, Py_True); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(1, 89, __pyx_L1_error)
+  __pyx_codeobj__10 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_reset, 90, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__10)) __PYX_ERR(1, 90, __pyx_L1_error)
+  __pyx_tuple__11 = PyTuple_Pack(1, Py_True); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(1, 90, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__11);
   __Pyx_GIVEREF(__pyx_tuple__11);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":95
+  /* "PV_Circuit_Model/IV_jobs.pyx":96
  *             self.job_done_index = 0
  * 
  *     cpdef void set_operating_point(self, V=None, I=None):             # <<<<<<<<<<<<<<
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  */
-  __pyx_tuple__12 = PyTuple_Pack(3, __pyx_n_s_self, __pyx_n_s_V, __pyx_n_s_I); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(1, 95, __pyx_L1_error)
+  __pyx_tuple__12 = PyTuple_Pack(3, __pyx_n_s_self, __pyx_n_s_V, __pyx_n_s_I); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(1, 96, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__12);
   __Pyx_GIVEREF(__pyx_tuple__12);
-  __pyx_codeobj__13 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__12, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_set_operating_point, 95, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__13)) __PYX_ERR(1, 95, __pyx_L1_error)
-  __pyx_tuple__14 = PyTuple_Pack(2, Py_None, Py_None); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(1, 95, __pyx_L1_error)
+  __pyx_codeobj__13 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__12, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_set_operating_point, 96, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__13)) __PYX_ERR(1, 96, __pyx_L1_error)
+  __pyx_tuple__14 = PyTuple_Pack(2, Py_None, Py_None); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(1, 96, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__14);
   __Pyx_GIVEREF(__pyx_tuple__14);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":121
+  /* "PV_Circuit_Model/IV_jobs.pyx":122
  *             pbar.close()
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):             # <<<<<<<<<<<<<<
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  */
-  __pyx_tuple__15 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_refine_mode); if (unlikely(!__pyx_tuple__15)) __PYX_ERR(1, 121, __pyx_L1_error)
+  __pyx_tuple__15 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_refine_mode); if (unlikely(!__pyx_tuple__15)) __PYX_ERR(1, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__15);
   __Pyx_GIVEREF(__pyx_tuple__15);
-  __pyx_codeobj__16 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__15, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_run_IV, 121, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__16)) __PYX_ERR(1, 121, __pyx_L1_error)
-  __pyx_tuple__17 = PyTuple_Pack(1, Py_False); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(1, 121, __pyx_L1_error)
+  __pyx_codeobj__16 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__15, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_run_IV, 122, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__16)) __PYX_ERR(1, 122, __pyx_L1_error)
+  __pyx_tuple__17 = PyTuple_Pack(1, Py_False); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(1, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__17);
   __Pyx_GIVEREF(__pyx_tuple__17);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":141
+  /* "PV_Circuit_Model/IV_jobs.pyx":142
  *             pbar.close()
  * 
  *     def refine_IV(self):             # <<<<<<<<<<<<<<
  *         self.components[0].null_all_IV(max_num_pts_only=True)
  *         self.run_IV(refine_mode=True)
  */
-  __pyx_codeobj__18 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__5, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_refine_IV, 141, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__18)) __PYX_ERR(1, 141, __pyx_L1_error)
+  __pyx_codeobj__18 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__5, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_PV_Circuit_Model_IV_jobs_pyx, __pyx_n_s_refine_IV, 142, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__18)) __PYX_ERR(1, 142, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
@@ -6814,15 +6768,15 @@ static int __Pyx_modinit_type_init_code(void) {
   __pyx_vtable_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap.set_operating_point = (void (*)(struct __pyx_obj_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *, int __pyx_skip_dispatch, struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operating_point *__pyx_optional_args))__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_set_operating_point;
   __pyx_vtable_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap.run_IV = (void (*)(struct __pyx_obj_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *, int __pyx_skip_dispatch, struct __pyx_opt_args_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV *__pyx_optional_args))__pyx_f_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_run_IV;
   #if CYTHON_USE_TYPE_SPECS
-  __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap_spec, NULL); if (unlikely(!__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap)) __PYX_ERR(1, 20, __pyx_L1_error)
-  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap_spec, __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 20, __pyx_L1_error)
+  __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap_spec, NULL); if (unlikely(!__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap)) __PYX_ERR(1, 17, __pyx_L1_error)
+  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap_spec, __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 17, __pyx_L1_error)
   #else
   __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap = &__pyx_type_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   #endif
   #if !CYTHON_USE_TYPE_SPECS
-  if (__Pyx_PyType_Ready(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 20, __pyx_L1_error)
+  if (__Pyx_PyType_Ready(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 17, __pyx_L1_error)
   #endif
   #if PY_MAJOR_VERSION < 3
   __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->tp_print = 0;
@@ -6832,13 +6786,13 @@ static int __Pyx_modinit_type_init_code(void) {
     __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap->tp_getattro = __Pyx_PyObject_GenericGetAttr;
   }
   #endif
-  if (__Pyx_SetVtable(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 20, __pyx_L1_error)
+  if (__Pyx_SetVtable(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_vtabptr_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 17, __pyx_L1_error)
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if (__Pyx_MergeVtables(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 20, __pyx_L1_error)
+  if (__Pyx_MergeVtables(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 17, __pyx_L1_error)
   #endif
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_IV_Job_Heap, (PyObject *) __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 20, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_IV_Job_Heap, (PyObject *) __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 17, __pyx_L1_error)
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if (__Pyx_setup_reduce((PyObject *) __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 20, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject *) __pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap) < 0) __PYX_ERR(1, 17, __pyx_L1_error)
   #endif
   __Pyx_RefNannyFinishContext();
   return 0;
@@ -6849,30 +6803,10 @@ static int __Pyx_modinit_type_init_code(void) {
 
 static int __Pyx_modinit_type_import_code(void) {
   __Pyx_RefNannyDeclarations
-  PyObject *__pyx_t_1 = NULL;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_import_code", 0);
   /*--- Type import code ---*/
-  __pyx_t_1 = PyImport_ImportModule(__Pyx_BUILTIN_MODULE_NAME); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 9, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __pyx_ptype_7cpython_4type_type = __Pyx_ImportType_3_0_7(__pyx_t_1, __Pyx_BUILTIN_MODULE_NAME, "type", 
-  #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
-  sizeof(PyTypeObject), __PYX_GET_STRUCT_ALIGNMENT_3_0_7(PyTypeObject),
-  #elif CYTHON_COMPILING_IN_LIMITED_API
-  sizeof(PyTypeObject), __PYX_GET_STRUCT_ALIGNMENT_3_0_7(PyTypeObject),
-  #else
-  sizeof(PyHeapTypeObject), __PYX_GET_STRUCT_ALIGNMENT_3_0_7(PyHeapTypeObject),
-  #endif
-  __Pyx_ImportType_CheckSize_Warn_3_0_7); if (!__pyx_ptype_7cpython_4type_type) __PYX_ERR(2, 9, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_RefNannyFinishContext();
   return 0;
-  __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_RefNannyFinishContext();
-  return -1;
 }
 
 static int __Pyx_modinit_variable_import_code(void) {
@@ -7162,7 +7096,7 @@ if (!__Pyx_RefNanny) {
   (void)__Pyx_modinit_variable_export_code();
   (void)__Pyx_modinit_function_export_code();
   if (unlikely((__Pyx_modinit_type_init_code() < 0))) __PYX_ERR(1, 1, __pyx_L1_error)
-  if (unlikely((__Pyx_modinit_type_import_code() < 0))) __PYX_ERR(1, 1, __pyx_L1_error)
+  (void)__Pyx_modinit_type_import_code();
   (void)__Pyx_modinit_variable_import_code();
   (void)__Pyx_modinit_function_import_code();
   /*--- Execution code ---*/
@@ -7170,94 +7104,94 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(1, 1, __pyx_L1_error)
   #endif
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":8
- * from cpython.ref cimport PyObject
+  /* "PV_Circuit_Model/IV_jobs.pyx":5
+ * # cython: cdivision=True, infer_types=True
  * 
  * from tqdm import tqdm             # <<<<<<<<<<<<<<
  * import warnings
  * import sys
  */
-  __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 8, __pyx_L1_error)
+  __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_n_s_tqdm);
   __Pyx_GIVEREF(__pyx_n_s_tqdm);
-  if (__Pyx_PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_tqdm)) __PYX_ERR(1, 8, __pyx_L1_error);
-  __pyx_t_3 = __Pyx_Import(__pyx_n_s_tqdm, __pyx_t_2, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 8, __pyx_L1_error)
+  if (__Pyx_PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_tqdm)) __PYX_ERR(1, 5, __pyx_L1_error);
+  __pyx_t_3 = __Pyx_Import(__pyx_n_s_tqdm, __pyx_t_2, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_3, __pyx_n_s_tqdm); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 8, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_3, __pyx_n_s_tqdm); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_tqdm, __pyx_t_2) < 0) __PYX_ERR(1, 8, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_tqdm, __pyx_t_2) < 0) __PYX_ERR(1, 5, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":9
+  /* "PV_Circuit_Model/IV_jobs.pyx":6
  * 
  * from tqdm import tqdm
  * import warnings             # <<<<<<<<<<<<<<
  * import sys
  * from pathlib import Path
  */
-  __pyx_t_3 = __Pyx_ImportDottedModule(__pyx_n_s_warnings, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 9, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_ImportDottedModule(__pyx_n_s_warnings, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 6, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_warnings, __pyx_t_3) < 0) __PYX_ERR(1, 9, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_warnings, __pyx_t_3) < 0) __PYX_ERR(1, 6, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":10
+  /* "PV_Circuit_Model/IV_jobs.pyx":7
  * from tqdm import tqdm
  * import warnings
  * import sys             # <<<<<<<<<<<<<<
  * from pathlib import Path
  * from PV_Circuit_Model import ivkernel
  */
-  __pyx_t_3 = __Pyx_ImportDottedModule(__pyx_n_s_sys, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 10, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_ImportDottedModule(__pyx_n_s_sys, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 7, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_sys, __pyx_t_3) < 0) __PYX_ERR(1, 10, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_sys, __pyx_t_3) < 0) __PYX_ERR(1, 7, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":11
+  /* "PV_Circuit_Model/IV_jobs.pyx":8
  * import warnings
  * import sys
  * from pathlib import Path             # <<<<<<<<<<<<<<
  * from PV_Circuit_Model import ivkernel
  * 
  */
-  __pyx_t_3 = PyList_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 11, __pyx_L1_error)
+  __pyx_t_3 = PyList_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 8, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_INCREF(__pyx_n_s_Path);
   __Pyx_GIVEREF(__pyx_n_s_Path);
-  if (__Pyx_PyList_SET_ITEM(__pyx_t_3, 0, __pyx_n_s_Path)) __PYX_ERR(1, 11, __pyx_L1_error);
-  __pyx_t_2 = __Pyx_Import(__pyx_n_s_pathlib, __pyx_t_3, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 11, __pyx_L1_error)
+  if (__Pyx_PyList_SET_ITEM(__pyx_t_3, 0, __pyx_n_s_Path)) __PYX_ERR(1, 8, __pyx_L1_error);
+  __pyx_t_2 = __Pyx_Import(__pyx_n_s_pathlib, __pyx_t_3, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 8, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_ImportFrom(__pyx_t_2, __pyx_n_s_Path); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 11, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_ImportFrom(__pyx_t_2, __pyx_n_s_Path); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 8, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_Path, __pyx_t_3) < 0) __PYX_ERR(1, 11, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_Path, __pyx_t_3) < 0) __PYX_ERR(1, 8, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":12
+  /* "PV_Circuit_Model/IV_jobs.pyx":9
  * import sys
  * from pathlib import Path
  * from PV_Circuit_Model import ivkernel             # <<<<<<<<<<<<<<
  * 
  * cdef bint _PARALLEL_MODE = True
  */
-  __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 12, __pyx_L1_error)
+  __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 9, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_n_s_ivkernel);
   __Pyx_GIVEREF(__pyx_n_s_ivkernel);
-  if (__Pyx_PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_ivkernel)) __PYX_ERR(1, 12, __pyx_L1_error);
-  __pyx_t_3 = __Pyx_Import(__pyx_n_s_PV_Circuit_Model, __pyx_t_2, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 12, __pyx_L1_error)
+  if (__Pyx_PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_ivkernel)) __PYX_ERR(1, 9, __pyx_L1_error);
+  __pyx_t_3 = __Pyx_Import(__pyx_n_s_PV_Circuit_Model, __pyx_t_2, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 9, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_3, __pyx_n_s_ivkernel); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 12, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_3, __pyx_n_s_ivkernel); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 9, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_ivkernel, __pyx_t_2) < 0) __PYX_ERR(1, 12, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_ivkernel, __pyx_t_2) < 0) __PYX_ERR(1, 9, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":14
+  /* "PV_Circuit_Model/IV_jobs.pyx":11
  * from PV_Circuit_Model import ivkernel
  * 
  * cdef bint _PARALLEL_MODE = True             # <<<<<<<<<<<<<<
@@ -7266,102 +7200,102 @@ if (!__Pyx_RefNanny) {
  */
   __pyx_v_16PV_Circuit_Model_14IV_jobs_cython__PARALLEL_MODE = 1;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":16
+  /* "PV_Circuit_Model/IV_jobs.pyx":13
  * cdef bint _PARALLEL_MODE = True
  * 
  * def set_parallel_mode(enabled: bool):             # <<<<<<<<<<<<<<
  *     global _PARALLEL_MODE
  *     _PARALLEL_MODE = bool(enabled)
  */
-  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 16, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 13, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_enabled, __pyx_n_s_bool) < 0) __PYX_ERR(1, 16, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_1set_parallel_mode, 0, __pyx_n_s_set_parallel_mode, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 16, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_enabled, __pyx_n_s_bool) < 0) __PYX_ERR(1, 13, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_1set_parallel_mode, 0, __pyx_n_s_set_parallel_mode, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 13, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetAnnotationsDict(__pyx_t_2, __pyx_t_3);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_set_parallel_mode, __pyx_t_2) < 0) __PYX_ERR(1, 16, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_set_parallel_mode, __pyx_t_2) < 0) __PYX_ERR(1, 13, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":37
+  /* "PV_Circuit_Model/IV_jobs.pyx":34
  *         self.build()
  * 
  *     cpdef void build(self):             # <<<<<<<<<<<<<<
  *         cdef Py_ssize_t pos = 0
  *         cdef Py_ssize_t child_idx
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_5build, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_build, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__6)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 37, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_5build, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_build, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__6)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 34, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_build, __pyx_t_2) < 0) __PYX_ERR(1, 37, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_build, __pyx_t_2) < 0) __PYX_ERR(1, 34, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":55
+  /* "PV_Circuit_Model/IV_jobs.pyx":54
  *         self.job_done_index = self.n_components
  * 
  *     cpdef list get_runnable_iv_jobs(self, bint forward=True):             # <<<<<<<<<<<<<<
- *         cdef list runnable = []
- *         cdef Py_ssize_t start_job_index = self.job_done_index
+ *         cdef list comps = self.components
+ *         cdef list min_child = self.min_child_id
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_7get_runnable_iv_jobs, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_get_runnable_iv_jobs, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__8)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 55, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_7get_runnable_iv_jobs, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_get_runnable_iv_jobs, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__8)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 54, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_tuple__9);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_get_runnable_iv_jobs, __pyx_t_2) < 0) __PYX_ERR(1, 55, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_get_runnable_iv_jobs, __pyx_t_2) < 0) __PYX_ERR(1, 54, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":89
+  /* "PV_Circuit_Model/IV_jobs.pyx":90
  *         return runnable
  * 
  *     cpdef void reset(self, bint forward=True):             # <<<<<<<<<<<<<<
  *         if forward:
  *             self.job_done_index = self.n_components
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_9reset, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_reset, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__10)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 89, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_9reset, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_reset, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__10)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 90, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_tuple__11);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_reset, __pyx_t_2) < 0) __PYX_ERR(1, 89, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_reset, __pyx_t_2) < 0) __PYX_ERR(1, 90, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":95
+  /* "PV_Circuit_Model/IV_jobs.pyx":96
  *             self.job_done_index = 0
  * 
  *     cpdef void set_operating_point(self, V=None, I=None):             # <<<<<<<<<<<<<<
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_11set_operating_point, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_set_operating_point, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__13)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 95, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_11set_operating_point, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_set_operating_point, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__13)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 96, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_tuple__14);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_set_operating_point, __pyx_t_2) < 0) __PYX_ERR(1, 95, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_set_operating_point, __pyx_t_2) < 0) __PYX_ERR(1, 96, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":121
+  /* "PV_Circuit_Model/IV_jobs.pyx":122
  *             pbar.close()
  * 
  *     cpdef void run_IV(self, bint refine_mode=False):             # <<<<<<<<<<<<<<
  *         cdef bint parallel = False
  *         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_13run_IV, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_run_IV, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__16)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 121, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_13run_IV, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_run_IV, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__16)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_tuple__17);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_run_IV, __pyx_t_2) < 0) __PYX_ERR(1, 121, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_run_IV, __pyx_t_2) < 0) __PYX_ERR(1, 122, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
 
-  /* "PV_Circuit_Model/IV_jobs.pyx":141
+  /* "PV_Circuit_Model/IV_jobs.pyx":142
  *             pbar.close()
  * 
  *     def refine_IV(self):             # <<<<<<<<<<<<<<
  *         self.components[0].null_all_IV(max_num_pts_only=True)
  *         self.run_IV(refine_mode=True)
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_15refine_IV, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_refine_IV, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__18)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 141, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_15refine_IV, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_IV_Job_Heap_refine_IV, NULL, __pyx_n_s_PV_Circuit_Model_IV_jobs_cython, __pyx_d, ((PyObject *)__pyx_codeobj__18)); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 142, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_refine_IV, __pyx_t_2) < 0) __PYX_ERR(1, 141, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap, __pyx_n_s_refine_IV, __pyx_t_2) < 0) __PYX_ERR(1, 142, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap);
 
@@ -7389,7 +7323,7 @@ if (!__Pyx_RefNanny) {
   /* "PV_Circuit_Model/IV_jobs.pyx":1
  * # IV_jobs.pyx             # <<<<<<<<<<<<<<
  * # cython: boundscheck=False, wraparound=False, nonecheck=False, initializedcheck=False
- * 
+ * # cython: cdivision=True, infer_types=True
  */
   __pyx_t_2 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
@@ -9371,86 +9305,6 @@ __PYX_GOOD:
     Py_XDECREF(setstate);
     Py_XDECREF(setstate_cython);
     return ret;
-}
-#endif
-
-/* TypeImport */
-#ifndef __PYX_HAVE_RT_ImportType_3_0_7
-#define __PYX_HAVE_RT_ImportType_3_0_7
-static PyTypeObject *__Pyx_ImportType_3_0_7(PyObject *module, const char *module_name, const char *class_name,
-    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_3_0_7 check_size)
-{
-    PyObject *result = 0;
-    char warning[200];
-    Py_ssize_t basicsize;
-    Py_ssize_t itemsize;
-#if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *py_basicsize;
-    PyObject *py_itemsize;
-#endif
-    result = PyObject_GetAttrString(module, class_name);
-    if (!result)
-        goto bad;
-    if (!PyType_Check(result)) {
-        PyErr_Format(PyExc_TypeError,
-            "%.200s.%.200s is not a type object",
-            module_name, class_name);
-        goto bad;
-    }
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    basicsize = ((PyTypeObject *)result)->tp_basicsize;
-    itemsize = ((PyTypeObject *)result)->tp_itemsize;
-#else
-    py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
-    if (!py_basicsize)
-        goto bad;
-    basicsize = PyLong_AsSsize_t(py_basicsize);
-    Py_DECREF(py_basicsize);
-    py_basicsize = 0;
-    if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
-        goto bad;
-    py_itemsize = PyObject_GetAttrString(result, "__itemsize__");
-    if (!py_itemsize)
-        goto bad;
-    itemsize = PyLong_AsSsize_t(py_itemsize);
-    Py_DECREF(py_itemsize);
-    py_itemsize = 0;
-    if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
-        goto bad;
-#endif
-    if (itemsize) {
-        if (size % alignment) {
-            alignment = size % alignment;
-        }
-        if (itemsize < (Py_ssize_t)alignment)
-            itemsize = (Py_ssize_t)alignment;
-    }
-    if ((size_t)(basicsize + itemsize) < size) {
-        PyErr_Format(PyExc_ValueError,
-            "%.200s.%.200s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize+itemsize);
-        goto bad;
-    }
-    if (check_size == __Pyx_ImportType_CheckSize_Error_3_0_7 &&
-            ((size_t)basicsize > size || (size_t)(basicsize + itemsize) < size)) {
-        PyErr_Format(PyExc_ValueError,
-            "%.200s.%.200s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd-%zd from PyObject",
-            module_name, class_name, size, basicsize, basicsize+itemsize);
-        goto bad;
-    }
-    else if (check_size == __Pyx_ImportType_CheckSize_Warn_3_0_7 && (size_t)basicsize > size) {
-        PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize);
-        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
-    }
-    return (PyTypeObject *)result;
-bad:
-    Py_XDECREF(result);
-    return NULL;
 }
 #endif
 
