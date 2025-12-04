@@ -4,19 +4,15 @@ import sys
 from pathlib import Path
 from PV_Circuit_Model.utilities import interp_
 
-_PARALLEL_MODE = True
-
-def set_parallel_mode(enabled: bool):
-    global _PARALLEL_MODE
-    _PARALLEL_MODE = bool(enabled)
+_FORCE_PYTHON = True
 
 def _try_import_cython():
     """Try importing the fast extension."""
     try:
-        from PV_Circuit_Model.IV_jobs_cython import IV_Job_Heap
-        return IV_Job_Heap
+        from PV_Circuit_Model.IV_jobs_cython import IV_Job_Heap, set_parallel_mode
+        return IV_Job_Heap, set_parallel_mode
     except Exception:
-        return None
+        return None, None
 
 def _try_autobuild_extension(package_root):
     """
@@ -44,7 +40,6 @@ def _try_autobuild_extension(package_root):
                         "__file__": str(setup_py),
                     },
                 )
-            print(f"Building {file} succeeded")
         except Exception as e:
             warnings.warn(f"Programmatic build_ext failed: {e}", RuntimeWarning)
             return False
@@ -54,33 +49,39 @@ def _try_autobuild_extension(package_root):
     return True
 
 IV_Job_Heap = None
-# ---------------------------------------------------------------------
-# 1) If cython import fails, try auto-build
-# ---------------------------------------------------------------------
-IV_Job_Heap = _try_import_cython()
-if IV_Job_Heap is None:
-    warnings.warn(
-        "Building C++/Cython extension 'ivkernel' (need to be done only once)...",
-        RuntimeWarning
-    )
-    pkg_root = Path(__file__).resolve().parent
-    if _try_autobuild_extension(pkg_root):
-        # Try import again
-        IV_Job_Heap = _try_import_cython()
-        if IV_Job_Heap is not None:
-            print("\n\n\nSucceeded building C++/Cython extension 'ivkernel'!")
+set_parallel_mode = None
+if not _FORCE_PYTHON:
+    # ---------------------------------------------------------------------
+    # 1) If cython import fails, try auto-build
+    # ---------------------------------------------------------------------
+    IV_Job_Heap, set_parallel_mode = _try_import_cython()
+    if IV_Job_Heap is None:
+        warnings.warn(
+            "Building C++/Cython extensions (need to be done only once)...",
+            RuntimeWarning
+        )
+        pkg_root = Path(__file__).resolve().parent
+        if _try_autobuild_extension(pkg_root):
+            # Try import again
+            IV_Job_Heap, set_parallel_mode = _try_import_cython()
+            if IV_Job_Heap is not None:
+                print("\n\n\nSucceeded building C++/Cython extensions!")
 
 # ---------------------------------------------------------------------
 # 2) If still missing, fall back to Python
 # ---------------------------------------------------------------------
 if IV_Job_Heap is None:
-    warnings.warn(
-        "The optimized C++/Cython extension 'ivkernel' could not be imported, "
-        "even after attempting automatic build.\n"
-        "Falling back to pure-Python implementation (much slower and has a tiny numerical difference).",
-        RuntimeWarning
-    )
+    if not _FORCE_PYTHON:
+        warnings.warn(
+            "The optimized C++/Cython extensions could not be imported, "
+            "even after attempting automatic build.\n"
+            "Falling back to pure-Python implementation (much slower and has a tiny numerical difference).",
+            RuntimeWarning
+        )
     from PV_Circuit_Model.ivkernel_python import build_component_IV_python
+
+    def set_parallel_mode(boolean):
+        pass 
 
     # A heap structure to store I-V jobs
     class IV_Job_Heap:
@@ -187,44 +188,3 @@ if IV_Job_Heap is None:
             self.run_IV(refine_mode=True)
 
 
-# # Collects a list of job heaps for parallel processing
-# class IV_Job_Pool():
-#     def __init__(self,heap_list):
-#         self.heap_list = heap_list
-#     def get_runnable_iv_jobs(self):
-#         grand_list = []
-#         for heap in self.heap_list:
-#             grand_list.extend(heap.get_runnable_iv_jobs())
-#         return grand_list
-#     def get_total_unfinished_jobs(self):
-#         total_unfinished_jobs = 0
-#         for heap in self.heap_list:
-#             total_unfinished_jobs += heap.job_done_index
-#         return total_unfinished_jobs
-#     def reset(self):
-#         for heap in self.heap_list:
-#             heap.reset()
-#     def run_IV(self, refine_mode=False):
-#         self.reset()
-#         total_unfinished_jobs = self.get_total_unfinished_jobs()
-#         pbar = None
-#         if total_unfinished_jobs > 100000:
-#             pbar = tqdm(total=total_unfinished_jobs, desc="Processing the circuit hierarchy: ")
-#         while total_unfinished_jobs > 0:
-#             job_done_index_before = total_unfinished_jobs
-#             components_ = self.get_runnable_iv_jobs()
-#             if len(components_) > 0:
-#                 if _HAVE_IVKERNEL:
-#                     ivkernel.run_multiple_jobs(components_,refine_mode=refine_mode,parallel=True)
-#                 else:
-#                     for component in components_:
-#                         build_component_IV_python(component,refine_mode=refine_mode)
-#             total_unfinished_jobs = self.get_total_unfinished_jobs()
-#             if pbar is not None:
-#                 pbar.update(job_done_index_before-total_unfinished_jobs)
-#         if pbar is not None:
-#             pbar.close()
-#     def refine_IV(self):
-#         for heap in self.heap_list:
-#             heap.components[0].null_all_IV(max_num_pts_only=True)
-#         self.run_IV(refine_mode=True)

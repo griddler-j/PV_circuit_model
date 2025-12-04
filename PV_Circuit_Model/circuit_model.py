@@ -780,15 +780,3 @@ def find_subgroups_by_tag(circuit_group, tag):
         if isinstance(element, CircuitGroup):
             result.extend(find_subgroups_by_name(element, tag))
     return result
-
-def build_IV_parallel(circuit_components):
-    gc.disable()
-    list_ = []
-    for component in circuit_components:
-        if hasattr(component,"IV_parameters"):
-            del component.IV_parameters
-        component.job_heap = IV_Job_Heap(component)
-        list_.append(component.job_heap)
-    job_pool = IV_Job_Pool(list_)
-    job_pool.run_IV()
-    gc.enable()
