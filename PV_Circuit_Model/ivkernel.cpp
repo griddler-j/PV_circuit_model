@@ -292,7 +292,6 @@ void calc_intrinsic_Si_I(
     std::vector<double> pn(n_V);
 
     // Compute delta_n first
-    #pragma omp simd
     for (int i = 0; i < n_V; ++i) {
         double expv = std::exp(V[i]/VT);
         pn[i] = ni * ni * expv;
@@ -336,7 +335,6 @@ void calc_intrinsic_Si_I(
 
     double termA = 2.5e-31 * geeh * n0;
     double termB = 8.5e-32 * gehh * p0;
-    #pragma omp simd
     for (int i = 0; i < n_V; ++i) {
         // ni_eff = ni * exp(BGN/(2*VT))
         double ni_eff = ni * std::exp(BGN[i] / (2.0 * VT));
@@ -442,11 +440,9 @@ void build_diode_iv(
     int size = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,is_reverse_diode,out_V);
 
     if (is_reverse_diode) {
-        #pragma omp simd
         for (size_t i = 0; i < size; ++i) 
             out_I[i] = calc_forward_diode_I(I0, n, VT, V_shift, out_V[i]);
     } else {
-        #pragma omp simd
         for (size_t i = 0; i < size; ++i) 
             out_I[i] = calc_reverse_diode_I(I0, n, VT, V_shift, out_V[i]);
     }
@@ -585,7 +581,6 @@ void combine_iv_job(int connection,
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
                             interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
-                            #pragma omp simd
                             for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
@@ -679,7 +674,6 @@ void combine_iv_job(int connection,
     }
     
     if (area != 1) {
-        #pragma omp simd
         for (int i=0; i<vs_len; i++) Is[i] *= area;
     }
     *out_len = vs_len;
