@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from PV_Circuit_Model.utilities import interp_
 
-_FORCE_PYTHON = True
+_FORCE_PYTHON = False
 
 def _try_import_cython():
     """Try importing the fast extension."""
