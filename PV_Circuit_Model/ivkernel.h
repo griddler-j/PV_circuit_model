@@ -41,7 +41,10 @@ void interp_monotonic_inc_scalar(
     const double* xqs,         // single query points
     double** yqs,        // output (single values)
     int n_jobs,
-    int parallel);
+    int parallel,
+    const double (*element_params)[5],
+    int* circuit_type_number
+);
 
 #ifdef __cplusplus
 }

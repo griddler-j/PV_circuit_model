@@ -46,7 +46,9 @@ cdef extern from "ivkernel.h":
         const double* xqs,
         double** yqs,
         int n_jobs,
-        int parallel
+        int parallel,
+        const double (*element_params)[5],
+        int* circuit_type_number
     ) nogil
 
 def run_multiple_jobs(components,refine_mode=False,parallel=False):
@@ -346,20 +348,27 @@ def run_multiple_operating_points(components, bint parallel=False):
     # Allocate C pointer tables
     cdef const double** xs = <const double**> malloc(n_jobs * sizeof(const double*))
     cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))
+    cdef double[5] *element_params
+    element_params = <double[5] *> malloc(n_jobs * sizeof(double[5]))
+    cdef int* circuit_type_number = <int*> malloc(n_jobs * sizeof(int))
     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
     cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))
     cdef bint* known_is_V = <bint*> malloc(n_jobs * sizeof(bint))
+    cdef object circuit_component
+    cdef object operating_point
 
-    if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL:
+    if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL or element_params == NULL:
         if xs != NULL:       free(<void*> xs)
         if ys != NULL:       free(<void*> ys)
         if ns != NULL:       free(<void*> ns)
         if yqs != NULL:      free(<void*> yqs)
         if known_is_V != NULL: free(<void*> known_is_V)
+        if element_params != NULL: free(<void*> element_params)
+        if circuit_type_number != NULL: free(<void*> circuit_type_number)
         raise MemoryError()
 
     cdef Py_ssize_t i
-    cdef double[:] xmv, ymv
+    cdef double[:] xmv, ymv,dpmv
 
     try:
         # --------------------------------------------------------
@@ -367,7 +376,8 @@ def run_multiple_operating_points(components, bint parallel=False):
         # --------------------------------------------------------
         for i in range(n_jobs):
             circuit_component = components[i]
-
+            circuit_type_number[i] = <int>circuit_component._type_number
+            
             # Select which axis is X and which is Y
             if circuit_component.operating_point[0] is not None:
                 # X = V, Y = I, query in V -> solve I(V)
@@ -378,9 +388,25 @@ def run_multiple_operating_points(components, bint parallel=False):
             else:
                 # X = I, Y = V, query in I -> solve V(I)
                 known_is_V[i] = 0
+                circuit_type_number[i] = -1
                 xmv = circuit_component.IV_I
                 ymv = circuit_component.IV_V
                 xqs_mv[i] = <double> circuit_component.operating_point[1]
+
+            if (circuit_type_number[i]>=2 and circuit_type_number[i]<=3):
+                element_params[i][0] = circuit_component.I0
+                element_params[i][1] = circuit_component.n
+                element_params[i][2] = circuit_component.VT
+                element_params[i][3] = circuit_component.V_shift
+            elif (circuit_type_number[i]==4):
+                base_type_number = 0.0  # p
+                if circuit_component.base_type == "n":
+                    base_type_number = 1.0
+                element_params[i][0] = circuit_component.base_doping
+                element_params[i][1] = circuit_component.VT
+                element_params[i][2] = circuit_component.base_thickness
+                element_params[i][3] = circuit_component.ni
+                element_params[i][4] = base_type_number
 
             # Fill metadata for this job
             ns[i]  = <int> xmv.shape[0]
@@ -394,7 +420,9 @@ def run_multiple_operating_points(components, bint parallel=False):
                 &xqs_mv[0],
                 yqs,
                 <int> n_jobs,
-                parallel_
+                parallel_,
+                element_params,
+                circuit_type_number
             )
 
         for i in range(n_jobs):
@@ -423,3 +451,5 @@ def run_multiple_operating_points(components, bint parallel=False):
         free(<void*> ns)
         free(<void*> yqs)
         free(<void*> known_is_V)
+        free(<void*> element_params)
+        free(<void*> circuit_type_number)

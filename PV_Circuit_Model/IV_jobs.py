@@ -166,7 +166,8 @@ if IV_Job_Heap is None:
         # def get_bottom_up_operating_points(self):
         #     self.bottom_up_operating_points = []
         #     for component in reversed(self.components):
-        #         component
+        #         if component._type_number < 5: # is element
+        #             build_component_IV_python(component,refine_mode=refine_mode)
 
         def run_IV(self, refine_mode=False):
             self.reset()

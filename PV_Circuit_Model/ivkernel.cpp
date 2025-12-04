@@ -176,82 +176,6 @@ void interp_monotonic_inc(
     }
 }
 
-void interp_monotonic_inc_scalar(
-    const double** __restrict xs,   // size n, strictly increasing
-    const double** __restrict ys,   // size n
-    const int* __restrict ns,
-    const double* __restrict xqs,         // single query points
-    double** __restrict yqs,        // output (single values)
-    int n_jobs,
-    int parallel
-) {
-    int max_threads = omp_get_max_threads();
-    int num_threads = max_threads;
-    if (n_jobs < max_threads*2) num_threads = max_threads/2;
-    if (n_jobs < max_threads) num_threads = max_threads/4;
-    if (n_jobs < max_threads/4) num_threads = n_jobs;
-
-    #pragma omp parallel for num_threads(num_threads) if(parallel && n_jobs>1)
-    for (int i = 0; i < n_jobs; i ++) {
-        const double* __restrict x = xs[i];
-        const double* __restrict y = ys[i];
-        int n = ns[i];
-        double xq = xqs[i];
-        double* __restrict yq = yqs[i];
-
-        if (!x || !y || !yq || n <= 0) continue;
-
-        // n == 1: constant function (like IL)
-        if (n == 1) {
-            *yq = y[0];
-            continue;
-        }
-
-        // n == 2: simple line (like R)
-        if (n == 2) {
-            double slope = (y[1] - y[0]) / (x[1] - x[0]);
-            *yq = (y[0] + (xq - x[0]) * slope);
-            continue;
-        }
-
-        // n >= 3 from here on
-
-        // --- Left extrapolation: xq <= x[0] ---
-        if (xq <= x[0]) {
-            double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
-            *yq = (y[0] + (xq - x[0]) * slope_left);
-            continue;
-        }
-
-        // --- Right extrapolation: xq >= x[n-1] ---
-        if (xq >= x[n-1]) {
-            double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
-            *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
-            continue;
-        }
-
-        // --- Main interpolation region: x[0] < xq < x[n-1] ---
-        // Binary search for i such that x[i] <= xq <= x[i+1]
-        int low = 0;
-        int high = n - 1;
-
-        // Invariant: x[low] <= xq < x[high]
-        while (high - low > 1) {
-            int mid = (low + high) / 2;
-            if (x[mid] <= xq) {
-                low = mid;
-            } else {
-                high = mid;
-            }
-        }
-
-        int j = low;
-        double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
-        *yq = (y[j] + slope * (xq - x[j]));
-    }
-    
-}
-
 void calc_intrinsic_Si_I(
     const double* __restrict V,          // input voltages, length n_V
     int n_V,
@@ -420,6 +344,111 @@ inline double calc_forward_diode_I(double I0, double n, double VT, double V_shif
 
 inline double calc_reverse_diode_I(double I0, double n, double VT, double V_shift, double V) {
     return -I0 * std::exp((-V - V_shift) / (n * VT));
+}
+
+// modified such that diodes get exact current rather than interpolation
+void interp_monotonic_inc_scalar(
+    const double** __restrict xs,   // size n, strictly increasing
+    const double** __restrict ys,   // size n
+    const int* __restrict ns,
+    const double* __restrict xqs,         // single query points
+    double** __restrict yqs,        // output (single values)
+    int n_jobs,
+    int parallel,
+    const double (*element_params)[5],
+    int* __restrict circuit_type_number
+) {
+    int max_threads = omp_get_max_threads();
+    int num_threads = max_threads;
+    if (n_jobs < max_threads*2) num_threads = max_threads/2;
+    if (n_jobs < max_threads) num_threads = max_threads/4;
+    if (n_jobs < max_threads/4) num_threads = n_jobs;
+
+    #pragma omp parallel for num_threads(num_threads) if(parallel && n_jobs>1)
+    for (int i = 0; i < n_jobs; i ++) {
+        const double* __restrict x = xs[i];
+        const double* __restrict y = ys[i];
+        const double* __restrict diode_param = element_params[i];
+        int type_number = circuit_type_number[i];
+        int n = ns[i];
+        double xq = xqs[i];
+        double* __restrict yq = yqs[i];
+
+        if (!x || !y || !yq || n <= 0) continue;
+
+        if (type_number==2 || type_number==3) {
+            double I0 = diode_param[0];
+            double n = diode_param[1];
+            double VT = diode_param[2];
+            double V_shift = diode_param[3];
+            if (type_number==2) 
+                *yq = calc_forward_diode_I(I0, n, VT, V_shift, xq);
+            else
+                *yq = calc_reverse_diode_I(I0, n, VT, V_shift, xq);
+            continue;
+        } else if (type_number==4) {
+            double ni = diode_param[5];
+            int base_type_number = static_cast<int>(diode_param[6]);
+            double base_doping = diode_param[0];
+            double base_thickness = diode_param[3];
+            double VT = diode_param[2];
+            std::vector<double> V(1);
+            V[0] = xq;
+            std::vector<double> I(1);
+            calc_intrinsic_Si_I(V.data(),V.size(),ni,VT,base_doping,base_type_number,base_thickness,1,I.data(),false);
+            *yq = I[0];
+            continue;
+        }
+
+        // n == 1: constant function (like IL)
+        if (n == 1) {
+            *yq = y[0];
+            continue;
+        }
+
+        // n == 2: simple line (like R)
+        if (n == 2) {
+            double slope = (y[1] - y[0]) / (x[1] - x[0]);
+            *yq = (y[0] + (xq - x[0]) * slope);
+            continue;
+        }
+
+        // n >= 3 from here on
+
+        // --- Left extrapolation: xq <= x[0] ---
+        if (xq <= x[0]) {
+            double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
+            *yq = (y[0] + (xq - x[0]) * slope_left);
+            continue;
+        }
+
+        // --- Right extrapolation: xq >= x[n-1] ---
+        if (xq >= x[n-1]) {
+            double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
+            *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
+            continue;
+        }
+
+        // --- Main interpolation region: x[0] < xq < x[n-1] ---
+        // Binary search for i such that x[i] <= xq <= x[i+1]
+        int low = 0;
+        int high = n - 1;
+
+        // Invariant: x[low] <= xq < x[high]
+        while (high - low > 1) {
+            int mid = (low + high) / 2;
+            if (x[mid] <= xq) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        int j = low;
+        double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+        *yq = (y[j] + slope * (xq - x[j]));
+    }
+    
 }
 
 void build_diode_iv(
