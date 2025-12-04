@@ -191,126 +191,65 @@ void interp_monotonic_inc_scalar(
     if (n_jobs < max_threads) num_threads = max_threads/4;
     if (n_jobs < max_threads/4) num_threads = n_jobs;
 
-    if (parallel==1) {
-        #pragma omp parallel for num_threads(num_threads)
-        for (int i = 0; i < n_jobs; i ++) {
-            const double* x = xs[i];
-            const double* y = ys[i];
-            int n = ns[i];
-            double xq = xqs[i];
-            double* yq = yqs[i];
+    #pragma omp parallel for num_threads(num_threads) if(parallel && n_jobs>1)
+    for (int i = 0; i < n_jobs; i ++) {
+        const double* x = xs[i];
+        const double* y = ys[i];
+        int n = ns[i];
+        double xq = xqs[i];
+        double* yq = yqs[i];
 
-            if (!x || !y || !yq || n <= 0) continue;
+        if (!x || !y || !yq || n <= 0) continue;
 
-            // n == 1: constant function (like IL)
-            if (n == 1) {
-                *yq = y[0];
-                continue;
-            }
-
-            // n == 2: simple line (like R)
-            if (n == 2) {
-                double slope = (y[1] - y[0]) / (x[1] - x[0]);
-                *yq = (y[0] + (xq - x[0]) * slope);
-                continue;
-            }
-
-            // n >= 3 from here on
-
-            // --- Left extrapolation: xq <= x[0] ---
-            if (xq <= x[0]) {
-                double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
-                *yq = (y[0] + (xq - x[0]) * slope_left);
-                continue;
-            }
-
-            // --- Right extrapolation: xq >= x[n-1] ---
-            if (xq >= x[n-1]) {
-                double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
-                *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
-                continue;
-            }
-
-            // --- Main interpolation region: x[0] < xq < x[n-1] ---
-            // Binary search for i such that x[i] <= xq <= x[i+1]
-            int low = 0;
-            int high = n - 1;
-
-            // Invariant: x[low] <= xq < x[high]
-            while (high - low > 1) {
-                int mid = (low + high) / 2;
-                if (x[mid] <= xq) {
-                    low = mid;
-                } else {
-                    high = mid;
-                }
-            }
-
-            int j = low;
-            double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
-            *yq = (y[j] + slope * (xq - x[j]));
-        }
-    }
-    else {
-        for (int i = 0; i < n_jobs; i ++) {
-            const double* x = xs[i];
-            const double* y = ys[i];
-            int n = ns[i];
-            double xq = xqs[i];
-            double* yq = yqs[i];
-
-            if (!x || !y || !yq || n <= 0) continue;
-
-            // n == 1: constant function (like IL)
-            if (n == 1) {
-                *yq = y[0];
-                continue;
-            }
-
-            // n == 2: simple line (like R)
-            if (n == 2) {
-                double slope = (y[1] - y[0]) / (x[1] - x[0]);
-                *yq = (y[0] + (xq - x[0]) * slope);
-                continue;
-            }
-
-            // n >= 3 from here on
-
-            // --- Left extrapolation: xq <= x[0] ---
-            if (xq <= x[0]) {
-                double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
-                *yq = (y[0] + (xq - x[0]) * slope_left);
-                continue;
-            }
-
-            // --- Right extrapolation: xq >= x[n-1] ---
-            if (xq >= x[n-1]) {
-                double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
-                *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
-                continue;
-            }
-
-            // --- Main interpolation region: x[0] < xq < x[n-1] ---
-            // Binary search for i such that x[i] <= xq <= x[i+1]
-            int low = 0;
-            int high = n - 1;
-
-            // Invariant: x[low] <= xq < x[high]
-            while (high - low > 1) {
-                int mid = (low + high) / 2;
-                if (x[mid] <= xq) {
-                    low = mid;
-                } else {
-                    high = mid;
-                }
-            }
-
-            int j = low;
-            double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
-            *yq = (y[j] + slope * (xq - x[j]));
+        // n == 1: constant function (like IL)
+        if (n == 1) {
+            *yq = y[0];
+            continue;
         }
 
+        // n == 2: simple line (like R)
+        if (n == 2) {
+            double slope = (y[1] - y[0]) / (x[1] - x[0]);
+            *yq = (y[0] + (xq - x[0]) * slope);
+            continue;
+        }
+
+        // n >= 3 from here on
+
+        // --- Left extrapolation: xq <= x[0] ---
+        if (xq <= x[0]) {
+            double slope_left = (y[1] - y[0]) / (x[1] - x[0]);
+            *yq = (y[0] + (xq - x[0]) * slope_left);
+            continue;
+        }
+
+        // --- Right extrapolation: xq >= x[n-1] ---
+        if (xq >= x[n-1]) {
+            double slope_right = (y[n-1] - y[n-2]) / (x[n-1] - x[n-2]);
+            *yq = (y[n-1] + (xq - x[n-1]) * slope_right);
+            continue;
+        }
+
+        // --- Main interpolation region: x[0] < xq < x[n-1] ---
+        // Binary search for i such that x[i] <= xq <= x[i+1]
+        int low = 0;
+        int high = n - 1;
+
+        // Invariant: x[low] <= xq < x[high]
+        while (high - low > 1) {
+            int mid = (low + high) / 2;
+            if (x[mid] <= xq) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        int j = low;
+        double slope = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+        *yq = (y[j] + slope * (xq - x[j]));
     }
+    
 }
 
 void calc_intrinsic_Si_I(
@@ -469,11 +408,11 @@ std::vector<double> get_V_range(const double* circuit_element_parameters,int max
     return V;
 }
 
-double calc_forward_diode_I(double I0, double n, double VT, double V_shift, double V) {
+inline double calc_forward_diode_I(double I0, double n, double VT, double V_shift, double V) {
     return I0 * (std::exp((V - V_shift) / (n * VT)) - 1.0);
 }
 
-double calc_reverse_diode_I(double I0, double n, double VT, double V_shift, double V) {
+inline double calc_reverse_diode_I(double I0, double n, double VT, double V_shift, double V) {
     return -I0 * std::exp((-V - V_shift) / (n * VT));
 }
 
@@ -564,7 +503,7 @@ void build_Si_intrinsic_diode_iv(
     *out_len = outN;
 }
 
-double combine_iv_job(int connection,
+void combine_iv_job(int connection,
     int circuit_component_type_number,
     double op_pt_V,
     int n_children,
@@ -578,8 +517,6 @@ double combine_iv_job(int connection,
     double* out_V,
     double* out_I,
     int* out_len) {
-
-    auto t0 = std::chrono::high_resolution_clock::now();
 
     // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
     //         n_children, connection);
@@ -607,10 +544,7 @@ double combine_iv_job(int connection,
                 build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
                 break;
         }
-
-        auto t1 = std::chrono::high_resolution_clock::now();
-        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        return ms;
+        return;
     }
 
     double* Vs = out_V;
@@ -640,7 +574,6 @@ double combine_iv_job(int connection,
                 vs_len += extra_Is.size();
             }
             
-            // auto t0 = std::chrono::high_resolution_clock::now();
             if (iteration==0) 
                 if (children_Vs_size > n_children*100) // found to be optimal 
                     merge_children_kway_ptr(children_IVs, 1, n_children,Is,vs_len,abs_max_num_points);
@@ -780,9 +713,7 @@ double combine_iv_job(int connection,
     }
     *out_len = vs_len;
     
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    return ms;
+    return;
 } 
 
 void remesh_IV(
@@ -909,98 +840,66 @@ void remesh_IV(
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     auto t0 = std::chrono::high_resolution_clock::now();
+
+    int max_threads; 
+    int num_threads;
     if (parallel==1 && n_jobs>1) {
-        int max_threads = omp_get_max_threads();
-        int num_threads = max_threads;
+        max_threads = omp_get_max_threads();
+        num_threads = max_threads;
         if (n_jobs < max_threads*2) num_threads = max_threads/2;
         if (n_jobs < max_threads) num_threads = max_threads/4;
         if (n_jobs < max_threads/4) num_threads = n_jobs;
-
-        #pragma omp parallel for num_threads(num_threads)
-        for (int j = 0; j < n_jobs; ++j) {
-            IVJobDesc& job = jobs[j];
-            combine_iv_job(
-                job.connection,
-                job.circuit_component_type_number,
-                job.op_pt_V,
-                job.n_children,
-                job.children_IVs,
-                job.children_pc_IVs,
-                job.has_photon_coupling,
-                job.max_num_points,
-                job.area,
-                job.abs_max_num_points,
-                job.circuit_element_parameters,
-                job.out_V,
-                job.out_I,
-                job.out_len
-            );
-        }
-    }
-    else 
-        for (int j = 0; j < n_jobs; ++j) {
-            IVJobDesc& job = jobs[j];
-            combine_iv_job(
-                job.connection,
-                job.circuit_component_type_number,
-                job.op_pt_V,
-                job.n_children,
-                job.children_IVs,
-                job.children_pc_IVs,
-                job.has_photon_coupling,
-                job.max_num_points,
-                job.area,
-                job.abs_max_num_points,
-                job.circuit_element_parameters,
-                job.out_V,
-                job.out_I,
-                job.out_len
-            );
-        }
-
-    int num_jobs_need_remesh = 0;
-    for (int j = 0; j < n_jobs; ++j) 
-        if (jobs[j].max_num_points > 2) 
-            num_jobs_need_remesh++;
-    if (num_jobs_need_remesh > 0) {
-        if (parallel==1 && num_jobs_need_remesh>1) {
-            int num_threads = 32;
-            if (num_jobs_need_remesh < 16*4) num_threads = 16;
-            if (num_jobs_need_remesh < 8*4) num_threads = 8;
-            if (num_jobs_need_remesh < 8) num_threads = num_jobs_need_remesh;
-            // if (n_jobs > 8) num_threads = 16;
-            // if (n_jobs > 16) num_threads = 32;
-
-            #pragma omp parallel for num_threads(num_threads)
-            for (int j = 0; j < n_jobs; ++j) {
-                IVJobDesc& job = jobs[j];
-                if (jobs[j].max_num_points > 2) 
-                    remesh_IV(
-                        job.op_pt_V,
-                        job.refine_mode,
-                        job.max_num_points,
-                        job.out_V,
-                        job.out_I,
-                        job.out_len
-                    );
-            }
-        }
-        else 
-            for (int j = 0; j < n_jobs; ++j) {
-                IVJobDesc& job = jobs[j];
-                if (jobs[j].max_num_points > 2) 
-                    remesh_IV(
-                        job.op_pt_V,
-                        job.refine_mode,
-                        job.max_num_points,
-                        job.out_V,
-                        job.out_I,
-                        job.out_len
-                    );
-            }
     }
     
-
+    #pragma omp parallel for num_threads(num_threads) if(parallel==1 && n_jobs>1)
+    for (int j = 0; j < n_jobs; ++j) {
+        IVJobDesc& job = jobs[j];
+        combine_iv_job(
+            job.connection,
+            job.circuit_component_type_number,
+            job.op_pt_V,
+            job.n_children,
+            job.children_IVs,
+            job.children_pc_IVs,
+            job.has_photon_coupling,
+            job.max_num_points,
+            job.area,
+            job.abs_max_num_points,
+            job.circuit_element_parameters,
+            job.out_V,
+            job.out_I,
+            job.out_len
+        );
+    }
+    
+    std::vector<int> remesh_indices;
+    remesh_indices.reserve(n_jobs);
+    for (int j = 0; j < n_jobs; ++j) {
+        if (jobs[j].max_num_points > 2) 
+            remesh_indices.push_back(j);
+    }
+    int num_jobs_need_remesh = remesh_indices.size();
+    if (num_jobs_need_remesh > 0) {
+        if (parallel==1 && num_jobs_need_remesh>1) {
+            max_threads = omp_get_max_threads();
+            num_threads = max_threads;
+            if (num_jobs_need_remesh < max_threads*2) num_threads = max_threads/2;
+            if (num_jobs_need_remesh < max_threads) num_threads = max_threads/4;
+            if (num_jobs_need_remesh < max_threads/4) num_threads = num_jobs_need_remesh;
+        }
+        #pragma omp parallel for num_threads(num_threads) if(parallel==1 && num_jobs_need_remesh>1)
+        for (int j = 0; j < num_jobs_need_remesh; ++j) {
+            IVJobDesc& job = jobs[remesh_indices[j]];
+            remesh_IV(
+                job.op_pt_V,
+                job.refine_mode,
+                job.max_num_points,
+                job.out_V,
+                job.out_I,
+                job.out_len
+            );
+        }
+    }
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return ms;
