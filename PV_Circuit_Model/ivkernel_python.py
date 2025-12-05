@@ -156,7 +156,26 @@ def build_component_IV_python(component,refine_mode=False):
 
         Is = np.zeros_like(Vs)
         for element in component.subgroups:
-            Is += interp_(Vs,element.IV_V,element.IV_I)
+            if element._type_number < 5: # CircuitElement, direct evaluate
+                if element._type_number == 0: # CurrentSource
+                    IL = element.IL
+                    Is -= IL*np.ones_like(Vs) 
+                elif element._type_number == 1: # Resistor
+                    cond = element.cond
+                    Is += cond*Vs
+                else:
+                    I0 = element.I0
+                    n = element.n
+                    VT = element.VT
+                    V_shift = element.V_shift
+                    if element._type_number == 2: # ForwardDiode
+                        Is += I0*(np.exp((Vs-V_shift)/(n*VT))-1)
+                    elif element._type_number == 3: # ReverseDiode
+                        Is += -I0*np.exp((-Vs-V_shift)/(n*VT))
+                    else:
+                        Is += calc_intrinsic_Si_I(element, Vs)
+            else:
+                Is += interp_(Vs,element.IV_V,element.IV_I)
 
     component.IV_V = Vs
     component.IV_I = Is
@@ -197,7 +216,7 @@ def build_component_IV_python(component,refine_mode=False):
     change = np.zeros_like(unit_x)
     change[1:] = np.sqrt(dux * dux + duy * duy)  # change[i] for i>=1
     fudge_factor1 = np.ones_like(unit_x)
-    fudge_factor1[Vs[:-1] < 0.0] = 0.1
+    # fudge_factor1[Vs[:-1] < 0.0] = 0.1
     accum_abs_dir_change = np.cumsum(fudge_factor1 * change)
 
     # ---- accum_abs_dir_change_near_mpp (also vectorized) ----
@@ -206,10 +225,8 @@ def build_component_IV_python(component,refine_mode=False):
     if operating_point:
         op_pt_V = operating_point[0]
     if refine_mode == 1 and mpp_points > 0 and op_pt_V:
-        mask_mpp = np.zeros_like(unit_x)
-        window = np.abs(op_pt_V - Vs[1:-1]) < np.abs(op_pt_V) * 0.05
-        mask_mpp[1:-1] = window
-        increments_mpp = change * mask_mpp
+        window = np.abs(op_pt_V - Vs[1:]) < np.abs(op_pt_V) * 0.05
+        increments_mpp = change * window
         accum_abs_dir_change_near_mpp = np.cumsum(increments_mpp)
         variation_segment_mpp = accum_abs_dir_change_near_mpp[-1] / mpp_points
     else:

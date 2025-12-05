@@ -510,7 +510,7 @@ class CircuitGroup(CircuitComponent):
             self.num_circuit_elements += element.num_circuit_elements
             self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
         if self.num_circuit_elements > 50:
-            self.max_num_points = int(100*np.sqrt(self.num_circuit_elements))
+            self.max_num_points = int(500*np.sqrt(self.num_circuit_elements))
         self.name = name
         if location is None:
             self.location = np.array([0,0])

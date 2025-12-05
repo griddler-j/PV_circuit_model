@@ -3,6 +3,7 @@ import warnings
 import sys
 from pathlib import Path
 from PV_Circuit_Model.utilities import interp_
+import numpy as np
 
 _FORCE_PYTHON = False
 
@@ -78,7 +79,7 @@ if IV_Job_Heap is None:
             "Falling back to pure-Python implementation (much slower and has a tiny numerical difference).",
             RuntimeWarning
         )
-    from PV_Circuit_Model.ivkernel_python import build_component_IV_python
+    from PV_Circuit_Model.ivkernel_python import build_component_IV_python, calc_intrinsic_Si_I
 
     def set_parallel_mode(boolean):
         pass 
@@ -144,7 +145,26 @@ if IV_Job_Heap is None:
                         V = component.operating_point[0]
                         I = component.operating_point[1]
                         if V is not None:
-                            component.operating_point[1] = interp_(V,component.IV_V,component.IV_I)
+                            if component._type_number < 5: # CircuitElement, direct evaluate
+                                if component._type_number == 0: # CurrentSource
+                                    IL = component.IL
+                                    component.operating_point[1] = IL
+                                elif component._type_number == 1: # Resistor
+                                    cond = component.cond
+                                    component.operating_point[1] = cond*V
+                                else:
+                                    I0 = component.I0
+                                    n = component.n
+                                    VT = component.VT
+                                    V_shift = component.V_shift
+                                    if component._type_number == 2: # ForwardDiode
+                                        component.operating_point[1] = I0*(np.exp((V-V_shift)/(n*VT))-1)
+                                    elif component._type_number == 3: # ReverseDiode
+                                        component.operating_point[1] = -I0*np.exp((-V-V_shift)/(n*VT))
+                                    else:
+                                        component.operating_point[1] = calc_intrinsic_Si_I(component, V)
+                            else:
+                                component.operating_point[1] = interp_(V,component.IV_V,component.IV_I)
                         elif I is not None:
                             component.operating_point[0] = interp_(I,component.IV_I,component.IV_V)
                         if component._type_number>=5:
@@ -152,7 +172,7 @@ if IV_Job_Heap is None:
                             if component.connection=="series":
                                 is_series = True
                             current_ = component.operating_point[1]
-                            if component._type_number>=5:
+                            if component._type_number==6: # cell
                                 current_ /= component.area
                             for child in component.subgroups:
                                 if is_series:

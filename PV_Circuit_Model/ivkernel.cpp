@@ -777,7 +777,7 @@ void remesh_IV(
                 double dx = unit_vector_x - last_unit_vector_x;
                 double dy = unit_vector_y - last_unit_vector_y;
                 fudge_factor1 = 1;
-                if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
+                // if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
                 change = std::sqrt(dx*dx + dy*dy);
             }
             accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
