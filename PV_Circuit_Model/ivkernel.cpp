@@ -17,9 +17,7 @@
 #include "ivkernel.h"
 #include <numeric>
 #include <queue>
-#include <intrin.h>
 #include <fstream>
-#include <intrin.h>
 
 
 extern "C" {
@@ -121,7 +119,8 @@ void interp_monotonic_inc(
     const double* __restrict xq,  // size m, increasing
     int m,
     double* __restrict yq,         // size m, output
-    bool additive        // true: adds to yq
+    bool additive,        // true: adds to yq
+    int method // 0-linear, 1-smooth slope, 2-take max, 3-take min
 ) {
     if (!x || !y || !xq || !yq || n <= 0 || m <= 0) return;
     if (n == 1) {
@@ -161,17 +160,55 @@ void interp_monotonic_inc(
     // --- Main interpolation region: x[0] < xq < x[n-1] ---
     int i = 0; // segment index for x
     int prev_i = -1;
-    double slope;
+    double slope, left_slope, right_slope;
+    int this_slope_i = -1, right_slope_i = -1;
     for (int j = j_left; j <= j_right; ++j) {
         double xj = xq[j];
         // Advance i until x[i] <= xj <= x[i+1]
         while (i + 1 < n - 1 && x[i+1] < xj) 
             ++i;
         if (i > prev_i) {
-            slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+            if (method==1) {
+                if (this_slope_i==i-1)
+                    left_slope = slope;
+                else {
+                    if (i > 0) 
+                        left_slope = (y[i]-y[i-1])/(x[i]-x[i-1]);
+                    else
+                        left_slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+                }
+
+                if (right_slope_i==i)
+                    slope = right_slope;
+                else
+                    slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+                this_slope_i = i;
+
+                if (i < n-2) 
+                    right_slope = (y[i+2]-y[i+1])/(x[i+2]-x[i+1]);
+                else
+                    right_slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+                right_slope_i = i + 1;
+            } else {
+                slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+            }
         }
+        if (method==1) {
+            double delta_x = 0.5*(x[i+1]-x[i]);
+            double delta_x_left = xj - x[i];
+            double half_slope_left = 0.5*(slope + left_slope);
+            double half_slope_right = 0.5*(slope + right_slope);
+            double y_ref_left = 0.5*(slope - half_slope_left)/delta_x*(delta_x_left*delta_x_left)+half_slope_left*delta_x_left+y[i];
+            double delta_x_right = xj - x[i+1];
+            double y_ref_right = 0.5*(right_slope - half_slope_right)/delta_x*(delta_x_right*delta_x_right)+half_slope_right*delta_x_right+y[i+1];
+            double yadd = (-y_ref_left*delta_x_right+y_ref_right*delta_x_left)/(2*delta_x);
+            if (yadd < y[i]) yadd = y[i];
+            if (yadd > y[i+1]) yadd = y[i+1];
+            yq[j] = (additive? yq[j]:0.0) + yadd;
+            if (j>0 && yq[j]<yq[j-1]) yq[j] = yq[j-1];
+        } else 
+            yq[j] = (additive? yq[j]:0.0) + y[i] + slope*(xj - x[i]);
         prev_i = i;
-        yq[j] = (additive? yq[j]:0.0) + y[i] + slope*(xj - x[i]);
     }
 }
 
@@ -253,7 +290,8 @@ void calc_intrinsic_Si_I(
         delta_n.data(),
         n_V,
         BGN.data(),
-        false        // overwrite
+        false,        // overwrite
+        0
     );
 
     double termA = 2.5e-31 * geeh * n0;
@@ -312,6 +350,7 @@ int get_V_range(const double* __restrict circuit_element_parameters,
     }
     
     int N = (int)std::floor(max_num_points_);
+
     if (is_reverse_diode) { // reverse order
         out_V[N+2] = -V_shift + 1.1;
         out_V[N+1] = -V_shift + 1.0;
@@ -333,7 +372,6 @@ int get_V_range(const double* __restrict circuit_element_parameters,
             ++pos;
         }
     }
-
     return N+3;
 }
 
@@ -511,13 +549,13 @@ void combine_iv_job(int connection,
     double op_pt_V,
     double bottom_up_op_pt_V,
     double normalized_op_pt_V,
-    int refinement_points) {
+    int refinement_points,
+    int interp_method) {
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
 
     if (connection == -1 && circuit_component_type_number <=4) { // CircuitElement; the two conditions are actually redundant as connection == -1 iff circuit_component_type_number <=4
-       
         switch (circuit_component_type_number) {
             case 0: // CurrentSource
                 build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len);
@@ -586,7 +624,7 @@ void combine_iv_job(int connection,
                 for (int i = 0; i < n_children; ++i) {  
                     int len = children_IVs[i].length;
                     if (len > 0) {
-                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true); // keeps adding
+                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true, interp_method); // keeps adding
                     }
                 }  
                 break;
@@ -606,16 +644,16 @@ void combine_iv_job(int connection,
                             std::vector<double> added_I(vs_len);
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
-                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false); 
+                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false, 0); 
                             for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false, interp_method); 
                             std::vector<double> new_points(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
                             extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
                         } else {
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false, interp_method); 
                         }
                         std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
                     }
@@ -665,7 +703,7 @@ void combine_iv_job(int connection,
         for (int i=0; i < n_children; ++i) {
             const double* IV_table_V = children_IVs[i].V;
             int len = children_IVs[i].length;
-            if (children_IVs[i].type_number==2) { //  forward diode
+            if (children_IVs[i].type_number==2 || children_IVs[i].type_number==4) { //  forward diode or intrinsic diode
                 right_limit = std::min(right_limit, IV_table_V[len-1]);
             } else if (children_IVs[i].type_number==3) {  // rev diode
                 left_limit = std::max(left_limit, IV_table_V[0]);
@@ -708,7 +746,7 @@ void combine_iv_job(int connection,
                     calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true);
                 }
                 else
-                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true); // keeps adding 
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true, interp_method); // keeps adding 
             }
         }  
     }
@@ -856,7 +894,7 @@ void remesh_IV(
 
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     int max_threads; 
@@ -886,19 +924,19 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
             job.out_V,
             job.out_I,
             job.out_len,
-            job.refine_mode,
+            refine_mode,
             job.all_children_are_elements,
             job.operating_point[0],
             job.operating_point[1],
             job.operating_point[2],
-            job.refinement_points
+            job.refinement_points,
+            interp_method
         );
     }
-    
     std::vector<int> remesh_indices;
     remesh_indices.reserve(n_jobs);
     for (int j = 0; j < n_jobs; ++j) {
-        if (jobs[j].max_num_points > 2) 
+        if (jobs[j].max_num_points > 2 && jobs[j].circuit_component_type_number>=5) 
             remesh_indices.push_back(j);
     }
     int num_jobs_need_remesh = remesh_indices.size();
@@ -918,7 +956,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
                 job.operating_point[0],
                 job.operating_point[1],
                 job.operating_point[2],
-                job.refine_mode,
+                refine_mode,
                 job.max_num_points,
                 job.refinement_points,
                 job.out_V,

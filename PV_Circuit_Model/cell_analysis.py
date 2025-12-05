@@ -6,8 +6,6 @@ from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
 
 def get_Voc(argument):
-    if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Voc" in argument.IV_parameters:
-        return argument.IV_parameters["Voc"]
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
@@ -15,16 +13,10 @@ def get_Voc(argument):
     else:
         IV_curve = argument
     Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])
-    if isinstance(argument,CircuitGroup):
-        if not hasattr(argument,"IV_parameters"):
-            argument.IV_parameters = {}
-        argument.IV_parameters["Voc"] = Voc
     return Voc
 CircuitGroup.get_Voc = get_Voc
 
 def get_Isc(argument):
-    if isinstance(argument,CircuitGroup) and hasattr(argument,"IV_parameters") and "Isc" in argument.IV_parameters:
-        return argument.IV_parameters["Isc"]
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
@@ -32,10 +24,6 @@ def get_Isc(argument):
     else:
         IV_curve = argument
     Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:])
-    if isinstance(argument,CircuitGroup):
-        if not hasattr(argument,"IV_parameters"):
-            argument.IV_parameters = {}
-        argument.IV_parameters["Isc"] = Isc
     return Isc
 CircuitGroup.get_Isc = get_Isc
 
@@ -49,14 +37,6 @@ CircuitGroup.get_Jsc = get_Jsc
 
 def get_Pmax(argument, return_op_point=False, refine_IV=False):
     if isinstance(argument,CircuitGroup):
-        if not refine_IV or (hasattr(argument,"refined_IV") and argument.refined_IV):
-            if hasattr(argument,"IV_parameters") and "Pmax" in argument.IV_parameters:
-                Pmax = argument.IV_parameters["Pmax"]
-                Vmp = argument.IV_parameters["Vmp"]
-                Imp = argument.IV_parameters["Imp"]
-                if return_op_point:
-                    return Pmax, Vmp, Imp
-                return Pmax
         if argument.IV_V is None:
             argument.build_IV()
         IV_curve = argument.IV_table
@@ -86,13 +66,6 @@ def get_Pmax(argument, return_op_point=False, refine_IV=False):
     Vmp = V[index]
     Imp = I[index]
     Pmax = power[index]
-    
-    if isinstance(argument,CircuitGroup):
-        if not hasattr(argument,"IV_parameters"):
-            argument.IV_parameters = {}
-        argument.IV_parameters["Pmax"] = Pmax
-        argument.IV_parameters["Vmp"] = Vmp
-        argument.IV_parameters["Imp"] = Imp
     if return_op_point:
         return Pmax, Vmp, Imp
     return Pmax
@@ -110,10 +83,6 @@ def get_FF(argument):
     Isc = get_Isc(argument)
     Pmax = get_Pmax(argument)
     FF = Pmax/(Isc*Voc)
-    if isinstance(argument,CircuitGroup):
-        if not hasattr(argument,"IV_parameters"):
-            argument.IV_parameters = {}
-        argument.IV_parameters["FF"] = FF
     return FF
 CircuitGroup.get_FF = get_FF
 
@@ -217,13 +186,13 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         op_point = self.operating_point
     if op_point is not None:
         self.operating_point = op_point
+    if self.IV_V is None:
+        self.build_IV()
     if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
         max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
         Voc = self.get_Voc()
         Isc = self.get_Isc()
         FF = self.get_FF()
-    if self.IV_V is None:
-        self.build_IV()
     if fourth_quadrant and isinstance(self,CircuitGroup):
         plt.plot(self.IV_V,-self.IV_I)
         if self.operating_point is not None:

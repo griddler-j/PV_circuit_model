@@ -28,7 +28,6 @@ cdef extern from "ivkernel.h":
         const IVView* children_pc_IVs
         int has_photon_coupling
         double operating_point[3] # V, bottom_up_operating_point_V,normalized_operating_point_V,I
-        int refine_mode
         int max_num_points
         int refinement_points
         double area
@@ -39,7 +38,7 @@ cdef extern from "ivkernel.h":
         int* out_len
         int all_children_are_elements
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method) nogil
 
     void interp_monotonic_inc_scalar(
         const double** xs,
@@ -53,7 +52,7 @@ cdef extern from "ivkernel.h":
         int* circuit_type_number
     ) nogil
 
-def run_multiple_jobs(components,refine_mode=False,parallel=False):
+def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000):
 
     parallel_ = 0
     if parallel: parallel_ = 1
@@ -115,7 +114,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
     cdef int olen
-    cdef double tmp
+    cdef double tmp, tmp2
     cdef np.float64_t[::1] mv_big_v 
     cdef np.float64_t[::1] mv_big_i 
     cdef double* base 
@@ -126,7 +125,13 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef double normalized_operating_point_I
     cdef double bottom_up_operating_point_V
     cdef double bottom_up_operating_point_I
-    cdef int all_children_are_elements
+    cdef int all_children_are_elements, refine_mode_, interp_method_
+
+    if refine_mode:
+        refine_mode_ = 1
+    else:
+        refine_mode_ = 0
+    interp_method_ = interp_method
 
     try:
         t1 = time.time()
@@ -193,10 +198,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             jobs_c[i].max_num_points     = max_num_points
             jobs_c[i].area               = area
             jobs_c[i].circuit_element_parameters = &mv_params[0]
-            if refine_mode:
-                jobs_c[i].refine_mode = 1
-            else:
-                jobs_c[i].refine_mode = 0
 
             # ----- children_IVs → IVView[] (zero-copy views) -----
             abs_max_num_points = 0
@@ -312,12 +313,19 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
             child_base += n_children
 
+            if super_dense > 0: 
+                if jobs_c[i].circuit_component_type_number < 5: # if element, make lots of points
+                    jobs_c[i].max_num_points = super_dense
+                else: # else, don't ever remesh
+                    jobs_c[i].max_num_points = -1
+
             if circuit_component_type_number==0: # current source
                 abs_max_num_points = 1
             elif circuit_component_type_number==1: # resistor
                 abs_max_num_points = 2
             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
-                tmp = 100.0 / 0.2 * max_I + 5.0
+                tmp2 = max(jobs_c[i].max_num_points,100.0)
+                tmp = tmp2 / 0.2 * max_I + 5.0
                 abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil
 
             abs_max_num_points = int(abs_max_num_points)
@@ -327,7 +335,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
             jobs_c[i].abs_max_num_points = abs_max_num_points
 
-            # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
             sum_abs_max_num_points += abs_max_num_points
 
         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
@@ -344,13 +351,11 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             jobs_c[i].out_len = &c_out_len_all[i]
             offset += jobs_c[i].abs_max_num_points
 
-        packing_time = time.time()-t1
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_)
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_)
 
         # ----- unpack outputs -----
-        t1 = time.time()
         offset = 0
         for i in range(n_jobs):
             circuit_component = components[i]
@@ -361,14 +366,10 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             circuit_component.IV_I = big_out_I[offset:offset+olen]
             offset += jobs_c[i].abs_max_num_points
 
-        unpacking_time = time.time()-t1
-
     finally:
         free(jobs_c)
         free(children_views)
         free(pc_children_views)
-
-    return kernel_ms, packing_time, unpacking_time
 
 def run_multiple_operating_points(components, bint parallel=False):
     cdef Py_ssize_t n_jobs = len(components)

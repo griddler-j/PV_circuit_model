@@ -22,7 +22,6 @@ struct IVJobDesc {
     const IVView* children_pc_IVs;
     int has_photon_coupling;
     double operating_point[3]; 
-    int refine_mode;
     int max_num_points;
     int refinement_points;
     double area;
@@ -34,7 +33,7 @@ struct IVJobDesc {
     int all_children_are_elements;
 };
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads);
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads, int refine_mode, int interp_method);
 
 void interp_monotonic_inc_scalar(
     const double** xs,   // size n, strictly increasing

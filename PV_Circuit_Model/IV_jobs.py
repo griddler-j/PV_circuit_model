@@ -10,10 +10,10 @@ _FORCE_PYTHON = False
 def _try_import_cython():
     """Try importing the fast extension."""
     try:
-        from PV_Circuit_Model.IV_jobs_cython import IV_Job_Heap, set_parallel_mode
-        return IV_Job_Heap, set_parallel_mode
+        import PV_Circuit_Model.IV_jobs_cython as iv_jobs_cython
+        return iv_jobs_cython
     except Exception:
-        return None, None
+        return None
 
 def _try_autobuild_extension(package_root):
     """
@@ -50,13 +50,13 @@ def _try_autobuild_extension(package_root):
     return True
 
 IV_Job_Heap = None
-set_parallel_mode = None
+iv_jobs_cython = None
 if not _FORCE_PYTHON:
     # ---------------------------------------------------------------------
     # 1) If cython import fails, try auto-build
     # ---------------------------------------------------------------------
-    IV_Job_Heap, set_parallel_mode = _try_import_cython()
-    if IV_Job_Heap is None:
+    iv_jobs_cython = _try_import_cython()
+    if iv_jobs_cython is None:
         warnings.warn(
             "Building C++/Cython extensions (need to be done only once)...",
             RuntimeWarning
@@ -64,14 +64,21 @@ if not _FORCE_PYTHON:
         pkg_root = Path(__file__).resolve().parent
         if _try_autobuild_extension(pkg_root):
             # Try import again
-            IV_Job_Heap, set_parallel_mode = _try_import_cython()
-            if IV_Job_Heap is not None:
+            iv_jobs_cython = _try_import_cython()
+            if iv_jobs_cython is not None:
                 print("\n\n\nSucceeded building C++/Cython extensions!")
+
+iv_jobs_cython.set_parallel_mode(False)
+iv_jobs_cython.set_interp_method(0)
+iv_jobs_cython.set_super_dense(10000)
+# assert(1==0)
 
 # ---------------------------------------------------------------------
 # 2) If still missing, fall back to Python
 # ---------------------------------------------------------------------
-if IV_Job_Heap is None:
+if iv_jobs_cython is not None:
+    IV_Job_Heap = iv_jobs_cython.IV_Job_Heap
+else:
     if not _FORCE_PYTHON:
         warnings.warn(
             "The optimized C++/Cython extensions could not be imported, "

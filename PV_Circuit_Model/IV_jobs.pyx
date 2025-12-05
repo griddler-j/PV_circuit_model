@@ -13,10 +13,20 @@ ctypedef np.float64_t DTYPE_t
 np.import_array()
 
 cdef bint _PARALLEL_MODE = True
+cdef int _INTERP_METHOD = 1
+cdef int _SUPER_DENSE = 0
 
 def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE
     _PARALLEL_MODE = bool(enabled)
+
+def set_interp_method(method):
+    global _INTERP_METHOD
+    _INTERP_METHOD = int(method)
+
+def set_super_dense(num_points):
+    global _SUPER_DENSE
+    _SUPER_DENSE = int(num_points)
 
 cdef class IV_Job_Heap:
     cdef public list components
@@ -192,7 +202,7 @@ cdef class IV_Job_Heap:
             job_done_index_before = self.job_done_index
             components_ = self.get_runnable_iv_jobs(refine_mode=refine_mode)
             if components_:
-                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)
+                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, interp_method=_INTERP_METHOD, super_dense=_SUPER_DENSE)
             if pbar is not None:
                 pbar.update(job_done_index_before - self.job_done_index)
 
