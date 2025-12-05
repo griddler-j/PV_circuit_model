@@ -68,11 +68,6 @@ if not _FORCE_PYTHON:
             if iv_jobs_cython is not None:
                 print("\n\n\nSucceeded building C++/Cython extensions!")
 
-iv_jobs_cython.set_parallel_mode(False)
-iv_jobs_cython.set_interp_method(0)
-iv_jobs_cython.set_super_dense(10000)
-# assert(1==0)
-
 # ---------------------------------------------------------------------
 # 2) If still missing, fall back to Python
 # ---------------------------------------------------------------------

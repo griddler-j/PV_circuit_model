@@ -13,7 +13,7 @@ ctypedef np.float64_t DTYPE_t
 np.import_array()
 
 cdef bint _PARALLEL_MODE = True
-cdef int _INTERP_METHOD = 1
+cdef int _INTERP_METHOD = 0
 cdef int _SUPER_DENSE = 0
 
 def set_parallel_mode(enabled: bool):

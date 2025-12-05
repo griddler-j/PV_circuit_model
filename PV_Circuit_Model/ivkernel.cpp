@@ -178,10 +178,11 @@ void interp_monotonic_inc(
                         left_slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
                 }
 
-                if (right_slope_i==i)
+                if (right_slope_i==i && std::isfinite(right_slope))
                     slope = right_slope;
                 else
                     slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
+                
                 this_slope_i = i;
 
                 if (i < n-2) 
@@ -193,7 +194,7 @@ void interp_monotonic_inc(
                 slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
             }
         }
-        if (method==1) {
+        if (method==1 && std::isfinite(left_slope) && std::isfinite(right_slope)) {
             double delta_x = 0.5*(x[i+1]-x[i]);
             double delta_x_left = xj - x[i];
             double half_slope_left = 0.5*(slope + left_slope);
@@ -205,7 +206,7 @@ void interp_monotonic_inc(
             if (yadd < y[i]) yadd = y[i];
             if (yadd > y[i+1]) yadd = y[i+1];
             yq[j] = (additive? yq[j]:0.0) + yadd;
-            if (j>0 && yq[j]<yq[j-1]) yq[j] = yq[j-1];
+            if (!std::isfinite(yq[j]) || (j>0 && yq[j]<yq[j-1])) yq[j] = yq[j-1];
         } else 
             yq[j] = (additive? yq[j]:0.0) + y[i] + slope*(xj - x[i]);
         prev_i = i;

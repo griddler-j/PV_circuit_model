@@ -27283,7 +27283,7 @@ if (!__Pyx_RefNanny) {
  * np.import_array()
  * 
  * cdef bint _PARALLEL_MODE = True             # <<<<<<<<<<<<<<
- * cdef int _INTERP_METHOD = 1
+ * cdef int _INTERP_METHOD = 0
  * cdef int _SUPER_DENSE = 0
  */
   __pyx_v_16PV_Circuit_Model_14IV_jobs_cython__PARALLEL_MODE = 1;
@@ -27291,15 +27291,15 @@ if (!__Pyx_RefNanny) {
   /* "PV_Circuit_Model/IV_jobs.pyx":16
  * 
  * cdef bint _PARALLEL_MODE = True
- * cdef int _INTERP_METHOD = 1             # <<<<<<<<<<<<<<
+ * cdef int _INTERP_METHOD = 0             # <<<<<<<<<<<<<<
  * cdef int _SUPER_DENSE = 0
  * 
  */
-  __pyx_v_16PV_Circuit_Model_14IV_jobs_cython__INTERP_METHOD = 1;
+  __pyx_v_16PV_Circuit_Model_14IV_jobs_cython__INTERP_METHOD = 0;
 
   /* "PV_Circuit_Model/IV_jobs.pyx":17
  * cdef bint _PARALLEL_MODE = True
- * cdef int _INTERP_METHOD = 1
+ * cdef int _INTERP_METHOD = 0
  * cdef int _SUPER_DENSE = 0             # <<<<<<<<<<<<<<
  * 
  * def set_parallel_mode(enabled: bool):
