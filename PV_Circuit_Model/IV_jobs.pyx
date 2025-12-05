@@ -7,6 +7,10 @@ import warnings
 import sys
 from pathlib import Path
 from PV_Circuit_Model import ivkernel
+import numpy as np
+cimport numpy as np
+ctypedef np.float64_t DTYPE_t
+np.import_array()
 
 cdef bint _PARALLEL_MODE = True
 
@@ -17,6 +21,7 @@ def set_parallel_mode(enabled: bool):
 cdef class IV_Job_Heap:
     cdef public list components
     cdef list min_child_id
+    cdef public object bottom_up_operating_points
     cdef Py_ssize_t job_done_index
     cdef Py_ssize_t n_components
 
@@ -25,6 +30,7 @@ cdef class IV_Job_Heap:
         self.n_components   = 0
         self.components = [circuit_component]
         self.min_child_id = [-1]
+        self.bottom_up_operating_points = None
         self.job_done_index = 1  # will reset in build()
 
     def __init__(self, object circuit_component):
@@ -50,6 +56,8 @@ cdef class IV_Job_Heap:
             pos += 1
         self.n_components = len(comps)
         self.job_done_index = self.n_components
+        self.bottom_up_operating_points = np.empty((self.n_components, 6),
+                                               dtype=np.float64)
 
     cpdef list get_runnable_iv_jobs(self, bint forward=True):
         cdef list comps = self.components
@@ -119,6 +127,57 @@ cdef class IV_Job_Heap:
         if pbar is not None:
             pbar.close()
 
+    cpdef void get_bottom_up_operating_points(self):
+        cdef Py_ssize_t n = self.n_components  # already tracked in your class
+        cdef Py_ssize_t i, j, count, n_sub
+        cdef double V, I, max_V, min_V, max_I, min_I, area
+        cdef double[:, :] bop = self.bottom_up_operating_points
+        cdef list comps = self.components
+        # Walk bottom-up via indices instead of reversed(self.components)
+        for i in range(n - 1, -1, -1):
+            component = comps[i]
+            area = 1
+            if component._type_number < 5:
+                # CircuitElement: operating_point is already "exact"
+                # component.operating_point is a Python sequence [V, I]
+                bop[i, 0] = <double> component.operating_point[0]
+                bop[i, 1] = <double> component.operating_point[1]
+                component.bottom_up_operating_point = component.operating_point
+            else:
+                if component._type_number==6: # cell
+                    area = component.area
+                # CircuitGroup: aggregate children
+                V = 0.0
+                I = 0.0
+                subgroups = component.subgroups
+                n_sub = len(subgroups)
+                for j in range(n_sub):
+                    element = subgroups[j]
+                    V_ = <double> element.bottom_up_operating_point[0]
+                    I_ = <double> element.bottom_up_operating_point[1]*area
+                    V += V_
+                    I += I_
+                    if j==0 or V_>max_V:
+                        max_V = V_
+                    if j==0 or V_<min_V:
+                        min_V = V_
+                    if j==0 or I_>max_I:
+                        max_I = I_
+                    if j==0 or I_<min_I:
+                        min_I = I_
+
+                if component.connection == "series":
+                    I /= n_sub
+                else:
+                    V /= n_sub
+                bop[i, 0] = V
+                bop[i, 1] = I
+                bop[i, 2] = max_V
+                bop[i, 3] = min_V
+                bop[i, 4] = max_I
+                bop[i, 5] = min_I
+                component.bottom_up_operating_point = [V,I]
+                    
     cpdef void run_IV(self, bint refine_mode=False):
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
