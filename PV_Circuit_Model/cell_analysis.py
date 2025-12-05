@@ -35,7 +35,7 @@ def get_Jsc(argument):
 CircuitGroup.get_Jsc = get_Jsc
 
 
-def get_Pmax(argument, return_op_point=False, refine_IV=False):
+def get_Pmax(argument, return_op_point=False, refine_IV=True):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
