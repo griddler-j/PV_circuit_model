@@ -281,16 +281,12 @@ class CircuitComponent(ParamSerializable):
 
     def null_IV(self):
         self.refined_IV = False
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
         self.IV_V = None
         self.IV_I = None
         if self.parent is not None:
             self.parent.null_IV()
     def build_IV(self):
         gc.disable()
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
         self.job_heap = IV_Job_Heap(self)
         self.job_heap.run_IV()
         gc.enable()
@@ -530,22 +526,17 @@ class CircuitGroup(CircuitComponent):
         self.subgroups.append(element)
         element.parent = self
 
-    def null_all_IV(self,max_num_pts_only=False):
-        if max_num_pts_only and (not hasattr(self,"max_num_points") or self.max_num_points is None):
-            return
+    def null_all_IV(self):
         self.IV_V = None
         self.IV_I = None
         if hasattr(self,"refined_IV") and self.refined_IV:
             self.refined_IV = False
-        if hasattr(self,"IV_parameters"):
-            del self.IV_parameters
         for element in self.subgroups:
             if isinstance(element,CircuitElement):
-                if not max_num_pts_only:
-                    element.IV_V = None
-                    element.IV_I = None
+                element.IV_V = None
+                element.IV_I = None
             else:
-                element.null_all_IV(max_num_pts_only=max_num_pts_only)
+                element.null_all_IV()
 
     def reassign_parents(self):
         for element in self.subgroups:

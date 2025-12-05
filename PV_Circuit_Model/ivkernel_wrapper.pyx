@@ -27,15 +27,17 @@ cdef extern from "ivkernel.h":
         const IVView* children_IVs
         const IVView* children_pc_IVs
         int has_photon_coupling
-        double op_pt_V
+        double operating_point[3] # V, bottom_up_operating_point_V,normalized_operating_point_V,I
         int refine_mode
         int max_num_points
+        int refinement_points
         double area
         int abs_max_num_points 
         const double* circuit_element_parameters
         double* out_V
         double* out_I
         int* out_len
+        int all_children_are_elements
 
     double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) nogil
 
@@ -120,6 +122,11 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
     cdef Py_ssize_t stride_job 
     cdef Py_ssize_t offset
     cdef int sum_abs_max_num_points
+    cdef double normalized_operating_point_V
+    cdef double normalized_operating_point_I
+    cdef double bottom_up_operating_point_V
+    cdef double bottom_up_operating_point_I
+    cdef int all_children_are_elements
 
     try:
         t1 = time.time()
@@ -129,6 +136,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             subgroups = None
             if circuit_component._type_number>=5:
                 subgroups = circuit_component.subgroups
+
             circuit_component_type_number = circuit_component._type_number  # default CircuitGroup
 
             # ----- build circuit_element_parameters (matches your C++ expectations) -----
@@ -202,9 +210,29 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             else:
                 jobs_c[i].children_IVs = <IVView*> 0
 
+            if refine_mode:
+                bottom_up_operating_point_V = 0;
+                bottom_up_operating_point_I = 0;
+                normalized_operating_point_V = 0;
+                normalized_operating_point_I = 0;
+
+            all_children_are_elements = 1
             for j in range(n_children):
                 element = subgroups[j]
                 type_number = element._type_number
+
+                if refine_mode:
+                    if type_number < 5: # circuitelement
+                        bottom_up_operating_point_V += element.operating_point[0]
+                        bottom_up_operating_point_I += element.operating_point[1]
+                        normalized_operating_point_V += 1
+                        normalized_operating_point_I += 1
+                    else:
+                        all_children_are_elements = 0
+                        bottom_up_operating_point_V += element.bottom_up_operating_point[0]
+                        bottom_up_operating_point_I += element.bottom_up_operating_point[1]
+                        normalized_operating_point_V += element.normalized_operating_point[0]
+                        normalized_operating_point_I += element.normalized_operating_point[1]
 
                 children_views[child_base + j].type_number = type_number
                 # ensure IV_table is C-contiguous float64 (2, Ni)
@@ -230,6 +258,22 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                     children_views[child_base + j].element_params[2] = element.base_thickness
                     children_views[child_base + j].element_params[3] = element.ni
                     children_views[child_base + j].element_params[4] = base_type_number
+
+            if refine_mode:
+                if jobs_c[i].connection == 0:  # series 
+                    bottom_up_operating_point_I /= n_children
+                    normalized_operating_point_I /= n_children
+                else:
+                    bottom_up_operating_point_V /= n_children
+                    normalized_operating_point_V /= n_children
+                jobs_c[i].operating_point[0] = circuit_component.operating_point[0]
+                jobs_c[i].operating_point[1] = bottom_up_operating_point_V
+                jobs_c[i].operating_point[2] = normalized_operating_point_V
+                jobs_c[i].refinement_points = int(50*np.sqrt(circuit_component.num_circuit_elements))
+                jobs_c[i].max_num_points = jobs_c[i].refinement_points*10;
+                circuit_component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
+                circuit_component.normalized_operating_point = [normalized_operating_point_V,normalized_operating_point_I]
+                jobs_c[i].all_children_are_elements = all_children_are_elements
 
             # ----- photon-coupled children → IVView[] -----
             if n_children > 0:
@@ -279,12 +323,10 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
 
             abs_max_num_points = int(abs_max_num_points)
 
+            if refine_mode and all_children_are_elements:
+                abs_max_num_points += jobs_c[i].refinement_points
+
             jobs_c[i].abs_max_num_points = abs_max_num_points
-            op_pt_V = 0
-            op_pt = circuit_component.operating_point
-            if op_pt and op_pt[0]:
-                op_pt_V = op_pt[0]
-            jobs_c[i].op_pt_V = op_pt_V 
 
             # ----- allocate per-job output buffer (2 x abs_max_num_points) -----
             sum_abs_max_num_points += abs_max_num_points
@@ -319,6 +361,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
             circuit_component.IV_V = big_out_V[offset:offset+olen]
             circuit_component.IV_I = big_out_I[offset:offset+olen]
             offset += jobs_c[i].abs_max_num_points
+
         unpacking_time = time.time()-t1
 
     finally:

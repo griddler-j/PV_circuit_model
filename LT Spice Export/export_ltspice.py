@@ -429,6 +429,28 @@ if __name__ == "__main__":
         block.build_IV()
         t2 += time.time()-t1
         print(f"time = {time.time()-t1}")
+
+    print(block.get_Pmax())
+    print(block.get_Voc())
+    print(block.get_Isc())
+    print(block.get_FF())
+    find_ = np.where((block.IV_table[0,:]>=0) & (block.IV_table[1,:]<=0))[0]
+    print(len(find_))
+    t1 = time.time()
+    print(block.get_Pmax(refine_IV=True))
+    print(block.get_Voc())
+    print(block.get_Isc())
+    print(block.get_FF())
+    find_ = np.where((block.IV_table[0,:]>=0) & (block.IV_table[1,:]<=0))[0]
+    print(len(find_))
+    print(f"time = {time.time()-t1}")
+    Pmax,Vmp,_ = block.get_Pmax(return_op_point=True)
+    block.set_operating_point(V=Vmp)
+    block.job_heap.get_bottom_up_operating_points()
+    print(block.operating_point)
+    print(block.job_heap.bottom_up_operating_points[0,:])
+    
+    assert(1==0)
     # for string_ in block.subgroups:
     #     plt.plot(string_.IV_table[0,:],string_.IV_table[1,:])
     #     plt.scatter(string_.IV_table[0,:],string_.IV_table[1,:],s=2)

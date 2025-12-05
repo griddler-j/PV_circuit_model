@@ -19,6 +19,7 @@
 #include <queue>
 #include <intrin.h>
 #include <fstream>
+#include <intrin.h>
 
 
 extern "C" {
@@ -87,8 +88,7 @@ void build_current_source_iv(
     const double* __restrict circuit_element_parameters,
     double* __restrict out_V,
     double* __restrict out_I,
-    int* out_len,
-    int abs_max_num_points
+    int* out_len
 ) {
     double IL = circuit_element_parameters[0];
     int n = 1;
@@ -103,8 +103,7 @@ void build_resistor_iv(
     const double* __restrict circuit_element_parameters,
     double* __restrict out_V,
     double* __restrict out_I,
-    int* out_len,
-    int abs_max_num_points
+    int* out_len
 ) {
     double cond = circuit_element_parameters[0];
     int n = 2;
@@ -276,7 +275,7 @@ void calc_intrinsic_Si_I(
 }
 
 int get_V_range(const double* __restrict circuit_element_parameters,
-    int max_num_points,bool intrinsic_Si_calc,double op_pt_V,bool is_reverse_diode,double* out_V) {
+    int max_num_points,bool intrinsic_Si_calc,bool is_reverse_diode,double* out_V) {
     // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
@@ -457,8 +456,7 @@ void build_diode_iv(
     double* __restrict out_V,
     double* __restrict out_I,
     int* out_len,
-    int abs_max_num_points,
-    double op_pt_V,bool is_reverse_diode
+    bool is_reverse_diode
 ) {
     // circuit_component.I0, circuit_component.n, circuit_component.VT, circuit_component.V_shift, max_I
     double I0 = circuit_element_parameters[0];
@@ -466,7 +464,7 @@ void build_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    int size = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,is_reverse_diode,out_V);
+    int size = get_V_range(circuit_element_parameters, max_num_points,false,is_reverse_diode,out_V);
 
     if (!is_reverse_diode) {
         for (size_t i = 0; i < size; ++i) 
@@ -483,11 +481,9 @@ void build_Si_intrinsic_diode_iv(
     int max_num_points,
     double* __restrict out_V,
     double* __restrict out_I,
-    int* out_len,
-    int abs_max_num_points,
-    double op_pt_V
+    int* out_len
 ) {
-    int size = get_V_range(circuit_element_parameters, max_num_points,true,op_pt_V,false,out_V);
+    int size = get_V_range(circuit_element_parameters, max_num_points,true,false,out_V);
     double ni = circuit_element_parameters[5];
     int base_type_number = static_cast<int>(circuit_element_parameters[6]);
     double base_doping = circuit_element_parameters[0];
@@ -499,7 +495,6 @@ void build_Si_intrinsic_diode_iv(
 
 void combine_iv_job(int connection,
     int circuit_component_type_number,
-    double op_pt_V,
     int n_children,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
@@ -510,11 +505,13 @@ void combine_iv_job(int connection,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
-    int* out_len) {
-
-    // std::printf("cpp: combine_iv_job: n_children = %d, connection = %d\n",
-    //         n_children, connection);
-    // std::fflush(stdout); 
+    int* out_len,
+    int refine_mode,
+    int all_children_are_elements,
+    double op_pt_V,
+    double bottom_up_op_pt_V,
+    double normalized_op_pt_V,
+    int refinement_points) {
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -523,19 +520,19 @@ void combine_iv_job(int connection,
        
         switch (circuit_component_type_number) {
             case 0: // CurrentSource
-                build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);
+                build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len);
                 break;
             case 1: // Resistor
-                build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len,abs_max_num_points);;
+                build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len);
                 break;
             case 2: // ForwardDiode
-                build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,false);
+                build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,false);
                 break;
             case 3: // ReverseDiode
-                build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V,true);
+                build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,true);
                 break;
             case 4: // Intrinsic Si Diode
-                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,abs_max_num_points,op_pt_V);
+                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
                 break;
         }
         return;
@@ -639,7 +636,7 @@ void combine_iv_job(int connection,
                 right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
             }
         }
-        if (children_Vs_size > n_children*100) // found to be optimal 
+        if (children_Vs_size > n_children*100 && (refine_mode==0 || all_children_are_elements==0)) // found to be optimal 
             merge_children_kway_ptr(children_IVs, 0, n_children, Vs,vs_len,abs_max_num_points);
         else {
             int pos = 0;
@@ -647,6 +644,20 @@ void combine_iv_job(int connection,
                 int Ni = children_IVs[i].length;
                 memcpy(Vs + pos, children_IVs[i].V, Ni * sizeof(double));
                 pos += Ni;
+            }
+            if (refine_mode==1 && all_children_are_elements==1) {  // add more points near the operating point
+                double left_V = op_pt_V;
+                double right_V = bottom_up_op_pt_V;
+                if (left_V > right_V) {
+                    left_V = bottom_up_op_pt_V;
+                    right_V = op_pt_V;
+                }
+                left_V -= normalized_op_pt_V*0.002;
+                right_V += normalized_op_pt_V*0.002;
+                double step = (right_V - left_V)/(refinement_points-1);
+                for (int i=0; i<refinement_points; ++i) 
+                    Vs[pos+i] = left_V + step*i;
+                vs_len += refinement_points;
             }
             std::sort(Vs, Vs+vs_len); // replace this with smart k way merge since children V's are each sorted 
         }
@@ -712,8 +723,11 @@ void combine_iv_job(int connection,
 
 void remesh_IV(
     double op_pt_V,
+    double bottom_up_op_pt_V,
+    double normalized_op_pt_V,
     int refine_mode,
     int max_num_points,
+    int refinement_points,
     double* out_V,
     double* out_I,
     int* out_len) {
@@ -722,11 +736,20 @@ void remesh_IV(
     double* Is = out_I;
     int *vs_len = out_len;
 
-    if (*vs_len <= max_num_points)
+    if (*vs_len <= max_num_points && refine_mode==0)
         return;
-    
-    int mpp_points = 0;
-    if (refine_mode==1) mpp_points = max_num_points*0.1;
+
+    double op_left_V, op_right_V;
+    if (refine_mode==1) {  
+        op_left_V = op_pt_V;
+        op_right_V = bottom_up_op_pt_V;
+        if (op_left_V > op_right_V) {
+            op_left_V = bottom_up_op_pt_V;
+            op_right_V = op_pt_V;
+        }
+        op_left_V -= normalized_op_pt_V*0.002;
+        op_right_V += normalized_op_pt_V*0.002;
+    }
 
     int n = static_cast<int>(*vs_len);
     std::vector<double> accum_abs_dir_change(n-1); 
@@ -781,9 +804,9 @@ void remesh_IV(
                 change = std::sqrt(dx*dx + dy*dy);
             }
             accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
-            if (refine_mode==1 && mpp_points > 0) {
+            if (refine_mode==1) {
                 double change_ = 0;
-                if (std::abs(op_pt_V-Vs[i])<std::abs(op_pt_V)*0.05) change_ = change;
+                if (Vs[i]>=op_left_V && Vs[i]<=op_right_V) change_ = change;
                 accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change_;
             }
         }
@@ -792,12 +815,12 @@ void remesh_IV(
     }
     double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
     double variation_segment_mpp = 0.0;
-    if (refine_mode == 1 && mpp_points > 0) {
+    if (refine_mode == 1) {
         variation_segment_mpp =
-            accum_abs_dir_change_near_mpp[n - 2] / mpp_points;
+            accum_abs_dir_change_near_mpp[n - 2] / refinement_points;
     }
     std::vector<int> idx;
-    idx.reserve(max_num_points+100+mpp_points);
+    idx.reserve(max_num_points+100+refinement_points);
     idx.push_back(0);
     int count = 1;
     int countmpp = 1;
@@ -813,7 +836,7 @@ void remesh_IV(
             idx.push_back(i);
             while (accum_abs_dir_change[i] >= count * variation_segment)
                 ++count;
-        } else if (refine_mode==1 && mpp_points > 0 && variation_segment_mpp>0 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
+        } else if (refine_mode==1 && variation_segment_mpp>0 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
             idx.push_back(i);
             while (accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp)
                 ++countmpp;
@@ -829,6 +852,8 @@ void remesh_IV(
         out_I[i] = Is[k];
     }
     *out_len = n_out;
+
+
 } 
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
@@ -850,7 +875,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
         combine_iv_job(
             job.connection,
             job.circuit_component_type_number,
-            job.op_pt_V,
             job.n_children,
             job.children_IVs,
             job.children_pc_IVs,
@@ -861,14 +885,20 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
             job.circuit_element_parameters,
             job.out_V,
             job.out_I,
-            job.out_len
+            job.out_len,
+            job.refine_mode,
+            job.all_children_are_elements,
+            job.operating_point[0],
+            job.operating_point[1],
+            job.operating_point[2],
+            job.refinement_points
         );
     }
     
     std::vector<int> remesh_indices;
     remesh_indices.reserve(n_jobs);
     for (int j = 0; j < n_jobs; ++j) {
-        if (jobs[j].max_num_points > 2) 
+        if (jobs[j].max_num_points > 2 || jobs[j].refine_mode==1) 
             remesh_indices.push_back(j);
     }
     int num_jobs_need_remesh = remesh_indices.size();
@@ -880,13 +910,17 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
             if (num_jobs_need_remesh < max_threads) num_threads = max_threads/4;
             if (num_jobs_need_remesh < max_threads/4) num_threads = num_jobs_need_remesh;
         }
+
         #pragma omp parallel for num_threads(num_threads) if(parallel==1 && num_jobs_need_remesh>1)
         for (int j = 0; j < num_jobs_need_remesh; ++j) {
             IVJobDesc& job = jobs[remesh_indices[j]];
             remesh_IV(
-                job.op_pt_V,
+                job.operating_point[0],
+                job.operating_point[1],
+                job.operating_point[2],
                 job.refine_mode,
                 job.max_num_points,
+                job.refinement_points,
                 job.out_V,
                 job.out_I,
                 job.out_len

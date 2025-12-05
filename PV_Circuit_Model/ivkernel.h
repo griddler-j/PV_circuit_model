@@ -21,15 +21,17 @@ struct IVJobDesc {
     const IVView* children_IVs;
     const IVView* children_pc_IVs;
     int has_photon_coupling;
-    double op_pt_V;
+    double operating_point[3]; 
     int refine_mode;
     int max_num_points;
+    int refinement_points;
     double area;
     int abs_max_num_points;
     const double* circuit_element_parameters;
     double* out_V;
     double* out_I;
     int* out_len;
+    int all_children_are_elements;
 };
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads);

@@ -59,7 +59,7 @@ cdef class IV_Job_Heap:
         self.bottom_up_operating_points = np.empty((self.n_components, 6),
                                                dtype=np.float64)
 
-    cpdef list get_runnable_iv_jobs(self, bint forward=True):
+    cpdef list get_runnable_iv_jobs(self, bint forward=True, bint refine_mode=False):
         cdef list comps = self.components
         cdef list min_child = self.min_child_id
         cdef list runnable = []
@@ -76,7 +76,8 @@ cdef class IV_Job_Heap:
                 if child_min != -1 and child_min < start_job_index:
                     break
                 self.job_done_index = i
-                if comps[i].IV_V is None:
+                # if refine_mode, then don't bother with CircuitElements, but run even if there is IV
+                if (refine_mode and child_min>=0) or comps[i].IV_V is None:
                     runnable.append(comps[i])
                 i -= 1
         else:
@@ -189,7 +190,7 @@ cdef class IV_Job_Heap:
 
         while self.job_done_index > 0:
             job_done_index_before = self.job_done_index
-            components_ = self.get_runnable_iv_jobs()
+            components_ = self.get_runnable_iv_jobs(refine_mode=refine_mode)
             if components_:
                 ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel)
             if pbar is not None:
@@ -199,5 +200,4 @@ cdef class IV_Job_Heap:
             pbar.close()
 
     def refine_IV(self):
-        self.components[0].null_all_IV(max_num_pts_only=True)
         self.run_IV(refine_mode=True)
