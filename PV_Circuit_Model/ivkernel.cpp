@@ -468,7 +468,7 @@ void build_diode_iv(
 
     int size = get_V_range(circuit_element_parameters, max_num_points,false,op_pt_V,is_reverse_diode,out_V);
 
-    if (is_reverse_diode) {
+    if (!is_reverse_diode) {
         for (size_t i = 0; i < size; ++i) 
             out_I[i] = calc_forward_diode_I(I0, n, VT, V_shift, out_V[i]);
     } else {
