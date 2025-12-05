@@ -560,6 +560,7 @@ class CircuitGroup(CircuitComponent):
         self.job_heap.set_operating_point(V,I)
         if refine_IV:
             self.job_heap.refine_IV()
+        self.refined_IV = True
         gc.enable()
 
     def removeElementOfTag(self,tag):

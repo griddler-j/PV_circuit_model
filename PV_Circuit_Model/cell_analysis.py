@@ -49,13 +49,14 @@ CircuitGroup.get_Jsc = get_Jsc
 
 def get_Pmax(argument, return_op_point=False, refine_IV=False):
     if isinstance(argument,CircuitGroup):
-        if hasattr(argument,"IV_parameters") and "Pmax" in argument.IV_parameters:
-            Pmax = argument.IV_parameters["Pmax"]
-            Vmp = argument.IV_parameters["Vmp"]
-            Imp = argument.IV_parameters["Imp"]
-            if return_op_point:
-                return Pmax, Vmp, Imp
-            return Pmax
+        if not refine_IV or (hasattr(argument,"refined_IV") and argument.refined_IV):
+            if hasattr(argument,"IV_parameters") and "Pmax" in argument.IV_parameters:
+                Pmax = argument.IV_parameters["Pmax"]
+                Vmp = argument.IV_parameters["Vmp"]
+                Imp = argument.IV_parameters["Imp"]
+                if return_op_point:
+                    return Pmax, Vmp, Imp
+                return Pmax
         if argument.IV_V is None:
             argument.build_IV()
         IV_curve = argument.IV_table
