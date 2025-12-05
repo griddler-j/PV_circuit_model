@@ -898,7 +898,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel) {
     std::vector<int> remesh_indices;
     remesh_indices.reserve(n_jobs);
     for (int j = 0; j < n_jobs; ++j) {
-        if (jobs[j].max_num_points > 2 || jobs[j].refine_mode==1) 
+        if (jobs[j].max_num_points > 2) 
             remesh_indices.push_back(j);
     }
     int num_jobs_need_remesh = remesh_indices.size();

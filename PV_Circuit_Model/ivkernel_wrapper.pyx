@@ -270,7 +270,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False):
                 jobs_c[i].operating_point[1] = bottom_up_operating_point_V
                 jobs_c[i].operating_point[2] = normalized_operating_point_V
                 jobs_c[i].refinement_points = int(50*np.sqrt(circuit_component.num_circuit_elements))
-                jobs_c[i].max_num_points = jobs_c[i].refinement_points*10;
                 circuit_component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
                 circuit_component.normalized_operating_point = [normalized_operating_point_V,normalized_operating_point_I]
                 jobs_c[i].all_children_are_elements = all_children_are_elements
