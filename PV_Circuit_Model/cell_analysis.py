@@ -183,11 +183,6 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
     return trial_J01, trial_J02
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
-    op_point = None
-    if self.operating_point is not None:
-        op_point = self.operating_point
-    if op_point is not None:
-        self.operating_point = op_point
     if self.IV_V is None:
         self.build_IV()
     if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
@@ -195,14 +190,31 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         Voc = self.get_Voc()
         Isc = self.get_Isc()
         FF = self.get_FF()
+    bottom_up_operating_point = getattr(self,"bottom_up_operating_point",None)
+    normalized_operating_point = getattr(self,"bottom_up_operating_point",None)
+    find_near_op = None
+    if bottom_up_operating_point:
+        REFINE_V_HALF_WIDTH = 0.005
+        operating_point_V = self.operating_point[0]
+        bottom_up_operating_point_V = bottom_up_operating_point[0]
+        normalized_op_pt_V = normalized_operating_point[0]
+        left_V = min(operating_point_V,bottom_up_operating_point_V)
+        right_V = max(operating_point_V,bottom_up_operating_point_V)
+        left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH
+        right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
+        find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
         plt.plot(self.IV_V,-self.IV_I)
+        if find_near_op is not None:
+            plt.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],-self.operating_point[1],marker='o')
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:
         plt.plot(self.IV_V,self.IV_I)
+        if find_near_op is not None:
+            plt.plot(self.IV_V[find_near_op],self.IV_I[find_near_op],color="red")
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
     if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
