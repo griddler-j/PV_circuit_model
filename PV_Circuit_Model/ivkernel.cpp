@@ -19,6 +19,9 @@
 #include <queue>
 #include <fstream>
 
+#define HALFDEGREE 0.008726638
+#define REFINE_V_HALF_WIDTH 0.005
+
 
 extern "C" {
 
@@ -691,8 +694,8 @@ void combine_iv_job(int connection,
                     left_V = bottom_up_op_pt_V;
                     right_V = op_pt_V;
                 }
-                left_V -= normalized_op_pt_V*0.002;
-                right_V += normalized_op_pt_V*0.002;
+                left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH;
+                right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH;
                 double step = (right_V - left_V)/(refinement_points-1);
                 for (int i=0; i<refinement_points; ++i) 
                     Vs[pos+i] = left_V + step*i;
@@ -786,8 +789,8 @@ void remesh_IV(
             op_left_V = bottom_up_op_pt_V;
             op_right_V = op_pt_V;
         }
-        op_left_V -= normalized_op_pt_V*0.002;
-        op_right_V += normalized_op_pt_V*0.002;
+        op_left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH;
+        op_right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH;
     }
 
     int n = static_cast<int>(*vs_len);
@@ -834,15 +837,12 @@ void remesh_IV(
         }
         if (i > 0) {
             double change = 0;
-            double fudge_factor1 = 1;
             if (!bad_point) {
                 double dx = unit_vector_x - last_unit_vector_x;
                 double dy = unit_vector_y - last_unit_vector_y;
-                fudge_factor1 = 1;
-                // if (Vs[i] < 0) fudge_factor1 = 0.1; // we care much less about reverse characteristics
                 change = std::sqrt(dx*dx + dy*dy);
             }
-            accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + fudge_factor1*change;
+            accum_abs_dir_change[i] = accum_abs_dir_change[i-1] + change;
             if (refine_mode==1) {
                 double change_ = 0;
                 if (Vs[i]>=op_left_V && Vs[i]<=op_right_V) change_ = change;
@@ -852,6 +852,12 @@ void remesh_IV(
         last_unit_vector_x = unit_vector_x;
         last_unit_vector_y = unit_vector_y;
     }
+    double at_least_max_num_points = accum_abs_dir_change[n-2]/HALFDEGREE+2;
+    if (*vs_len <= at_least_max_num_points)
+        return;
+    if (max_num_points < at_least_max_num_points)
+        max_num_points = at_least_max_num_points;
+
     double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
     double variation_segment_mpp = 0.0;
     if (refine_mode == 1) {
