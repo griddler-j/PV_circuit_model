@@ -17,7 +17,7 @@ class Tandem_Cell_Fit_Parameters(Fit_Parameters):
                                         "top_cell_logJ01","top_cell_logJ02","top_cell_PC_logJ01",
                                         "bottom_cell_log_shunt_cond",
                                         "top_cell_log_shunt_cond","log_Rs_cond"])
-        VT = get_VT(25.0)
+        VT = VT_at_25C
         self.approx_bottom_cell_Voc = bottom_cell_Voc
         self.approx_top_cell_Voc = top_cell_Voc
         max_J01 = 0.01/np.exp(bottom_cell_Voc/VT)

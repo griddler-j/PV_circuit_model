@@ -8,122 +8,6 @@ from shapely.geometry import Polygon, Point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import ScalarFormatter
 
-class wafer_formats():
-    formats = {
-    "M0":   {"size": 15.6,   "diagonal": 20.52},
-    "M2":   {"size": 15.675, "diagonal": 20.98},
-    "G1":   {"size": 15.875, "diagonal": 22.3},
-    "M4":   {"size": 16.170, "diagonal": 21.05},
-    "M6":   {"size": 16.6,   "diagonal": 22.28},
-    "M10":  {"size": 18.2,   "diagonal": 25.0},
-    "M12":  {"size": 21.0,   "diagonal": 29.5},
-    "M12+": {"size": 21.7,   "diagonal": 29.5}
-    }
-
-class intrinsic_Si():
-    Jsc_fractional_temp_coeff = 0.0004
-
-class Intrinsic_Si_diode(ForwardDiode):
-    _type_number = 4
-    bandgap_narrowing_RT = np.array([[1.00E+10,	1.41E-03],
-        [1.00E+14,	0.00145608],
-        [3.00E+14,	0.00155279],
-        [1.00E+15,	0.00187385],
-        [3.00E+15,	0.00258644],
-        [1.00E+16,	0.00414601],
-        [3.00E+16,	0.00664397],
-        [1.00E+17,	0.0112257],
-        [3.00E+17,	0.018247],
-        [1.00E+18,	0.0295337],
-        [3.00E+18,	0.0421825],
-        [1.00E+19,	0.0597645],
-        [3.00E+19,	0.0811658],
-        [1.00E+20,	0.113245]])
-    # area is 1 is OK because the cell subgroup has normalized area of 1
-    def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,tag=None):
-        CircuitElement.__init__(self, tag)
-        self.base_thickness = base_thickness
-        self.base_type = base_type
-        self.base_doping = base_doping
-        self.max_I = 0.2
-        self.temperature = temperature
-        self.I0 = 0.0
-        self.n = 0.0
-        self.V_shift = 0.0
-        self.area = area
-        self.VT = get_VT(self.temperature)
-        self.ni = get_ni(self.temperature)
-    def __str__(self):
-        return "Si Intrinsic Diode"
-    def get_value_text(self):
-        word = f"intrinsic:\nt={self.base_thickness:.2e}\n{self.base_type} type\n{self.base_doping:.2e} cm-3"
-        return word
-    def set_I0(self,I0):
-        pass # does nothing
-    def copy(self,source):
-        self.base_thickness = source.base_thickness
-        self.base_type = source.base_type
-        self.base_doping = source.base_doping
-        self.temperature = source.temperature
-    def changeTemperature(self,temperature):
-        self.temperature = temperature
-        self.VT = get_VT(self.temperature)
-        self.ni = get_ni(self.temperature)
-        self.null_IV()
-    def calc_I(self,V,get_dI_dV=False):
-        ni = get_ni(self.temperature)
-        VT = get_VT(self.temperature)
-        N_doping = self.base_doping
-        pn = ni**2*np.exp(V/VT)
-        delta_n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-        if get_dI_dV:
-            d_pn_dV = pn/VT
-            d_delta_n_dV = ni**2*np.exp(V/VT)/VT/np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT))
-        if self.base_type == "p":
-            n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-            p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        else:
-            p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-            n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
-        ni_eff = ni*np.exp(BGN/2/VT)
-
-        q = 1.602e-19
-        geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
-        gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
-        Brel = 1
-        Blow = 4.73e-15
-        intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
-        if get_dI_dV:
-            d_intrinsic_recomb_dV = d_pn_dV*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) + pn*3e-29*d_delta_n_dV**0.92
-            return q*d_intrinsic_recomb_dV*self.base_thickness*self.area
-        return q*intrinsic_recomb*self.base_thickness*self.area
-    
-    def calc_dI_dV(self,V):
-        return self.calc_I(V,get_dI_dV=True)
-    
-    def get_V_range(self,max_num_points=100):
-        if max_num_points is None:
-            max_num_points = 100
-        max_I = 0.2
-        if hasattr(self,"max_I"):
-            max_I = self.max_I
-            max_num_points *= max_I/0.2
-        # assume that 0.2 A/cm2 is max you'll need
-        if self.base_thickness==0:
-            Voc = 10
-        else:
-            VT = get_VT(self.temperature)
-            Voc = 0.7
-            for _ in range(10):
-                I = self.calc_I(Voc)
-                if I >= max_I and I <= max_I*1.1:
-                    break
-                Voc += VT*np.log(max_I/I)
-        V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
-        V = np.array(V)
-        return V
-
 class Cell(CircuitGroup):
     _type_number = 6
     photon_coupling_diodes = None
@@ -460,11 +344,11 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
 CircuitGroup.draw_cells = draw_cells
 
 def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, half_cut=True):
-    if format is not None and format in wafer_formats.formats:
-        size = wafer_formats.formats[format]["size"]
+    if format is not None and format in wafer_formats:
+        size = wafer_formats[format]["size"]
         L = size
         W = size
-        ingot_diameter = wafer_formats.formats[format]["diagonal"]
+        ingot_diameter = wafer_formats[format]["diagonal"]
         ingot_center = [0,0]
         if half_cut:
             L = size/2
@@ -496,7 +380,7 @@ def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, h
 def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.0, 
                     shape=None, breakdown_V=-10, J0_rev=100e-15,
                     J01_photon_coupling=0.0, Si_intrinsic_limit=True, **kwargs):
-    elements = [CurrentSource(IL=Jsc, temp_coeff = intrinsic_Si.Jsc_fractional_temp_coeff*Jsc),
+    elements = [CurrentSource(IL=Jsc, temp_coeff = Jsc_fractional_temp_coeff*Jsc),
                 ForwardDiode(I0=J01,n=1),
                 ForwardDiode(I0=J02,n=2)]
     if J01_photon_coupling > 0:

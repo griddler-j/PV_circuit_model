@@ -1,248 +1,13 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from PV_Circuit_Model.utilities import *
-from PV_Circuit_Model.iterative_solver import assign_nodes, iterative_solve
+from PV_Circuit_Model.utilities_silicon import *
 from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
-import json
-import pickle
-import numpy as np
-import importlib
-import inspect
-import bson
-import gc
-
-pbar = None
-x_spacing = 1.5
-y_spacing = 0.2
-
-class const():
-    VT = 0.02568 # thermal voltage at 25C
-
-def get_VT(temperature):
-    return const.VT*(temperature + 273.15)/(25 + 273.15)
-
-def get_ni(temperature):
-    return 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
-
-class ParamSerializable:
-    # fields that should NOT go into params (derived or runtime-only)
-    _transient_fields = {"IV_V", "IV_I", "job_heap", "refined_IV","operating_point"}
-
-    def clone(self,parent=None):    
-        new = self.__class__.__new__(self.__class__)
-        subgroups = getattr(self,"subgroups",[])
-        if subgroups:
-            subgroups_clone = [item.clone(new) for item in subgroups]
-            new.__init__(subgroups=subgroups_clone)
-        new.parent = parent
-        d = {}
-        for k, v in self.__dict__.items():
-            if k=="subgroups": # already done, skip
-                continue 
-            if k=="parent": # already done, skip
-                continue 
-            if isinstance(v,ParamSerializable):
-                pass
-            elif isinstance(v, list):
-                if len(v)>0 and isinstance(v[0],ParamSerializable):
-                    pass
-                else:
-                    d[k] = v[:]  # shallow list copy
-            elif k=="IV_V" or k=="IV_I":
-                d[k] = None # just null all the IVs
-            elif hasattr(v, "copy"):  # NumPy array or similar
-                d[k] = v.copy()
-            elif isinstance(v, dict):
-                d[k] = v.copy()
-            else:
-                d[k] = v  # assume immutable or shared
-        new.__dict__.update(d)
-        return new
-
-    # --------- PUBLIC API: JSON ---------
-    def save_toParams(self):
-        """
-        Convert this object into a JSON-ready dict.
-        """
-        data = {
-            "__class__": f"{self.__class__.__module__}.{self.__class__.__name__}"
-        }
-        for name, value in self.__dict__.items():
-            if name in self._transient_fields:
-                continue
-            output = self._save_value(name,value)
-            if output is not None:
-                data[name] = output
-        return data
-
-    def save_to_json(self, path, *, indent=2):
-        """
-        Save object to a JSON file.
-        """
-        params = self.save_toParams()
-        with open(path, "w") as f:
-            json.dump(params, f, indent=indent)
-        return path
-
-    @staticmethod
-    def restore_from_json(path):
-        """
-        Restore an object from a JSON file previously written by save_to_json().
-        """
-        with open(path, "r") as f:
-            params = json.load(f)
-        return ParamSerializable.Restore_fromParams(params)
-    
-    def save_to_bson(self, path):
-        """
-        Save this object as BSON.
-        """
-        params = self.save_toParams()
-        data = bson.dumps(params)
-        with open(path, "wb") as f:
-            f.write(data)
-        return path
-
-    @staticmethod
-    def restore_from_bson(path):
-        """
-        Restore object from a BSON file created by save_to_bson().
-        """
-        with open(path, "rb") as f:
-            params = bson.loads(f.read())
-        return ParamSerializable.Restore_fromParams(params)
-
-    # --------- PUBLIC API: PICKLE ---------
-
-    def save_to_pickle(self, path):
-        """
-        Save this object via pickle (faster, exact object graph).
-        """
-        with open(path, "wb") as f:
-            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
-        return path
-
-    @staticmethod
-    def restore_from_pickle(path):
-        """
-        Restore an object saved via save_to_pickle().
-        """
-        with open(path, "rb") as f:
-            return pickle.load(f)
-
-    # --------- INTERNAL RESTORE API ---------
-
-    @staticmethod
-    def Restore_fromParams(params):
-        """
-        Generic entry point for JSON-based deserialization.
-        """
-        return ParamSerializable._restore_value(params)
-
-    # --------- INTERNAL SAVE HELPERS ---------
-
-    @staticmethod
-    def _save_value(field_name,value):
-        if isinstance(value, ParamSerializable): # we don't store any references to other ParamSerializables, except those found in subgroups
-            if field_name != "subgroups":
-                return None
-            return value.save_toParams()
-
-        if isinstance(value, (list, tuple)): # we don't store any references to other ParamSerializables, except those found in subgroups
-            if field_name != "subgroups":
-                return None
-            return [ParamSerializable._save_value(field_name, v) for v in value]
-
-        if isinstance(value, dict):
-            return {k: ParamSerializable._save_value("generic",v) for k, v in value.items()}
-
-        if isinstance(value, np.ndarray):
-            return {
-                "__ndarray__": value.tolist(),
-                "dtype": str(value.dtype),
-                "shape": value.shape,
-            }
-
-        return value
-
-    # --------- INTERNAL RESTORE HELPERS ---------
-
-    @staticmethod
-    def _restore_value(value):
-        # numpy array
-        if isinstance(value, dict) and "__ndarray__" in value:
-            arr = np.array(value["__ndarray__"], dtype=value["dtype"])
-            return arr.reshape(value["shape"])
-
-        # nested ParamSerializable subclass (or any class we serialized)
-        if isinstance(value, dict) and "__class__" in value:
-            cls_path = value["__class__"]
-            module_name, class_name = cls_path.rsplit(".", 1)
-
-            # dynamic import trick
-            mod = importlib.import_module(module_name)
-            cls = getattr(mod, class_name)
-
-            # recursively restore all fields except __class__
-            raw_kwargs = {
-                k: ParamSerializable._restore_value(v)
-                for k, v in value.items()
-                if k != "__class__"
-            }
-
-            # Look at __init__ signature
-            sig = inspect.signature(cls.__init__)
-            params = sig.parameters
-
-            # If class accepts **kwargs, just pass everything
-            accepts_var_kw = any(
-                p.kind == inspect.Parameter.VAR_KEYWORD
-                for p in params.values()
-            )
-            if accepts_var_kw:
-                return cls(**raw_kwargs)
-
-            # Otherwise, split into "constructor args" and "extra attrs"
-            allowed_names = {
-                name
-                for name, p in params.items()
-                if name != "self"
-                and p.kind in (
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    inspect.Parameter.KEYWORD_ONLY,
-                )
-            }
-
-            init_kwargs = {k: v for k, v in raw_kwargs.items() if k in allowed_names}
-            extra_kwargs = {k: v for k, v in raw_kwargs.items() if k not in allowed_names}
-
-            # Instantiate with the allowed kwargs
-            obj = cls(**init_kwargs)
-
-            # Attach any extra fields as attributes
-            for k, v in extra_kwargs.items():
-                setattr(obj, k, v)
-
-            return obj
-
-        # list
-        if isinstance(value, list):
-            return [ParamSerializable._restore_value(v) for v in value]
-
-        # regular dict
-        if isinstance(value, dict):
-            return {k: ParamSerializable._restore_value(v) for k, v in value.items()}
-
-        # primitives
-        return value
-
-
-    
-
-
+import gc, numbers
       
 class CircuitComponent(ParamSerializable):
+    _critical_fields = ("max_I","max_num_points")
     max_I = None
     max_num_points = None
     def __init__(self,tag=None):
@@ -320,6 +85,7 @@ class CircuitElement(CircuitComponent):
         pass
 
 class CurrentSource(CircuitElement):
+    _critical_fields = CircuitComponent._critical_fields + ("IL",)
     _type_number = 0
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
         super().__init__(tag=tag)
@@ -372,6 +138,7 @@ class CurrentSource(CircuitElement):
         return draw_CC_symbol
 
 class Resistor(CircuitElement):
+    _critical_fields = CircuitComponent._critical_fields + ("cond",)
     _type_number = 1
     def __init__(self, cond=1, tag=None):
         super().__init__(tag=tag)
@@ -405,13 +172,14 @@ class Resistor(CircuitElement):
         return draw_resistor_symbol
 
 class Diode(CircuitElement):
+    _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT")
     _type_number = 2
     def __init__(self,I0=1e-15,n=1,V_shift=0,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(tag=tag)
         self.I0 = I0
         self.n = n
         self.V_shift = V_shift
-        self.VT = get_VT(temperature)
+        self.VT = get_VT(temperature,VT_at_25C)
         self.refI0 = I0
         self.refT = temperature
 
@@ -428,7 +196,7 @@ class Diode(CircuitElement):
         self.set_I0(source.I0)
 
     def changeTemperature(self,temperature):
-        self.VT = get_VT(temperature)
+        self.VT = get_VT(temperature,VT_at_25C)
         old_ni  = get_ni(self.refT)
         new_ni  = get_ni(temperature)
         scale_factor = (new_ni/old_ni)**(2/self.n)
@@ -492,8 +260,97 @@ class ReverseDiode(Diode):
         return f"I0 = {self.I0:.3e}A\nn = {self.n:.2f}\nbreakdown V = {self.V_shift:.2f}"
     def get_draw_func(self):
         return draw_reverse_diode_symbol
+    
+class Intrinsic_Si_diode(ForwardDiode):
+    _type_number = 4
+    bandgap_narrowing_RT = bandgap_narrowing_RT
+    # area is 1 is OK because the cell subgroup has normalized area of 1
+    def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,tag=None):
+        CircuitElement.__init__(self, tag)
+        self.base_thickness = base_thickness
+        self.base_type = base_type
+        self.base_doping = base_doping
+        self.max_I = 0.2
+        self.temperature = temperature
+        self.I0 = 0.0
+        self.n = 0.0
+        self.V_shift = 0.0
+        self.area = area
+        self.VT = get_VT(self.temperature,VT_at_25C)
+        self.ni = get_ni(self.temperature)
+    def __str__(self):
+        return "Si Intrinsic Diode"
+    def get_value_text(self):
+        word = f"intrinsic:\nt={self.base_thickness:.2e}\n{self.base_type} type\n{self.base_doping:.2e} cm-3"
+        return word
+    def set_I0(self,I0):
+        pass # does nothing
+    def copy(self,source):
+        self.base_thickness = source.base_thickness
+        self.base_type = source.base_type
+        self.base_doping = source.base_doping
+        self.temperature = source.temperature
+    def changeTemperature(self,temperature):
+        self.temperature = temperature
+        self.VT = get_VT(self.temperature,VT_at_25C)
+        self.ni = get_ni(self.temperature)
+        self.null_IV()
+    def calc_I(self,V,get_dI_dV=False):
+        ni = get_ni(self.temperature)
+        VT = get_VT(self.temperature,VT_at_25C)
+        N_doping = self.base_doping
+        pn = ni**2*np.exp(V/VT)
+        delta_n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+        if get_dI_dV:
+            d_pn_dV = pn/VT
+            d_delta_n_dV = ni**2*np.exp(V/VT)/VT/np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT))
+        if self.base_type == "p":
+            n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+        else:
+            p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+        BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
+        ni_eff = ni*np.exp(BGN/2/VT)
+
+        q = 1.602e-19
+        geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
+        gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
+        Brel = 1
+        Blow = 4.73e-15
+        intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
+        if get_dI_dV:
+            d_intrinsic_recomb_dV = d_pn_dV*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) + pn*3e-29*d_delta_n_dV**0.92
+            return q*d_intrinsic_recomb_dV*self.base_thickness*self.area
+        return q*intrinsic_recomb*self.base_thickness*self.area
+    
+    def calc_dI_dV(self,V):
+        return self.calc_I(V,get_dI_dV=True)
+    
+    def get_V_range(self,max_num_points=100):
+        if max_num_points is None:
+            max_num_points = 100
+        max_I = 0.2
+        if hasattr(self,"max_I"):
+            max_I = self.max_I
+            max_num_points *= max_I/0.2
+        # assume that 0.2 A/cm2 is max you'll need
+        if self.base_thickness==0:
+            Voc = 10
+        else:
+            VT = get_VT(self.temperature,VT_at_25C)
+            Voc = 0.7
+            for _ in range(10):
+                I = self.calc_I(Voc)
+                if I >= max_I and I <= max_I*1.1:
+                    break
+                Voc += VT*np.log(max_I/I)
+        V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
+        V = np.array(V)
+        return V
 
 class CircuitGroup(CircuitComponent):
+    _critical_fields = CircuitComponent._critical_fields + ("connection","subgroups")
     _type_number = 5
     def __init__(self,subgroups,connection="series",name=None,location=None,
                  rotation=0,x_mirror=1,y_mirror=1,extent=None):
@@ -584,6 +441,9 @@ class CircuitGroup(CircuitComponent):
         return list_
     
     def __str__(self):
+        if self.num_circuit_elements > 2000:
+            print(f"There are too many elements to draw ({self.num_circuit_elements}).  I give up!")
+            return
         word = self.connection + " connection:\n"
         for i, element in enumerate(self.subgroups):
             if isinstance(element,CircuitGroup):
@@ -592,10 +452,14 @@ class CircuitGroup(CircuitComponent):
         return word    
     
     def draw(self, ax=None, x=0, y=0, display_value=False, title="Model", linewidth=1.5):
+        if self.num_circuit_elements > 2000:
+            print(f"There are too many elements to draw ({self.num_circuit_elements}).  I give up!")
+            return
+        
         global pbar
         draw_immediately = False
         if ax is None:
-            num_of_elements = len(self.findElementType(CircuitElement))
+            num_of_elements = self.num_circuit_elements
             pbar = tqdm(total=num_of_elements)
             fig, ax = plt.subplots()
             draw_immediately = True

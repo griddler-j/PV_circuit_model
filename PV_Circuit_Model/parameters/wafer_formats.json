@@ -1,0 +1,10 @@
+{
+    "M0":   {"size": 15.6,   "diagonal": 20.52},
+    "M2":   {"size": 15.675, "diagonal": 20.98},
+    "G1":   {"size": 15.875, "diagonal": 22.3},
+    "M4":   {"size": 16.170, "diagonal": 21.05},
+    "M6":   {"size": 16.6,   "diagonal": 22.28},
+    "M10":  {"size": 18.2,   "diagonal": 25.0},
+    "M12":  {"size": 21.0,   "diagonal": 29.5},
+    "M12+": {"size": 21.7,   "diagonal": 29.5}
+}
