@@ -564,6 +564,7 @@ void build_Si_intrinsic_diode_iv(
 void combine_iv_job(int connection,
     int circuit_component_type_number,
     int n_children,
+    const IVView* this_IV,
     const IVView* children_IVs,
     const IVView* children_pc_IVs,
     int has_photon_coupling,
@@ -580,7 +581,7 @@ void combine_iv_job(int connection,
     double bottom_up_op_pt_V,
     double normalized_op_pt_V,
     int refinement_points,
-    int interp_method) {
+    int interp_method, int use_existing_grid) {
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -611,43 +612,52 @@ void combine_iv_job(int connection,
     int vs_len = children_Vs_size;
     // --- Series connection branch (connection == 0) ---
     if (connection == 0) {
-        double I_range = 0;
-        for (int i=0; i < n_children; i++) {
-            int Ni = children_IVs[i].length;
-            double sub_I_range = children_IVs[i].I[Ni-1]-children_IVs[i].I[0];
-            if (sub_I_range > I_range) I_range = sub_I_range;
+        if (use_existing_grid==1) {
+            int Ni = (*this_IV).length;
+            memcpy(Is, (*this_IV).I, Ni * sizeof(double));
+            vs_len = Ni;
         }
-        // add voltage
-        if (children_Vs_size <= n_children*100) {
-            int pos = 0;
+        double I_range = 0;
+        if (use_existing_grid!=1) {
             for (int i=0; i < n_children; i++) {
                 int Ni = children_IVs[i].length;
-                memcpy(Is + pos, children_IVs[i].I, Ni * sizeof(double));
-                pos += Ni;
+                double sub_I_range = children_IVs[i].I[Ni-1]-children_IVs[i].I[0];
+                if (sub_I_range > I_range) I_range = sub_I_range;
+            }
+            // add voltage
+            if (children_Vs_size <= n_children*100) {
+                int pos = 0;
+                for (int i=0; i < n_children; i++) {
+                    int Ni = children_IVs[i].length;
+                    memcpy(Is + pos, children_IVs[i].I, Ni * sizeof(double));
+                    pos += Ni;
+                }
             }
         }
         std::vector<double> extra_Is;
         for (int iteration = 0; iteration < 2; ++iteration) {
-            if (iteration == 1 && !extra_Is.empty()) {
-                memcpy(Is + vs_len, extra_Is.data(), extra_Is.size() * sizeof(double));
-                vs_len += extra_Is.size();
-            }
-            
-            if (iteration==0) 
-                if (children_Vs_size > n_children*100) // found to be optimal 
-                    merge_children_kway_ptr(children_IVs, 1, n_children,Is,vs_len,abs_max_num_points);
-                else {
-                    std::sort(Is, Is + vs_len);
+            if (use_existing_grid!=1) {
+                if (iteration == 1 && !extra_Is.empty()) {
+                    memcpy(Is + vs_len, extra_Is.data(), extra_Is.size() * sizeof(double));
+                    vs_len += extra_Is.size();
                 }
-            else
-                std::sort(Is, Is + vs_len);
+                
+                if (iteration==0) 
+                    if (children_Vs_size > n_children*100) // found to be optimal 
+                        merge_children_kway_ptr(children_IVs, 1, n_children,Is,vs_len,abs_max_num_points);
+                    else {
+                        std::sort(Is, Is + vs_len);
+                    }
+                else
+                    std::sort(Is, Is + vs_len);
 
-            double eps = I_range/1e8;
-            auto new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
-                return std::fabs(a - b) < eps;
-            });
-            // auto new_end = std::unique(Is, Is + vs_len);
-            vs_len = int(new_end - Is);
+                double eps = I_range/1e8;
+                auto new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
+                    return std::fabs(a - b) < eps;
+                });
+                // auto new_end = std::unique(Is, Is + vs_len);
+                vs_len = int(new_end - Is);
+            }
 
             std::fill(Vs, Vs + vs_len, 0.0);
             if (has_photon_coupling==0) {
@@ -679,9 +689,11 @@ void combine_iv_job(int connection,
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false, interp_method); 
-                            std::vector<double> new_points(vs_len);
-                            std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
-                            extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
+                            if (use_existing_grid!=1) {
+                                std::vector<double> new_points(vs_len);
+                                std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
+                                extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
+                            }
                         } else {
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false, interp_method); 
                         }
@@ -689,69 +701,76 @@ void combine_iv_job(int connection,
                     }
                 }
                 if (extra_Is.empty()) break;
+                if (use_existing_grid==1) break;
             }
         }
     }
     // --- parallel connection branch (connection == 1) ---
     else if (connection == 1) {
-        // add current
-        double left_limit = -100;
-        double right_limit = 100;
-        for (int i=0; i < n_children; i++) {
-            int Ni = children_IVs[i].length;
-            if (Ni > 0) {
-                left_limit = std::min(left_limit, children_IVs[i].V[0]-100);
-                right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
-            }
-        }
-        if (children_Vs_size > n_children*100 && (refine_mode==0 || all_children_are_elements==0)) // found to be optimal 
-            merge_children_kway_ptr(children_IVs, 0, n_children, Vs,vs_len,abs_max_num_points);
-        else {
-            int pos = 0;
+        if (use_existing_grid==1) {
+            int Ni = (*this_IV).length;
+            memcpy(Vs, (*this_IV).V, Ni * sizeof(double));
+            vs_len = Ni;
+        } else {
+            // add current
+            double left_limit = -100;
+            double right_limit = 100;
             for (int i=0; i < n_children; i++) {
                 int Ni = children_IVs[i].length;
-                memcpy(Vs + pos, children_IVs[i].V, Ni * sizeof(double));
-                pos += Ni;
-            }
-            if (refine_mode==1 && all_children_are_elements==1) {  // add more points near the operating point
-                double left_V = op_pt_V;
-                double right_V = bottom_up_op_pt_V;
-                if (left_V > right_V) {
-                    left_V = bottom_up_op_pt_V;
-                    right_V = op_pt_V;
+                if (Ni > 0) {
+                    left_limit = std::min(left_limit, children_IVs[i].V[0]-100);
+                    right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
                 }
-                left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH;
-                right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH;
-                double step = (right_V - left_V)/(refinement_points-1);
-                for (int i=0; i<refinement_points; ++i) 
-                    Vs[pos+i] = left_V + step*i;
-                vs_len += refinement_points;
             }
-            std::sort(Vs, Vs+vs_len); // replace this with smart k way merge since children V's are each sorted 
-        }
+            if (children_Vs_size > n_children*100 && (refine_mode==0 || all_children_are_elements==0)) // found to be optimal 
+                merge_children_kway_ptr(children_IVs, 0, n_children, Vs,vs_len,abs_max_num_points);
+            else {
+                int pos = 0;
+                for (int i=0; i < n_children; i++) {
+                    int Ni = children_IVs[i].length;
+                    memcpy(Vs + pos, children_IVs[i].V, Ni * sizeof(double));
+                    pos += Ni;
+                }
+                if (refine_mode==1 && all_children_are_elements==1) {  // add more points near the operating point
+                    double left_V = op_pt_V;
+                    double right_V = bottom_up_op_pt_V;
+                    if (left_V > right_V) {
+                        left_V = bottom_up_op_pt_V;
+                        right_V = op_pt_V;
+                    }
+                    left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH;
+                    right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH;
+                    double step = (right_V - left_V)/(refinement_points-1);
+                    for (int i=0; i<refinement_points; ++i) 
+                        Vs[pos+i] = left_V + step*i;
+                    vs_len += refinement_points;
+                }
+                std::sort(Vs, Vs+vs_len); // replace this with smart k way merge since children V's are each sorted 
+            }
 
-        for (int i=0; i < n_children; ++i) {
-            const double* IV_table_V = children_IVs[i].V;
-            int len = children_IVs[i].length;
-            if (children_IVs[i].type_number==2 || children_IVs[i].type_number==4) { //  forward diode or intrinsic diode
-                right_limit = std::min(right_limit, IV_table_V[len-1]);
-            } else if (children_IVs[i].type_number==3) {  // rev diode
-                left_limit = std::max(left_limit, IV_table_V[0]);
+            for (int i=0; i < n_children; ++i) {
+                const double* IV_table_V = children_IVs[i].V;
+                int len = children_IVs[i].length;
+                if (children_IVs[i].type_number==2 || children_IVs[i].type_number==4) { //  forward diode or intrinsic diode
+                    right_limit = std::min(right_limit, IV_table_V[len-1]);
+                } else if (children_IVs[i].type_number==3) {  // rev diode
+                    left_limit = std::max(left_limit, IV_table_V[0]);
+                }
             }
+            double* new_end = std::remove_if(
+                Vs, Vs + vs_len,
+                [left_limit, right_limit](double v) {
+                    return v < left_limit || v > right_limit;
+                }
+            );
+            vs_len = int(new_end - Vs);
+            double eps = 1e-6; // microvolt
+            new_end = std::unique(Vs, Vs+vs_len, [eps](double a, double b) {
+                return std::fabs(a - b) < eps;
+            });
+            // new_end = std::unique(Vs, Vs+vs_len);
+            vs_len = int(new_end - Vs);
         }
-        double* new_end = std::remove_if(
-            Vs, Vs + vs_len,
-            [left_limit, right_limit](double v) {
-                return v < left_limit || v > right_limit;
-            }
-        );
-        vs_len = int(new_end - Vs);
-        double eps = 1e-6; // microvolt
-        new_end = std::unique(Vs, Vs+vs_len, [eps](double a, double b) {
-            return std::fabs(a - b) < eps;
-        });
-        // new_end = std::unique(Vs, Vs+vs_len);
-        vs_len = int(new_end - Vs);
 
         std::fill(Is, Is + vs_len, 0.0);
         for (int i = 0; i < n_children; ++i) {  
@@ -928,7 +947,7 @@ void remesh_IV(
 
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method) {
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     int max_threads; 
@@ -948,6 +967,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refi
             job.connection,
             job.circuit_component_type_number,
             job.n_children,
+            job.this_IV,
             job.children_IVs,
             job.children_pc_IVs,
             job.has_photon_coupling,
@@ -964,9 +984,13 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refi
             job.operating_point[1],
             job.operating_point[2],
             job.refinement_points,
-            interp_method
+            interp_method,
+            use_existing_grid
         );
     }
+    if (use_existing_grid==1)
+        return 0;
+
     std::vector<int> remesh_indices;
     remesh_indices.reserve(n_jobs);
     for (int j = 0; j < n_jobs; ++j) {

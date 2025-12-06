@@ -24,6 +24,7 @@ cdef extern from "ivkernel.h":
         int connection
         int circuit_component_type_number
         int n_children
+        const IVView* this_IV
         const IVView* children_IVs
         const IVView* children_pc_IVs
         int has_photon_coupling
@@ -38,7 +39,7 @@ cdef extern from "ivkernel.h":
         int* out_len
         int all_children_are_elements
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid) nogil
 
     void interp_monotonic_inc_scalar(
         const double** xs,
@@ -52,7 +53,7 @@ cdef extern from "ivkernel.h":
         int* circuit_type_number
     ) nogil
 
-def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000):
+def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
 
     parallel_ = 0
     if parallel: parallel_ = 1
@@ -90,9 +91,19 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     # This list keeps all numpy buffers alive until we return from this function
     memset(children_views, 0, total_children * sizeof(IVView))
 
+    cdef IVView* this_view = <IVView*> malloc(n_jobs*sizeof(IVView))
+    if this_view == NULL:
+        free(jobs_c)
+        free(children_views)
+        raise MemoryError()
+
+    # This list keeps all numpy buffers alive until we return from this function
+    memset(this_view, 0, n_jobs*sizeof(IVView))
+
     cdef IVView* pc_children_views = <IVView*> malloc(total_children * sizeof(IVView))
     if pc_children_views == NULL:
         free(jobs_c)
+        free(this_view)
         free(children_views)
         raise MemoryError()
     memset(pc_children_views, 0, total_children * sizeof(IVView))
@@ -105,6 +116,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef np.float64_t[::1] mv_params
     cdef np.float64_t[::1] mv_outV
     cdef np.float64_t[::1] mv_outI
+    cdef np.float64_t[::1] mv_this_v
+    cdef np.float64_t[::1] mv_this_i
 
     cdef int circuit_component_type_number, type_number
     cdef int n_children, Ni
@@ -125,12 +138,18 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef double normalized_operating_point_I
     cdef double bottom_up_operating_point_V
     cdef double bottom_up_operating_point_I
-    cdef int all_children_are_elements, refine_mode_, interp_method_
+    cdef int all_children_are_elements, refine_mode_, interp_method_, use_existing_grid_
 
     if refine_mode:
         refine_mode_ = 1
     else:
         refine_mode_ = 0
+
+    if use_existing_grid:
+        use_existing_grid_ = 1
+    else:
+        use_existing_grid_ = 0
+
     interp_method_ = interp_method
 
     try:
@@ -210,6 +229,17 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 jobs_c[i].children_IVs = children_views + child_base
             else:
                 jobs_c[i].children_IVs = <IVView*> 0
+
+            if use_existing_grid:
+                mv_this_v = circuit_component.IV_V
+                mv_this_i = circuit_component.IV_I
+                Ni = mv_this_v.shape[0]
+                this_view[i].V           = &mv_this_v[0]
+                this_view[i].I           = &mv_this_i[0]
+                this_view[i].length      = Ni
+                jobs_c[i].this_IV = &this_view[i]
+            else:
+                jobs_c[i].this_IV = <IVView*> 0
 
             if refine_mode:
                 bottom_up_operating_point_V = 0;
@@ -333,6 +363,9 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
             if refine_mode and all_children_are_elements:
                 abs_max_num_points += jobs_c[i].refinement_points
 
+            if use_existing_grid:
+                abs_max_num_points = this_view[i].length
+
             jobs_c[i].abs_max_num_points = abs_max_num_points
 
             sum_abs_max_num_points += abs_max_num_points
@@ -353,9 +386,10 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
 
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_)
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_, use_existing_grid_)
 
         # ----- unpack outputs -----
+        free(this_view)
         offset = 0
         for i in range(n_jobs):
             circuit_component = components[i]
@@ -370,6 +404,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
         free(jobs_c)
         free(children_views)
         free(pc_children_views)
+        
 
 def run_multiple_operating_points(components, bint parallel=False):
     cdef Py_ssize_t n_jobs = len(components)

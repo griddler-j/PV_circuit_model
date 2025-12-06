@@ -184,7 +184,7 @@ cdef class IV_Job_Heap:
                 bop[i, 5] = min_I
                 component.bottom_up_operating_point = [V,I]
                     
-    cpdef void run_IV(self, bint refine_mode=False, interp_method=0):
+    cpdef void run_IV(self, bint refine_mode=False, interp_method=0, use_existing_grid=False):
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
@@ -197,7 +197,8 @@ cdef class IV_Job_Heap:
             job_done_index_before = self.job_done_index
             components_ = self.get_runnable_iv_jobs(refine_mode=refine_mode)
             if components_:
-                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, interp_method=interp_method, super_dense=_SUPER_DENSE)
+                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, 
+                interp_method=interp_method, super_dense=_SUPER_DENSE, use_existing_grid=use_existing_grid)
             if pbar is not None:
                 pbar.update(job_done_index_before - self.job_done_index)
 
@@ -205,10 +206,16 @@ cdef class IV_Job_Heap:
             pbar.close()
 
     def refine_IV(self):
-        self.run_IV(refine_mode=True,interp_method=2) # get upper bounds of curve 
+        self.run_IV(refine_mode=True)
+        self.components[0].IV_V_temp = self.components[0].IV_V.copy()
+        self.components[0].IV_I_temp = self.components[0].IV_I.copy()
+        self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve 
         self.components[0].IV_V_upper = self.components[0].IV_V.copy()
         self.components[0].IV_I_upper = self.components[0].IV_I.copy()
-        self.run_IV(refine_mode=True,interp_method=3) # get lower bounds of curve 
+        self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve 
         self.components[0].IV_V_lower = self.components[0].IV_V.copy()
         self.components[0].IV_I_lower = self.components[0].IV_I.copy()
-        self.run_IV(refine_mode=True)
+        self.components[0].IV_V = self.components[0].IV_V_temp.copy()
+        self.components[0].IV_I = self.components[0].IV_I_temp.copy()
+        # but the children are all wrecked
+        

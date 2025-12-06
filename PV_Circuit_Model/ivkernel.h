@@ -18,6 +18,7 @@ struct IVJobDesc {
     int connection;
     int circuit_component_type_number;
     int n_children;
+    const IVView* this_IV;
     const IVView* children_IVs;
     const IVView* children_pc_IVs;
     int has_photon_coupling;
@@ -33,7 +34,7 @@ struct IVJobDesc {
     int all_children_are_elements;
 };
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads, int refine_mode, int interp_method);
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads, int refine_mode, int interp_method, int use_existing_grid);
 
 void interp_monotonic_inc_scalar(
     const double** xs,   // size n, strictly increasing
