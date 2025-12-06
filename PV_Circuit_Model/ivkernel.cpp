@@ -775,7 +775,7 @@ void remesh_IV(
     double* Is = out_I;
     int *vs_len = out_len;
 
-    if (*vs_len <= max_num_points && refine_mode==0)
+    if (*vs_len <= max_num_points)
         return;
 
     double op_left_V, op_right_V;

@@ -54,6 +54,8 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     Vmp = V[index]
     
     if isinstance(argument,CircuitGroup) and refine_IV:
+        if not hasattr(argument,"job_heap"):
+            argument.build_IV()
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
         IV_V = argument.IV_V
         IV_I = argument.IV_I
