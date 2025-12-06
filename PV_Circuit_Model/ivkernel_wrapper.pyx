@@ -8,7 +8,45 @@ cimport numpy as np
 from cython cimport nogil
 from libc.stdlib cimport malloc, free 
 from libc.string cimport memset
-import time
+from PV_Circuit_Model.utilities import ParameterSet 
+from pathlib import Path
+
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PARAM_DIR = PACKAGE_ROOT / "parameters"
+
+_PARALLEL_MODE = True
+_REPORT_UNCERTAINTY = False
+REFINE_V_HALF_WIDTH = 0.005
+_SUPER_DENSE = 0    # don't change!  for debugging only
+
+solver_env_variables = None
+try:
+    ParameterSet(name="solver_env_variables",filename=PARAM_DIR / "solver_env_variables.json")
+    solver_env_variables = ParameterSet.get_set("solver_env_variables")
+    _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
+    _REPORT_UNCERTAINTY = solver_env_variables["_REPORT_UNCERTAINTY"]
+    REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
+except Exception:
+    ParameterSet(name="solver_env_variables",data={})
+    solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
+    solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
+    solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
+    solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
+
+def set_parallel_mode(enabled: bool):
+    global _PARALLEL_MODE, solver_env_variables
+    _PARALLEL_MODE = bool(enabled)
+    solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
+
+def set_report_uncertainty(enabled: bool):
+    global _REPORT_UNCERTAINTY, solver_env_variables
+    _REPORT_UNCERTAINTY = bool(enabled)
+    solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
+
+def set_super_dense(num_points):
+    global _SUPER_DENSE
+    _SUPER_DENSE = int(num_points)
+    solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
 
 cdef extern from "ivkernel.h":
 
@@ -39,7 +77,7 @@ cdef extern from "ivkernel.h":
         int* out_len
         int all_children_are_elements
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid, double refine_V_half_width) nogil
 
     void interp_monotonic_inc_scalar(
         const double** xs,
@@ -123,6 +161,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef int n_children, Ni
     cdef int abs_max_num_points
     cdef double area
+    cdef double REFINE_V_HALF_WIDTH_ = REFINE_V_HALF_WIDTH
 
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
@@ -153,7 +192,6 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     interp_method_ = interp_method
 
     try:
-        t1 = time.time()
         sum_abs_max_num_points = 0
         for i in range(n_jobs):
             circuit_component = components[i]
@@ -386,7 +424,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
 
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_, use_existing_grid_)
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_, use_existing_grid_, REFINE_V_HALF_WIDTH_)
 
         # ----- unpack outputs -----
         free(this_view)

@@ -20,8 +20,6 @@
 #include <fstream>
 
 #define HALFDEGREE 0.008726638
-#define REFINE_V_HALF_WIDTH 0.005
-
 
 extern "C" {
 
@@ -583,7 +581,7 @@ void combine_iv_job(int connection,
     double bottom_up_op_pt_V,
     double normalized_op_pt_V,
     int refinement_points,
-    int interp_method, int use_existing_grid) {
+    int interp_method, int use_existing_grid, double refine_V_half_width) {
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -747,8 +745,8 @@ void combine_iv_job(int connection,
                         left_V = bottom_up_op_pt_V;
                         right_V = op_pt_V;
                     }
-                    left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH;
-                    right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH;
+                    left_V -= normalized_op_pt_V*refine_V_half_width;
+                    right_V += normalized_op_pt_V*refine_V_half_width;
                     double step = (right_V - left_V)/(refinement_points-1);
                     for (int i=0; i<refinement_points; ++i) 
                         Vs[pos+i] = left_V + step*i;
@@ -826,7 +824,7 @@ void remesh_IV(
     int refinement_points,
     double* out_V,
     double* out_I,
-    int* out_len) {
+    int* out_len, double refine_V_half_width) {
 
     double* Vs = out_V;
     double* Is = out_I;
@@ -843,8 +841,8 @@ void remesh_IV(
             op_left_V = bottom_up_op_pt_V;
             op_right_V = op_pt_V;
         }
-        op_left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH;
-        op_right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH;
+        op_left_V -= normalized_op_pt_V*refine_V_half_width;
+        op_right_V += normalized_op_pt_V*refine_V_half_width;
     }
 
     int n = static_cast<int>(*vs_len);
@@ -956,7 +954,7 @@ void remesh_IV(
 
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid) {
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid, double refine_V_half_width) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     int max_threads; 
@@ -994,7 +992,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refi
             job.operating_point[2],
             job.refinement_points,
             interp_method,
-            use_existing_grid
+            use_existing_grid,
+            refine_V_half_width
         );
     }
     if (use_existing_grid==1)
@@ -1028,7 +1027,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refi
                 job.refinement_points,
                 job.out_V,
                 job.out_I,
-                job.out_len
+                job.out_len,
+                refine_V_half_width
             );
         }
     }

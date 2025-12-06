@@ -4,6 +4,7 @@ from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
+from PV_Circuit_Model.ivkernel import REFINE_V_HALF_WIDTH
 
 def get_Voc(argument):
     if isinstance(argument,CircuitGroup):
@@ -196,7 +197,6 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
     normalized_operating_point = getattr(self,"bottom_up_operating_point",None)
     find_near_op = None
     if bottom_up_operating_point:
-        REFINE_V_HALF_WIDTH = 0.005
         operating_point_V = self.operating_point[0]
         bottom_up_operating_point_V = bottom_up_operating_point[0]
         normalized_op_pt_V = normalized_operating_point[0]
