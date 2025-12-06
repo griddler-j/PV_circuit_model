@@ -7,32 +7,51 @@ import warnings
 import sys
 from pathlib import Path
 from PV_Circuit_Model import ivkernel
+from PV_Circuit_Model.utilities import ParameterSet 
 import numpy as np
 cimport numpy as np
 import time
 ctypedef np.float64_t DTYPE_t
 np.import_array()
 
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PARAM_DIR = PACKAGE_ROOT / "parameters"
+
 cdef bint _PARALLEL_MODE = True
 cdef bint _REPORT_UNCERTAINTY = False
-cdef int _SUPER_DENSE = 0    # for debugging only
+cdef int _SUPER_DENSE = 0    # don't change!  for debugging only
+
+solver_env_variables = None
+try:
+    ParameterSet(name="solver_env_variables",filename=PARAM_DIR / "solver_env_variables.json")
+    solver_env_variables = ParameterSet.get_set("solver_env_variables")
+    _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
+    _REPORT_UNCERTAINTY = solver_env_variables["_REPORT_UNCERTAINTY"]
+except Exception:
+    ParameterSet(name="solver_env_variables",data={})
+    solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
+    solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
+    solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
 
 def set_parallel_mode(enabled: bool):
-    global _PARALLEL_MODE
+    global _PARALLEL_MODE, solver_env_variables
     _PARALLEL_MODE = bool(enabled)
+    solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
 
 def set_report_uncertainty(enabled: bool):
-    global _REPORT_UNCERTAINTY
+    global _REPORT_UNCERTAINTY, solver_env_variables
     _REPORT_UNCERTAINTY = bool(enabled)
+    solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
 
 def set_super_dense(num_points):
     global _SUPER_DENSE
     _SUPER_DENSE = int(num_points)
+    solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
 
 cdef class IV_Job_Heap:
     cdef public list components
     cdef list min_child_id
-    cdef public object bottom_up_operating_points
+    cdef public object bottom_up_operating_points, timers, errors
     cdef Py_ssize_t job_done_index
     cdef Py_ssize_t n_components
     

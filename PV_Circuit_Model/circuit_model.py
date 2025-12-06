@@ -263,7 +263,7 @@ class ReverseDiode(Diode):
     
 class Intrinsic_Si_diode(ForwardDiode):
     _type_number = 4
-    bandgap_narrowing_RT = bandgap_narrowing_RT
+    bandgap_narrowing_RT = np.array(bandgap_narrowing_RT)
     # area is 1 is OK because the cell subgroup has normalized area of 1
     def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,tag=None):
         CircuitElement.__init__(self, tag)

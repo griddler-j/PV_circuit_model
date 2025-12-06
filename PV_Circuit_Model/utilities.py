@@ -49,6 +49,10 @@ class ParameterSet:
         if isinstance(self.data, dict):
             return self.data.get(key)
         return None
+    
+    def set(self,key,value):
+        if isinstance(self.data, dict):
+            self.data[key] = value
 
     @classmethod
     def get_registry(cls) -> Dict[str, "ParameterSet"]:
@@ -61,7 +65,7 @@ class ParameterSet:
             return dict_[name]
         return None
     
-ParameterSet(name="VT_at_25C",data=0.02568)()
+ParameterSet(name="VT_at_25C",data=0.02568)
 VT_at_25C = ParameterSet.get_set("VT_at_25C")()
 
 get_VT = lambda temperature, VT_at_25C: VT_at_25C*(temperature + 273.15)/(25 + 273.15)
