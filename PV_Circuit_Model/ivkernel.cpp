@@ -220,7 +220,7 @@ void interp_monotonic_inc(
                 if (method==2)
                     yadd = y[i+1];
                 else
-                    yadd = y[i-1];
+                    yadd = y[i];
             } else {
                 double y_ref_mid = y[i] + slope*(xj - x[i]);
                 double y_ref_left = y[i] + left_slope*(xj - x[i]);
@@ -234,6 +234,8 @@ void interp_monotonic_inc(
                     yadd = std::min(y_ref_mid, yadd);
                 }
             }
+            if (yadd < y[i]) yadd = y[i];
+            if (yadd > y[i+1]) yadd = y[i+1];
             yq[j] = (additive? yq[j]:0.0) + yadd;
         } else 
             yq[j] = (additive? yq[j]:0.0) + y[i] + slope*(xj - x[i]);
@@ -707,6 +709,13 @@ void combine_iv_job(int connection,
     }
     // --- parallel connection branch (connection == 1) ---
     else if (connection == 1) {
+        // current is negated when plotting power, so upperbound becomes lowerbound and vice versa
+        int interp_method_ = interp_method;
+        if (interp_method==3) 
+            interp_method_ = 2;
+        else if (interp_method==2)
+            interp_method_ = 3;
+
         if (use_existing_grid==1) {
             int Ni = (*this_IV).length;
             memcpy(Vs, (*this_IV).V, Ni * sizeof(double));
@@ -795,7 +804,7 @@ void combine_iv_job(int connection,
                     calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true);
                 }
                 else
-                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true, interp_method); // keeps adding 
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true, interp_method_); // keeps adding 
             }
         }  
     }
