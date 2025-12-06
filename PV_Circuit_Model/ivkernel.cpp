@@ -19,8 +19,6 @@
 #include <queue>
 #include <fstream>
 
-#define HALFDEGREE 0.008726638
-
 extern "C" {
 
     struct MergeNode {
@@ -824,7 +822,9 @@ void remesh_IV(
     int refinement_points,
     double* out_V,
     double* out_I,
-    int* out_len, double refine_V_half_width) {
+    int* out_len, 
+    double refine_V_half_width, 
+    double max_tolerable_radians_change) {
 
     double* Vs = out_V;
     double* Is = out_I;
@@ -905,11 +905,13 @@ void remesh_IV(
             last_unit_vector_y = unit_vector_y;
         }
     }
-    double at_least_max_num_points = accum_abs_dir_change[n-2]/HALFDEGREE+2;
-    if (*vs_len <= at_least_max_num_points)
-        return;
-    if (max_num_points < at_least_max_num_points)
-        max_num_points = at_least_max_num_points;
+    if (max_tolerable_radians_change > 0) {
+        double at_least_max_num_points = accum_abs_dir_change[n-2]/max_tolerable_radians_change+2;
+        if (*vs_len <= at_least_max_num_points)
+            return;
+        if (max_num_points < at_least_max_num_points)
+            max_num_points = at_least_max_num_points;
+    }
 
     double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
     double variation_segment_mpp = 0.0;
@@ -954,7 +956,9 @@ void remesh_IV(
 
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid, double refine_V_half_width) {
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
+    int parallel, int refine_mode, int interp_method, int use_existing_grid, 
+    double refine_V_half_width, double max_tolerable_radians_change) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     int max_threads; 
@@ -1028,7 +1032,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refi
                 job.out_V,
                 job.out_I,
                 job.out_len,
-                refine_V_half_width
+                refine_V_half_width,
+                max_tolerable_radians_change
             );
         }
     }

@@ -18,6 +18,7 @@ _PARALLEL_MODE = True
 _REPORT_UNCERTAINTY = False
 REFINE_V_HALF_WIDTH = 0.005
 _SUPER_DENSE = 0    # don't change!  for debugging only
+MAX_TOLERABLE_RADIANS_CHANGE = 0.008726638 # half a degree
 
 solver_env_variables = None
 try:
@@ -26,12 +27,14 @@ try:
     _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
     _REPORT_UNCERTAINTY = solver_env_variables["_REPORT_UNCERTAINTY"]
     REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
+    MAX_TOLERABLE_RADIANS_CHANGE = solver_env_variables["MAX_TOLERABLE_RADIANS_CHANGE"]
 except Exception:
     ParameterSet(name="solver_env_variables",data={})
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
     solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
     solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
     solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
+    solver_env_variables.set("MAX_TOLERABLE_RADIANS_CHANGE", MAX_TOLERABLE_RADIANS_CHANGE)
 
 def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE, solver_env_variables
@@ -77,7 +80,8 @@ cdef extern from "ivkernel.h":
         int* out_len
         int all_children_are_elements
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, int interp_method, int use_existing_grid, double refine_V_half_width) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, 
+    int interp_method, int use_existing_grid, double refine_V_half_width, double max_tolerable_radians_change) nogil
 
     void interp_monotonic_inc_scalar(
         const double** xs,
@@ -162,6 +166,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef int abs_max_num_points
     cdef double area
     cdef double REFINE_V_HALF_WIDTH_ = REFINE_V_HALF_WIDTH
+    cdef double max_tolerable_radians_change = MAX_TOLERABLE_RADIANS_CHANGE
 
     cdef Py_ssize_t child_base = 0
     cdef double kernel_ms
@@ -424,7 +429,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
 
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_, use_existing_grid_, REFINE_V_HALF_WIDTH_)
+            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_, 
+            use_existing_grid_, REFINE_V_HALF_WIDTH_, max_tolerable_radians_change)
 
         # ----- unpack outputs -----
         free(this_view)

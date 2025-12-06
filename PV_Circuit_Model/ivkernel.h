@@ -34,7 +34,8 @@ struct IVJobDesc {
     int all_children_are_elements;
 };
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads, int refine_mode, int interp_method, int use_existing_grid, double refine_V_half_width);
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads, int refine_mode, int interp_method, 
+    int use_existing_grid, double refine_V_half_width, double max_tolerable_radians_change);
 
 void interp_monotonic_inc_scalar(
     const double** xs,   // size n, strictly increasing
