@@ -13,11 +13,16 @@ ctypedef np.float64_t DTYPE_t
 np.import_array()
 
 cdef bint _PARALLEL_MODE = True
-cdef int _SUPER_DENSE = 0
+cdef bint _REPORT_UNCERTAINTY = False
+cdef int _SUPER_DENSE = 0    # for debugging only
 
 def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE
     _PARALLEL_MODE = bool(enabled)
+
+def set_report_uncertainty(enabled: bool):
+    global _REPORT_UNCERTAINTY
+    _REPORT_UNCERTAINTY = bool(enabled)
 
 def set_super_dense(num_points):
     global _SUPER_DENSE
@@ -207,17 +212,18 @@ cdef class IV_Job_Heap:
 
     def refine_IV(self):
         self.run_IV(refine_mode=True)
-        self.components[0].IV_V_temp = self.components[0].IV_V.copy()
-        self.components[0].IV_I_temp = self.components[0].IV_I.copy()
-        self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve 
-        self.components[0].IV_V_upper = self.components[0].IV_V.copy()
-        self.components[0].IV_I_upper = self.components[0].IV_I.copy()
-        self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve 
-        self.components[0].IV_V_lower = self.components[0].IV_V.copy()
-        self.components[0].IV_I_lower = self.components[0].IV_I.copy()
-        self.components[0].IV_V = self.components[0].IV_V_temp.copy()
-        self.components[0].IV_I = self.components[0].IV_I_temp.copy()
-        del self.components[0].IV_V_temp
-        del self.components[0].IV_I_temp
-        # but the children are all wrecked
+        if _REPORT_UNCERTAINTY:
+            self.components[0].IV_V_temp = self.components[0].IV_V.copy()
+            self.components[0].IV_I_temp = self.components[0].IV_I.copy()
+            self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve 
+            self.components[0].IV_V_upper = self.components[0].IV_V.copy()
+            self.components[0].IV_I_upper = self.components[0].IV_I.copy()
+            self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve 
+            self.components[0].IV_V_lower = self.components[0].IV_V.copy()
+            self.components[0].IV_I_lower = self.components[0].IV_I.copy()
+            self.components[0].IV_V = self.components[0].IV_V_temp.copy()
+            self.components[0].IV_I = self.components[0].IV_I_temp.copy()
+            del self.components[0].IV_V_temp
+            del self.components[0].IV_I_temp
+            # but the children are all wrecked
         
