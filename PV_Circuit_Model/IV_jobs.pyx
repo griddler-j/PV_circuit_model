@@ -13,16 +13,11 @@ ctypedef np.float64_t DTYPE_t
 np.import_array()
 
 cdef bint _PARALLEL_MODE = True
-cdef int _INTERP_METHOD = 0
 cdef int _SUPER_DENSE = 0
 
 def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE
     _PARALLEL_MODE = bool(enabled)
-
-def set_interp_method(method):
-    global _INTERP_METHOD
-    _INTERP_METHOD = int(method)
 
 def set_super_dense(num_points):
     global _SUPER_DENSE
@@ -189,7 +184,7 @@ cdef class IV_Job_Heap:
                 bop[i, 5] = min_I
                 component.bottom_up_operating_point = [V,I]
                     
-    cpdef void run_IV(self, bint refine_mode=False):
+    cpdef void run_IV(self, bint refine_mode=False, interp_method=0):
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
@@ -202,7 +197,7 @@ cdef class IV_Job_Heap:
             job_done_index_before = self.job_done_index
             components_ = self.get_runnable_iv_jobs(refine_mode=refine_mode)
             if components_:
-                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, interp_method=_INTERP_METHOD, super_dense=_SUPER_DENSE)
+                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, interp_method=interp_method, super_dense=_SUPER_DENSE)
             if pbar is not None:
                 pbar.update(job_done_index_before - self.job_done_index)
 
@@ -210,4 +205,10 @@ cdef class IV_Job_Heap:
             pbar.close()
 
     def refine_IV(self):
+        self.run_IV(refine_mode=True,interp_method=2) # get upper bounds of curve 
+        self.components[0].IV_V_upper = self.components[0].IV_V.copy()
+        self.components[0].IV_I_upper = self.components[0].IV_I.copy()
+        self.run_IV(refine_mode=True,interp_method=3) # get lower bounds of curve 
+        self.components[0].IV_V_lower = self.components[0].IV_V.copy()
+        self.components[0].IV_I_lower = self.components[0].IV_I.copy()
         self.run_IV(refine_mode=True)

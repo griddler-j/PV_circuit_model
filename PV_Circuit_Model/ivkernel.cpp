@@ -171,8 +171,8 @@ void interp_monotonic_inc(
         while (i + 1 < n - 1 && x[i+1] < xj) 
             ++i;
         if (i > prev_i) {
-            if (method==1) {
-                if (this_slope_i==i-1)
+            if (method>0) {
+                if (this_slope_i==i-1 && std::isfinite(slope))
                     left_slope = slope;
                 else {
                     if (i > 0) 
@@ -193,11 +193,15 @@ void interp_monotonic_inc(
                 else
                     right_slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
                 right_slope_i = i + 1;
-            } else {
+            } else 
                 slope = (y[i+1]-y[i])/(x[i+1]-x[i]);
-            }
+
+            if (!std::isfinite(left_slope)) left_slope = slope;
+            if (!std::isfinite(right_slope)) right_slope = slope;
         }
-        if (method==1 && std::isfinite(left_slope) && std::isfinite(right_slope)) {
+        if (!std::isfinite(slope))
+            yq[j] = (additive? yq[j]:0.0) + y[i];
+        else if (method==1) {
             double delta_x = 0.5*(x[i+1]-x[i]);
             double delta_x_left = xj - x[i];
             double half_slope_left = 0.5*(slope + left_slope);
@@ -210,8 +214,30 @@ void interp_monotonic_inc(
             if (yadd > y[i+1]) yadd = y[i+1];
             yq[j] = (additive? yq[j]:0.0) + yadd;
             if (!std::isfinite(yq[j]) || (j>0 && yq[j]<yq[j-1])) yq[j] = yq[j-1];
+        } else if (method==2 || method==3) {
+            double yadd;
+            if (!std::isfinite(slope) || !std::isfinite(left_slope) || !std::isfinite(right_slope)) {
+                if (method==2)
+                    yadd = y[i+1];
+                else
+                    yadd = y[i-1];
+            } else {
+                double y_ref_mid = y[i] + slope*(xj - x[i]);
+                double y_ref_left = y[i] + left_slope*(xj - x[i]);
+                double y_ref_right = y[i+1] + right_slope*(xj - x[i+1]);
+                if (method==2) {
+                    yadd = std::min(y_ref_left, y_ref_right);
+                    yadd = std::max(y_ref_mid, yadd);
+                }
+                else {
+                    yadd = std::max(y_ref_left, y_ref_right);
+                    yadd = std::min(y_ref_mid, yadd);
+                }
+            }
+            yq[j] = (additive? yq[j]:0.0) + yadd;
         } else 
             yq[j] = (additive? yq[j]:0.0) + y[i] + slope*(xj - x[i]);
+
         prev_i = i;
     }
 }
@@ -809,6 +835,8 @@ void remesh_IV(
     int idx_V_closest_to_SC_left = 0;
     double sqrt_half = std::sqrt(0.5);
     double last_unit_vector_x, last_unit_vector_y;
+    last_unit_vector_x = 2;
+    last_unit_vector_y = 2;
     for (int i = 0; i < n - 1; ++i) {
         if (V_closest_to_SC > std::abs(Vs[i])) {
             V_closest_to_SC = std::abs(Vs[i]);
@@ -829,15 +857,12 @@ void remesh_IV(
         double mag = std::sqrt((unit_vector_x*unit_vector_x + unit_vector_y*unit_vector_y));
         unit_vector_x /= mag;
         unit_vector_y /= mag;
-        int bad_point = false;
-        if (!std::isfinite(unit_vector_x) || !std::isfinite(unit_vector_y)) { // catches NaN, +inf, -inf
+        bool bad_point = false;
+        if (!std::isfinite(unit_vector_x) || !std::isfinite(unit_vector_y) || mag<1e-8)  // catches NaN, +inf, -inf
             bad_point = true;
-            unit_vector_x = sqrt_half;
-            unit_vector_y = sqrt_half;
-        }
         if (i > 0) {
             double change = 0;
-            if (!bad_point) {
+            if (!bad_point && std::abs(last_unit_vector_x)<=1.0) {
                 double dx = unit_vector_x - last_unit_vector_x;
                 double dy = unit_vector_y - last_unit_vector_y;
                 change = std::sqrt(dx*dx + dy*dy);
@@ -849,8 +874,10 @@ void remesh_IV(
                 accum_abs_dir_change_near_mpp[i] = accum_abs_dir_change_near_mpp[i-1] + change_;
             }
         }
-        last_unit_vector_x = unit_vector_x;
-        last_unit_vector_y = unit_vector_y;
+        if (!bad_point) {
+            last_unit_vector_x = unit_vector_x;
+            last_unit_vector_y = unit_vector_y;
+        }
     }
     double at_least_max_num_points = accum_abs_dir_change[n-2]/HALFDEGREE+2;
     if (*vs_len <= at_least_max_num_points)

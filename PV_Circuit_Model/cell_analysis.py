@@ -53,7 +53,7 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     index = np.argmax(power)
     Vmp = V[index]
     
-    if isinstance(argument,CircuitGroup) and refine_IV:
+    if isinstance(argument,CircuitGroup) and refine_IV and (not hasattr(argument,"refined_IV") or not argument.refined_IV):
         if not hasattr(argument,"job_heap"):
             argument.build_IV()
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
@@ -204,6 +204,16 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
         find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
+        if hasattr(self,"IV_V_upper"):
+            plt.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
+        if hasattr(self,"IV_V_lower"):
+            plt.plot(self.IV_V_lower,-self.IV_I_lower,color="gray")
+            Pmax_upper = get_Pmax(np.array([self.IV_V_lower,self.IV_I_lower]))
+            Pmax_lower = get_Pmax(np.array([self.IV_V_upper,self.IV_I_upper]))
+            print(max_power)
+            print(Pmax_upper)
+            print(Pmax_lower)
+
         plt.plot(self.IV_V,-self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
@@ -212,6 +222,10 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:
+        if hasattr(self,"IV_V_upper"):
+            plt.plot(self.IV_V_upper,self.IV_I_upper,color="gray")
+        if hasattr(self,"IV_V_lower"):
+            plt.plot(self.IV_V_lower,self.IV_I_lower,color="gray")
         plt.plot(self.IV_V,self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],self.IV_I[find_near_op],color="red")
