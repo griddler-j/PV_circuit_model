@@ -217,5 +217,7 @@ cdef class IV_Job_Heap:
         self.components[0].IV_I_lower = self.components[0].IV_I.copy()
         self.components[0].IV_V = self.components[0].IV_V_temp.copy()
         self.components[0].IV_I = self.components[0].IV_I_temp.copy()
+        del self.components[0].IV_V_temp
+        del self.components[0].IV_I_temp
         # but the children are all wrecked
         

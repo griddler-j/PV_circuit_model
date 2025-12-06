@@ -42,7 +42,6 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
-        return_op_point = True
     V = IV_curve[0,:]
     I = IV_curve[1,:]
     power = -V*I
@@ -204,16 +203,6 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
         find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
-        if hasattr(self,"IV_V_upper"):
-            plt.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
-        if hasattr(self,"IV_V_lower"):
-            plt.plot(self.IV_V_lower,-self.IV_I_lower,color="gray")
-            Pmax_upper = get_Pmax(np.array([self.IV_V_lower,self.IV_I_lower]))
-            Pmax_lower = get_Pmax(np.array([self.IV_V_upper,self.IV_I_upper]))
-            print(max_power)
-            print(Pmax_upper)
-            print(Pmax_lower)
-
         plt.plot(self.IV_V,-self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
@@ -222,16 +211,38 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:
-        if hasattr(self,"IV_V_upper"):
-            plt.plot(self.IV_V_upper,self.IV_I_upper,color="gray")
-        if hasattr(self,"IV_V_lower"):
-            plt.plot(self.IV_V_lower,self.IV_I_lower,color="gray")
         plt.plot(self.IV_V,self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],self.IV_I[find_near_op],color="red")
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
     if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
+        Isc_error_word = ""
+        Jsc_error_word = ""
+        Voc_error_word = ""
+        FF_error_word = ""
+        Pmax_error_word = ""
+        Eff_error_word = ""
+        if hasattr(self,"IV_V_lower"):
+            low_arr_ = np.array([self.IV_V_lower,self.IV_I_lower])
+            high_arr_ = np.array([self.IV_V_upper,self.IV_I_upper])
+            Pmax_lower = get_Pmax(low_arr_)
+            Pmax_upper = get_Pmax(high_arr_)
+            Voc_lower = get_Voc(low_arr_)
+            Isc_lower = get_Isc(low_arr_)
+            FF_lower = get_FF(low_arr_)
+            Voc_upper = get_Voc(high_arr_)
+            Isc_upper = get_Isc(high_arr_)
+            FF_upper = get_FF(high_arr_)
+            Isc_error_word = f"\u00B1 {0.5*(Isc_upper-Isc_lower):.1e}"
+            if hasattr(self,"area"):
+                Jsc_error_word = f"\u00B1 {0.5*(Isc_upper-Isc_lower)/self.area*1000:.1e}"
+            Voc_error_word = f"\u00B1 {0.5*(Voc_upper-Voc_lower):.1e}"
+            FF_error_word = f"\u00B1 {0.5*abs(FF_upper-FF_lower)*100:.1e}"
+            Pmax_error_word = f"\u00B1 {0.5*(Pmax_upper-Pmax_lower):.1e}"
+            if hasattr(self,"area"):
+                Eff_error_word = f"\u00B1 {0.5*(Pmax_upper-Pmax_lower)/self.area*1000:.1e}"
+    
         y_space = 0.07
         plt.plot(Voc,0,marker='o',color="blue")
         plt.plot(0,Isc,marker='o',color="blue")
@@ -239,18 +250,18 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
             Imp *= -1
         plt.plot(Vmp,Imp,marker='o',color="blue")
         if (isinstance(self,Cell) or isinstance(self,MultiJunctionCell) or self.__class__.__name__=="Cell" or self.__class__.__name__=="MultiJunctionCell"):
-            plt.text(Voc*0.05, Isc*(0.8-0*y_space), f"Isc = {Isc:.3f} A")
-            plt.text(Voc*0.05, Isc*(0.8-1*y_space), f"Jsc = {Isc/self.area*1000:.3f} mA/cm2")
-            plt.text(Voc*0.05, Isc*(0.8-2*y_space), f"Voc = {Voc:.4f} V")
-            plt.text(Voc*0.05, Isc*(0.8-3*y_space), f"FF = {FF*100:.3f} %")
-            plt.text(Voc*0.05, Isc*(0.8-4*y_space), f"Pmax = {max_power:.3f} W")
-            plt.text(Voc*0.05, Isc*(0.8-5*y_space), f"Eff = {max_power/self.area*1000:.3f} %")
+            plt.text(Voc*0.05, Isc*(0.8-0*y_space), f"Isc = {Isc:.3f} {Isc_error_word} A")
+            plt.text(Voc*0.05, Isc*(0.8-1*y_space), f"Jsc = {Isc/self.area*1000:.3f} {Jsc_error_word} mA/cm2")
+            plt.text(Voc*0.05, Isc*(0.8-2*y_space), f"Voc = {Voc:.4f} {Voc_error_word} V")
+            plt.text(Voc*0.05, Isc*(0.8-3*y_space), f"FF = {FF*100:.3f} {FF_error_word} %")
+            plt.text(Voc*0.05, Isc*(0.8-4*y_space), f"Pmax = {max_power:.3f} {Pmax_error_word} W")
+            plt.text(Voc*0.05, Isc*(0.8-5*y_space), f"Eff = {max_power/self.area*1000:.3f} {Eff_error_word} %")
             plt.text(Voc*0.05, Isc*(0.8-6*y_space), f"Area = {self.area:.3f} cm2")
         else:
-            plt.text(Voc*0.05, Isc*(0.8-0*y_space), f"Isc = {Isc:.3f} A")
-            plt.text(Voc*0.05, Isc*(0.8-1*y_space), f"Voc = {Voc:.2f} V")
-            plt.text(Voc*0.05, Isc*(0.8-2*y_space), f"FF = {FF*100:.3f} %")
-            plt.text(Voc*0.05, Isc*(0.8-3*y_space), f"Pmax = {max_power:.2f} W")
+            plt.text(Voc*0.05, Isc*(0.8-0*y_space), f"Isc = {Isc:.3f} {Isc_error_word} A")
+            plt.text(Voc*0.05, Isc*(0.8-1*y_space), f"Voc = {Voc:.2f} {Voc_error_word} V")
+            plt.text(Voc*0.05, Isc*(0.8-2*y_space), f"FF = {FF*100:.3f} {FF_error_word} %")
+            plt.text(Voc*0.05, Isc*(0.8-3*y_space), f"Pmax = {max_power:.2f} {Pmax_error_word} W")
     plt.xlabel("Voltage (V)")
     plt.ylabel("Current (A)")
     plt.gcf().canvas.manager.set_window_title(title)
