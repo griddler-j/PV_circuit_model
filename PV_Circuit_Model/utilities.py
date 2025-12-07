@@ -10,7 +10,10 @@ import json
 import pickle
 import importlib
 import inspect
-import bson
+try:
+    import bson
+except:
+    pass
 from pathlib import Path
 
 @dataclass
