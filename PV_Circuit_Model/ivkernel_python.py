@@ -1,5 +1,32 @@
 import numpy as np
 from PV_Circuit_Model.utilities import *
+import tqdm
+
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PARAM_DIR = PACKAGE_ROOT / "parameters"
+
+REFINE_V_HALF_WIDTH = 0.005
+MAX_TOLERABLE_RADIANS_CHANGE = 0.008726638 # half a degree
+REMESH_POINTS_DENSITY = 500
+REFINEMENT_POINTS_DENSITY = 125
+REMESH_NUM_ELEMENTS_THRESHOLD = 50
+
+solver_env_variables = None
+try:
+    ParameterSet(name="solver_env_variables",filename=PARAM_DIR / "solver_env_variables.json")
+    solver_env_variables = ParameterSet.get_set("solver_env_variables")
+    REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
+    MAX_TOLERABLE_RADIANS_CHANGE = solver_env_variables["MAX_TOLERABLE_RADIANS_CHANGE"]
+    REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
+    REFINEMENT_POINTS_DENSITY = solver_env_variables["REFINEMENT_POINTS_DENSITY"]
+    REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
+except Exception:
+    ParameterSet(name="solver_env_variables",data={})
+    solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
+    solver_env_variables.set("MAX_TOLERABLE_RADIANS_CHANGE", MAX_TOLERABLE_RADIANS_CHANGE)
+    solver_env_variables.set("REMESH_POINTS_DENSITY", REMESH_POINTS_DENSITY)
+    solver_env_variables.set("REFINEMENT_POINTS_DENSITY", REFINEMENT_POINTS_DENSITY)
+    solver_env_variables.set("REMESH_NUM_ELEMENTS_THRESHOLD", REMESH_NUM_ELEMENTS_THRESHOLD)
 
 def get_V_range(component):
     VT = component.VT
@@ -52,6 +79,8 @@ def calc_intrinsic_Si_I(component, V):
 
 
 def build_component_IV_python(component,refine_mode=False):
+    if refine_mode:
+        refinement_points = int(REFINEMENT_POINTS_DENSITY*np.sqrt(component.num_circuit_elements))
     circuit_component_type_number = component._type_number
     if circuit_component_type_number <=4: # CircuitElement
         if circuit_component_type_number == 0: # CurrentSource
@@ -79,7 +108,42 @@ def build_component_IV_python(component,refine_mode=False):
             else:
                 component.IV_I = calc_intrinsic_Si_I(component, component.IV_V)
         return
-         
+
+    if refine_mode:
+        bottom_up_operating_point_V = 0
+        bottom_up_operating_point_I = 0
+        normalized_operating_point_V = 0
+        normalized_operating_point_I = 0
+        all_children_are_elements = True
+        for element in component.subgroups:
+            if element._type_number >= 5: # circuitgroup
+                all_children_are_elements = False
+                bottom_up_operating_point_V += element.bottom_up_operating_point[0]
+                bottom_up_operating_point_I += element.bottom_up_operating_point[1]
+                normalized_operating_point_V += element.normalized_operating_point[0]
+                normalized_operating_point_I += element.normalized_operating_point[1]
+            else:
+                bottom_up_operating_point_V += element.operating_point[0]
+                bottom_up_operating_point_I += element.operating_point[1]
+                normalized_operating_point_V += 1
+                normalized_operating_point_I += 1
+
+        if component.connection == "series":
+            bottom_up_operating_point_I /= len(component.subgroups)
+            normalized_operating_point_I /=len(component.subgroups)
+        else:
+            bottom_up_operating_point_V /= len(component.subgroups)
+            normalized_operating_point_V /= len(component.subgroups)
+
+        component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
+        component.normalized_operating_point = [normalized_operating_point_V,normalized_operating_point_I]
+
+        left_V_refine = min(component.operating_point[0],component.bottom_up_operating_point[0])
+        right_V_refine = max(component.operating_point[0],component.bottom_up_operating_point[0])
+        normalized_op_pt_V = component.normalized_operating_point[0]
+        left_V_refine -= normalized_op_pt_V*REFINE_V_HALF_WIDTH
+        right_V_refine += normalized_op_pt_V*REFINE_V_HALF_WIDTH
+
     if component.connection=="series":
         I_range = 0
         for element in component.subgroups:
@@ -130,7 +194,7 @@ def build_component_IV_python(component,refine_mode=False):
         right_limit = None
         for element in component.subgroups:
             Vs.extend(list(element.IV_table[0,:]))
-            if element._type_number == 2: # ForwardDiode
+            if element._type_number == 2 or element._type_number == 4: # ForwardDiode
                 if right_limit is None:
                     right_limit = element.IV_V[-1]
                 else:
@@ -147,7 +211,13 @@ def build_component_IV_python(component,refine_mode=False):
         if right_limit is not None:
             find_ = np.where(Vs <= right_limit)[0]
             Vs = Vs[find_]
-        # Vs = np.unique(Vs)
+
+        if refine_mode:
+            if all_children_are_elements: # add more points near the operating point
+                step = (right_V_refine - left_V_refine)/(refinement_points-1)
+                added_Vs = np.arange(left_V_refine,right_V_refine,step)
+                Vs = np.concatenate((Vs, added_Vs))
+            
         eps = 1e-6
         V_diff = np.abs(Vs[1:] - Vs[:-1])
         indices = np.where(V_diff > eps)[0]
@@ -191,7 +261,6 @@ def build_component_IV_python(component,refine_mode=False):
     Vs = component.IV_V
     Vs, idx = np.unique(Vs, return_index=True)
     Is = component.IV_I[idx]
-    mpp_points = int(max_num_points * 0.1) if refine_mode == 1 else 0
     V_range = Vs[-1]
     left_V = 0.05 * Vs[0]
     right_V = 0.05 * Vs[-1]
@@ -205,30 +274,29 @@ def build_component_IV_python(component,refine_mode=False):
     mag = np.sqrt(dx**2+dy**2)
     unit_x = dx/mag
     unit_y = dy/mag
-    findbad_ = np.where(np.isnan(mag) | np.isinf(mag))[0]
+    findbad_ = np.where((mag<1e-8) | np.isnan(unit_x) | np.isnan(unit_y) | np.isinf(unit_x) | np.isinf(unit_y))[0]
     sqrt_half = np.sqrt(0.5)
     unit_x[findbad_] = sqrt_half
     unit_y[findbad_] = sqrt_half
+    findbad_ = np.concatenate((findbad_,findbad_+1))
+    findbad_ = np.unique(findbad_)
+    within = np.where(findbad_<unit_x.size)[0]
+    findbad_ = findbad_[within]
     dux = np.diff(unit_x)  # length n-2
     duy = np.diff(unit_y)
     dux[findbad_] = 0
     dux[findbad_] = 0
     change = np.zeros_like(unit_x)
     change[1:] = np.sqrt(dux * dux + duy * duy)  # change[i] for i>=1
-    fudge_factor1 = np.ones_like(unit_x)
-    # fudge_factor1[Vs[:-1] < 0.0] = 0.1
-    accum_abs_dir_change = np.cumsum(fudge_factor1 * change)
+    change[findbad_] = 0
+    accum_abs_dir_change = np.cumsum(change)
 
     # ---- accum_abs_dir_change_near_mpp (also vectorized) ----
-    op_pt_V = None
-    operating_point = getattr(component,"operating_point")
-    if operating_point:
-        op_pt_V = operating_point[0]
-    if refine_mode == 1 and mpp_points > 0 and op_pt_V:
-        window = np.abs(op_pt_V - Vs[1:]) < np.abs(op_pt_V) * 0.05
+    if refine_mode == 1:
+        window = (Vs[1:]>=left_V_refine) & (Vs[1:]<=right_V_refine)
         increments_mpp = change * window
         accum_abs_dir_change_near_mpp = np.cumsum(increments_mpp)
-        variation_segment_mpp = accum_abs_dir_change_near_mpp[-1] / mpp_points
+        variation_segment_mpp = accum_abs_dir_change_near_mpp[-1] / refinement_points
     else:
         accum_abs_dir_change_near_mpp = None
         variation_segment_mpp = None
@@ -236,6 +304,14 @@ def build_component_IV_python(component,refine_mode=False):
     # ---- variation segment for global curve ----
     # C++ used accum_abs_dir_change[n-2] / (max_num_points-2)
     total_variation = accum_abs_dir_change[-1] if Vs.size > 1 else 0.0
+
+    if (MAX_TOLERABLE_RADIANS_CHANGE > 0):
+        at_least_max_num_points = accum_abs_dir_change[-1]/MAX_TOLERABLE_RADIANS_CHANGE+2
+        if (Vs.size <= at_least_max_num_points):
+            return
+        if (max_num_points < at_least_max_num_points):
+            max_num_points = at_least_max_num_points
+
     variation_segment = total_variation / (max_num_points - 2)
     ideal_points = variation_segment*np.arange(1,max_num_points-1)
     idx = list(np.searchsorted(accum_abs_dir_change, ideal_points, side='right'))
@@ -246,7 +322,7 @@ def build_component_IV_python(component,refine_mode=False):
     idx.append(idx_V_closest_to_SC_left)
     idx.append(idx_V_closest_to_SC_right)
     if variation_segment_mpp is not None:
-        ideal_points = variation_segment_mpp*np.arange(mpp_points)
+        ideal_points = variation_segment_mpp*np.arange(refinement_points)
         idx2 = list(np.searchsorted(accum_abs_dir_change_near_mpp, ideal_points, side='right'))
         idx2[-1] = min(idx2[-1],Vs.size-2)
         idx.extend(idx2)
@@ -371,6 +447,7 @@ class IV_Job_Heap:
                 pbar.update(job_done_index_before-self.job_done_index)
         if pbar is not None:
             pbar.close()
+
     def refine_IV(self):
         self.run_IV(refine_mode=True)
 

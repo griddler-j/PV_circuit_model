@@ -49,6 +49,8 @@ void interp_monotonic_inc_scalar(
     int* circuit_type_number
 );
 
+void ivkernel_set_bandgap_table(const double* x, const double* y, int n);
+
 #ifdef __cplusplus
 }
 #endif

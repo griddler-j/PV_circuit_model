@@ -21,7 +21,22 @@
 
 extern "C" {
 
-    struct MergeNode {
+static std::vector<double> g_bgn_x;
+static std::vector<double> g_bgn_y;
+static bool g_bgn_loaded = false;
+
+void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
+{
+    if (!x || !y || n <= 0) {
+        // you can throw, assert, or just ignore
+        return;
+    }
+    g_bgn_x.assign(x, x + n);
+    g_bgn_y.assign(y, y + n);
+    g_bgn_loaded = true;
+}
+
+struct MergeNode {
     const double* cur;  // pointer to current element in this child
     const double* end;  // one-past-last pointer
 };
@@ -286,35 +301,11 @@ void calc_intrinsic_Si_I(
         delta_n[i] = 0.5 * (-N_doping + std::sqrt(N_doping*N_doping + 4.0*ni*ni*expv));
     }
 
-    static const double bgn_x[] = {
-        1e10, 1e14, 3e14, 1e15, 3e15, 1e16, 3e16,
-        1e17, 3e17, 1e18, 3e18, 1e19, 3e19, 1e20
-    };
-
-    static const double bgn_y[] = {
-        1.41e-03,
-        0.00145608,
-        0.00155279,
-        0.00187385,
-        0.00258644,
-        0.00414601,
-        0.00664397,
-        0.0112257,
-        0.018247,
-        0.0295337,
-        0.0421825,
-        0.0597645,
-        0.0811658,
-        0.113245
-    };
-
-    int n_bgn = 14;
-
     // Vector interpolation:
     interp_monotonic_inc(
-        bgn_x,
-        bgn_y,
-        n_bgn,
+        g_bgn_x.data(),
+        g_bgn_y.data(),
+        (int)g_bgn_x.size(),
         delta_n.data(),
         n_V,
         BGN.data(),

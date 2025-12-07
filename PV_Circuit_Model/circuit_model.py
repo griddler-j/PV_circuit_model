@@ -4,7 +4,12 @@ from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.utilities_silicon import *
 from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
-import gc, numbers
+import gc
+
+try:
+    from PV_Circuit_Model.ivkernel import REMESH_POINTS_DENSITY, REMESH_NUM_ELEMENTS_THRESHOLD
+except: # if no cython
+    from PV_Circuit_Model.ivkernel_python import REMESH_POINTS_DENSITY, REMESH_NUM_ELEMENTS_THRESHOLD
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")
@@ -96,32 +101,9 @@ class CurrentSource(CircuitElement):
         self.refT = temperature
         self.T = temperature
         self.temp_coeff = temp_coeff
-
-    def calc_I(self,V):
-        if isinstance(V,numbers.Number):
-            return -self.IL
-        else:
-            return -self.IL*np.ones_like(V)
-    
-    def calc_dI_dV(self,V):
-        if isinstance(V,numbers.Number):
-            return 0.0
-        else:
-            return np.zeros_like(V)
-
     def set_IL(self,IL):
         self.IL = IL
         self.null_IV()
-
-    def copy(self,source):
-        self.refSuns = source.refSuns
-        self.Suns = source.Suns
-        self.refIL = source.refIL
-        self.refT = source.refT
-        self.T = source.T
-        self.temp_coeff = source.temp_coeff
-        self.set_IL(source.IL)
-
     def changeTemperatureAndSuns(self,temperature=None,Suns=None):
         if Suns is not None:
             self.Suns = Suns
@@ -143,18 +125,9 @@ class Resistor(CircuitElement):
     def __init__(self, cond=1, tag=None):
         super().__init__(tag=tag)
         self.cond = cond
-    def calc_I(self,V):
-        return V*self.cond
-    def calc_dI_dV(self,V):
-        if isinstance(V,numbers.Number):
-            return self.cond
-        else:
-            return self.cond*np.ones_like(V)
     def set_cond(self,cond):
         self.cond = cond
         self.null_IV()
-    def copy(self,source):
-        self.set_cond(source.cond)
     def __str__(self):
         return "Resistor: R = " + self.get_value_text()
     def get_value_text(self):
@@ -187,42 +160,12 @@ class Diode(CircuitElement):
         self.I0 = I0
         self.null_IV()
 
-    def copy(self,source):
-        self.n = source.n
-        self.V_shift = source.V_shift
-        self.VT = source.VT
-        self.refI0 = source.refI0
-        self.refT = source.refT
-        self.set_I0(source.I0)
-
     def changeTemperature(self,temperature):
         self.VT = get_VT(temperature,VT_at_25C)
         old_ni  = get_ni(self.refT)
         new_ni  = get_ni(temperature)
         scale_factor = (new_ni/old_ni)**(2/self.n)
         self.set_I0(self.refI0*scale_factor)
-
-    def get_V_range(self,max_num_points=100):
-        if max_num_points is None:
-            max_num_points = 100
-        max_I = 0.2
-        if hasattr(self,"max_I"):
-            max_I = self.max_I
-            max_num_points *= max_I/0.2
-        # assume that 0.2 A/cm2 is max you'll need
-        if self.I0==0:
-            Voc = 10
-        else:
-            Voc = self.n*self.VT*np.log(max_I/self.I0)
-        V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
-        V = np.array(V)
-        return V
-
-    def calc_I(self,V):
-        return self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
-    def calc_dI_dV(self,V):
-        I = self.calc_I(V)
-        return I/(self.n*self.VT)
     
 class ForwardDiode(Diode):
     def __init__(self,I0=1e-15,n=1,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
@@ -249,11 +192,6 @@ class ReverseDiode(Diode):
     _type_number = 3
     def __init__(self,I0=1e-15,n=1, V_shift=0,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift, tag=tag)
-    def calc_I(self,V):
-        return -self.I0*np.exp((-V-self.V_shift)/(self.n*self.VT))
-    def calc_dI_dV(self,V):
-        I = self.calc_I(V)
-        return -I/(self.n*self.VT)
     def __str__(self):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
     def get_value_text(self):
@@ -285,69 +223,11 @@ class Intrinsic_Si_diode(ForwardDiode):
         return word
     def set_I0(self,I0):
         pass # does nothing
-    def copy(self,source):
-        self.base_thickness = source.base_thickness
-        self.base_type = source.base_type
-        self.base_doping = source.base_doping
-        self.temperature = source.temperature
     def changeTemperature(self,temperature):
         self.temperature = temperature
         self.VT = get_VT(self.temperature,VT_at_25C)
         self.ni = get_ni(self.temperature)
         self.null_IV()
-    def calc_I(self,V,get_dI_dV=False):
-        ni = get_ni(self.temperature)
-        VT = get_VT(self.temperature,VT_at_25C)
-        N_doping = self.base_doping
-        pn = ni**2*np.exp(V/VT)
-        delta_n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-        if get_dI_dV:
-            d_pn_dV = pn/VT
-            d_delta_n_dV = ni**2*np.exp(V/VT)/VT/np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT))
-        if self.base_type == "p":
-            n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-            p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        else:
-            p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-            n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
-        ni_eff = ni*np.exp(BGN/2/VT)
-
-        q = 1.602e-19
-        geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
-        gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
-        Brel = 1
-        Blow = 4.73e-15
-        intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
-        if get_dI_dV:
-            d_intrinsic_recomb_dV = d_pn_dV*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) + pn*3e-29*d_delta_n_dV**0.92
-            return q*d_intrinsic_recomb_dV*self.base_thickness*self.area
-        return q*intrinsic_recomb*self.base_thickness*self.area
-    
-    def calc_dI_dV(self,V):
-        return self.calc_I(V,get_dI_dV=True)
-    
-    def get_V_range(self,max_num_points=100):
-        if max_num_points is None:
-            max_num_points = 100
-        max_I = 0.2
-        if hasattr(self,"max_I"):
-            max_I = self.max_I
-            max_num_points *= max_I/0.2
-        # assume that 0.2 A/cm2 is max you'll need
-        if self.base_thickness==0:
-            Voc = 10
-        else:
-            VT = get_VT(self.temperature,VT_at_25C)
-            Voc = 0.7
-            for _ in range(10):
-                I = self.calc_I(Voc)
-                if I >= max_I and I <= max_I*1.1:
-                    break
-                Voc += VT*np.log(max_I/I)
-        V = [self.V_shift-1.1,self.V_shift-1.0,self.V_shift,self.V_shift+0.02,self.V_shift+.08]+list(self.V_shift + Voc*np.log(np.arange(1,max_num_points))/np.log(max_num_points-1))
-        V = np.array(V)
-        return V
 
 class CircuitGroup(CircuitComponent):
     _critical_fields = CircuitComponent._critical_fields + ("connection","subgroups")
@@ -362,8 +242,8 @@ class CircuitGroup(CircuitComponent):
             element.parent = self
             self.num_circuit_elements += element.num_circuit_elements
             self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
-        if self.num_circuit_elements > 50:
-            self.max_num_points = int(500*np.sqrt(self.num_circuit_elements))
+        if self.num_circuit_elements > REMESH_NUM_ELEMENTS_THRESHOLD:
+            self.max_num_points = int(REMESH_POINTS_DENSITY*np.sqrt(self.num_circuit_elements))
         self.name = name
         if location is None:
             self.location = np.array([0,0])

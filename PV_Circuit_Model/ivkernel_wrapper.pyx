@@ -9,6 +9,7 @@ from cython cimport nogil
 from libc.stdlib cimport malloc, free 
 from libc.string cimport memset
 from PV_Circuit_Model.utilities import ParameterSet 
+from PV_Circuit_Model.utilities_silicon import bandgap_narrowing_RT
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -19,6 +20,9 @@ _REPORT_UNCERTAINTY = False
 REFINE_V_HALF_WIDTH = 0.005
 _SUPER_DENSE = 0    # don't change!  for debugging only
 MAX_TOLERABLE_RADIANS_CHANGE = 0.008726638 # half a degree
+REMESH_POINTS_DENSITY = 500
+REFINEMENT_POINTS_DENSITY = 125
+REMESH_NUM_ELEMENTS_THRESHOLD = 50
 
 solver_env_variables = None
 try:
@@ -28,6 +32,9 @@ try:
     _REPORT_UNCERTAINTY = solver_env_variables["_REPORT_UNCERTAINTY"]
     REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
     MAX_TOLERABLE_RADIANS_CHANGE = solver_env_variables["MAX_TOLERABLE_RADIANS_CHANGE"]
+    REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
+    REFINEMENT_POINTS_DENSITY = solver_env_variables["REFINEMENT_POINTS_DENSITY"]
+    REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
 except Exception:
     ParameterSet(name="solver_env_variables",data={})
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
@@ -35,6 +42,9 @@ except Exception:
     solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
     solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
     solver_env_variables.set("MAX_TOLERABLE_RADIANS_CHANGE", MAX_TOLERABLE_RADIANS_CHANGE)
+    solver_env_variables.set("REMESH_POINTS_DENSITY", REMESH_POINTS_DENSITY)
+    solver_env_variables.set("REFINEMENT_POINTS_DENSITY", REFINEMENT_POINTS_DENSITY)
+    solver_env_variables.set("REMESH_NUM_ELEMENTS_THRESHOLD", REMESH_NUM_ELEMENTS_THRESHOLD)
 
 def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE, solver_env_variables
@@ -94,6 +104,44 @@ cdef extern from "ivkernel.h":
         const double (*element_params)[5],
         int* circuit_type_number
     ) nogil
+
+    void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
+
+# Keep arrays alive so C++ can safely hold pointers into them
+cdef object _bgn_x_store = None
+cdef object _bgn_y_store = None
+cdef bint _tables_initialized = False
+
+cdef void _init_ivkernel_tables():
+    global _bgn_x_store, _bgn_y_store, _tables_initialized
+    if _tables_initialized:
+        return
+
+    # bandgap_narrowing_RT is your Python list-of-lists
+    cdef np.ndarray[np.float64_t, ndim=2] arr = \
+        np.asarray(bandgap_narrowing_RT, dtype=np.float64)
+
+    cdef np.ndarray[np.float64_t, ndim=1] x_arr = \
+        np.ascontiguousarray(arr[:, 0], dtype=np.float64)
+    cdef np.ndarray[np.float64_t, ndim=1] y_arr = \
+        np.ascontiguousarray(arr[:, 1], dtype=np.float64)
+
+    # Keep references alive at module scope, so their buffers don't get freed
+    _bgn_x_store = x_arr
+    _bgn_y_store = y_arr
+
+    cdef int n = x_arr.shape[0]
+    if n == 0:
+        raise ValueError("bandgap_narrowing_RT is empty")
+
+    ivkernel_set_bandgap_table(&x_arr[0], &y_arr[0], n)
+
+    _tables_initialized = True
+
+def init_ivkernel_tables():
+    _init_ivkernel_tables()
+
+_init_ivkernel_tables()
 
 def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
 
@@ -182,7 +230,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef double normalized_operating_point_I
     cdef double bottom_up_operating_point_V
     cdef double bottom_up_operating_point_I
-    cdef int all_children_are_elements, refine_mode_, interp_method_, use_existing_grid_
+    cdef int all_children_are_elements, refine_mode_, interp_method_, use_existing_grid_, refinement_points_density
 
     if refine_mode:
         refine_mode_ = 1
@@ -195,6 +243,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
         use_existing_grid_ = 0
 
     interp_method_ = interp_method
+    refinement_points_density = REFINEMENT_POINTS_DENSITY
 
     try:
         sum_abs_max_num_points = 0
@@ -343,7 +392,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 jobs_c[i].operating_point[0] = circuit_component.operating_point[0]
                 jobs_c[i].operating_point[1] = bottom_up_operating_point_V
                 jobs_c[i].operating_point[2] = normalized_operating_point_V
-                jobs_c[i].refinement_points = int(125*np.sqrt(circuit_component.num_circuit_elements))
+                jobs_c[i].refinement_points = int(refinement_points_density*np.sqrt(circuit_component.num_circuit_elements))
                 circuit_component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
                 circuit_component.normalized_operating_point = [normalized_operating_point_V,normalized_operating_point_I]
                 jobs_c[i].all_children_are_elements = all_children_are_elements
