@@ -602,9 +602,12 @@ void combine_iv_job(int connection,
     // --- Series connection branch (connection == 0) ---
     if (connection == 0) {
         if (use_existing_grid==1) {
-            int Ni = (*this_IV).length;
-            memcpy(Is, (*this_IV).I, Ni * sizeof(double));
-            vs_len = Ni;
+            int N = (*this_IV).length;
+            memcpy(Is, (*this_IV).I, N * sizeof(double));
+            if (area != 1) {
+                for (int i=0; i<N; i++) Is[i] /= area;
+            }
+            vs_len = N;
         }
         double I_range = 0;
         if (use_existing_grid!=1) {

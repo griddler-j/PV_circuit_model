@@ -4,6 +4,7 @@ from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
+import matplotlib.ticker as mticker
 
 BASE_UNITS = {
     "Pmax": ("W",  "W"),
@@ -214,7 +215,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
             break
     return trial_J01, trial_J02
 
-def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decimals=True):
+def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decimals=True, include_bounds=False):
     words = {}
     curves = {"normal":np.array([self.IV_V,self.IV_I])}
     if hasattr(self,"IV_V_lower"):
@@ -243,7 +244,10 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
         else:
             decimals = 6
         words[key] = f"{key} = {value:.{decimals}f}{error_word} {BASE_UNITS[key][display_or_latex]}"
-    return words
+        if hasattr(self,"IV_V_lower") and include_bounds:
+            words[key] += f" (from lower bound curve: {all_parameters["lower"][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]}"
+            words[key] += f", from upper bound curve: {all_parameters["upper"][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]})"
+    return words, parameters
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
     if self.IV_V is None:
@@ -266,44 +270,79 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
         find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
-        if hasattr(self,"IV_V_lower"):
-            plt.plot(self.IV_V_lower,-self.IV_I_lower,color="gray")
-            plt.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
-        plt.plot(self.IV_V,-self.IV_I)
+        _, ax1 = plt.subplots()
+
+        # Left Y-axis
+        # if bottom_up_operating_point:
+        #     ax1.plot(self.IV_V_lower,-self.IV_I_lower,color="green")
+        #     ax1.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
+        ax1.plot(self.IV_V,-self.IV_I)
         if find_near_op is not None:
-            plt.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
+            ax1.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
         if self.operating_point is not None:
-            plt.plot(self.operating_point[0],-self.operating_point[1],marker='o')
-        plt.xlim((0,Voc*1.1))
-        plt.ylim((0,Isc*1.1))
+            ax1.plot(self.operating_point[0],-self.operating_point[1],marker='o',color="blue")
+        ax1.set_xlim((0,Voc*1.1))
+        ax1.set_ylim((0,Isc*1.1))
+        ax1.set_xlabel("Voltage (V)")
+        ax1.set_ylabel("Current (A)")
+        ax2 = ax1.twinx()
+
+        P = -self.IV_V*self.IV_I
+        # Right Y-axis (shares same X)
+        ax2.plot(self.IV_V,P,color="orange")
+        if find_near_op is not None:
+            ax2.plot(self.IV_V[find_near_op],P[find_near_op],color="red")
+        if self.operating_point is not None:
+            ax2.plot(self.operating_point[0],-self.operating_point[0]*self.operating_point[1],marker='o',color="orange")
+        ax2.set_ylim((0,np.max(P)*1.1))
+        ax2.yaxis.set_major_formatter(
+            mticker.FuncFormatter(lambda x, pos: f"{x:.0e}")
+        )
+        ax2.set_ylabel("Power (W)")
+        if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
+            cell_or_module=1
+            params = ["Isc","Voc","FF","Pmax"]
+            if self._type_number==6 or self._type_number==7: # cell or MJ cell
+                cell_or_module=0
+                params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
+            words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
+        
+            y_space = 0.07
+            ax1.plot(Voc,0,marker='o',color="blue")
+            ax1.plot(0,Isc,marker='o',color="blue")
+            if fourth_quadrant:
+                Imp *= -1
+            ax1.plot(Vmp,Imp,marker='o',color="blue")
+            ax2.plot(Vmp,Imp*Vmp,marker='o',color="orange")
+            for i, param in enumerate(params):
+                ax1.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
+        plt.tight_layout()
     else:
-        if hasattr(self,"IV_V_lower"):
-            plt.plot(self.IV_V_lower,-self.IV_I_lower,color="gray")
-            plt.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
         plt.plot(self.IV_V,self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],self.IV_I[find_near_op],color="red")
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
-    if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
-        cell_or_module=1
-        params = ["Isc","Voc","FF","Pmax"]
-        if self._type_number==6 or self._type_number==7: # cell or MJ cell
-            cell_or_module=0
-            params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
-        words = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
-    
-        y_space = 0.07
-        plt.plot(Voc,0,marker='o',color="blue")
-        plt.plot(0,Isc,marker='o',color="blue")
-        if fourth_quadrant:
-            Imp *= -1
-        plt.plot(Vmp,Imp,marker='o',color="blue")
-        for i, param in enumerate(params):
-            plt.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
+        plt.xlabel("Voltage (V)")
+        plt.ylabel("Current (A)")
+        if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
+            cell_or_module=1
+            params = ["Isc","Voc","FF","Pmax"]
+            if self._type_number==6 or self._type_number==7: # cell or MJ cell
+                cell_or_module=0
+                params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
+            words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
         
-    plt.xlabel("Voltage (V)")
-    plt.ylabel("Current (A)")
+            y_space = 0.07
+            plt.plot(Voc,0,marker='o',color="blue")
+            plt.plot(0,Isc,marker='o',color="blue")
+            if fourth_quadrant:
+                Imp *= -1
+            plt.plot(Vmp,Imp,marker='o',color="blue")
+            for i, param in enumerate(params):
+                plt.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
+        
+    
     plt.gcf().canvas.manager.set_window_title(title)
 CircuitComponent.plot = plot
 
@@ -405,27 +444,31 @@ def solver_summary_heap(job_heap):
     IV_time = job_heap.timers["IV"]
     refine_time = job_heap.timers["refine"]
     bounds_time = job_heap.timers["bounds"]
-    paragraph = "I-V Parameters:\n"
     component = job_heap.components[0]
+    if component.refined_IV:
+        paragraph = "I-V Parameters:\n"
+    else:
+        paragraph = "I-V Parameters (coarse - run device.get_Pmax() to get refinement!):\n"
     cell_or_module=1
     params = ["Isc","Imp","Voc","Vmp","FF","Pmax"]
     if component._type_number==6 or component._type_number==7: # cell or MJ cell
         cell_or_module=0
         params = ["Isc","Jsc","Imp","Jmp","Voc","Vmp","FF","Pmax","Eff","Area"]
-    words = get_IV_parameter_words(component, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=False)
+    words, _ = get_IV_parameter_words(component, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=False, include_bounds=True)
     for param in params:
-        paragraph += words[param] + "\n"
-    paragraph += "-------------------------\n"
+        paragraph += words[param]
+        paragraph += "\n"
+    paragraph += "----------------------------------------------------------------------------\n"
     if component.operating_point is not None:
         paragraph += "Operating Point:\n"
         paragraph += f"V = {component.operating_point[0]:.6f} V, I = {-component.operating_point[1]:.6f} A\n"
-        paragraph += "-------------------------\n"
+        paragraph += "----------------------------------------------------------------------------\n"
     if hasattr(component,"bottom_up_operating_point"):
-        paragraph += "Calculation Error of Operating Point\n"
+        paragraph += "Calculation Error of Operating Point:\n"
         worst_V_error, worst_I_error = job_heap.calc_Kirchoff_law_errors()
         paragraph += f"Kirchhoff’s Voltage Law deviation: V error <= {worst_V_error:.3e} V\n"
         paragraph += f"Kirchhoff’s Current Law deviation: I error <= {worst_I_error:.3e} A\n"
-        paragraph += "-------------------------\n"
+        paragraph += "----------------------------------------------------------------------------\n"
     paragraph += "Calculation Times:\n"
     total_time = build_time + IV_time
     paragraph += f"Build: {build_time:.6f}s\n"
@@ -441,25 +484,26 @@ def solver_summary_heap(job_heap):
     return paragraph
 
 def solver_summary(self):
-    paragraph = "--------------------------\n"
+    paragraph = "----------------------------------------------------------------------------\n"
     paragraph += "I-V Solver Summary for "
     if getattr(self,"name",None) is not None and self.name != "":
         paragraph += f"{self.name} of "
     paragraph += f" type {type(self).__name__}:\n"
-    paragraph += "--------------------------\n"
-    paragraph += f"Circuit Depth: {self.circuit_depth}\n"
-    paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
-    paragraph += "--------------------------\n"
+    paragraph += "----------------------------------------------------------------------------\n"
     if hasattr(self,"job_heap") and self.IV_V is not None:
-        paragraph += "Solver Environment Variables:\n"
-        solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
-        for key, value in solver_env_variables_dict.items():
-            paragraph += f"{key}: {value}\n"
-        paragraph += "--------------------------\n"
         paragraph += solver_summary_heap(self.job_heap)
     else:
-        paragraph += "I-V Curve has not been calculated"
-    paragraph += "--------------------------\n"
+        paragraph += "I-V Curve has not been calculated\n"
+    paragraph += "----------------------------------------------------------------------------\n"
+    paragraph += f"CircuitGroup Information: {self.circuit_depth}\n"
+    paragraph += f"Circuit Depth: {self.circuit_depth}\n"
+    paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
+    paragraph += "----------------------------------------------------------------------------\n"
+    paragraph += "Solver Environment Variables:\n"
+    solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
+    for key, value in solver_env_variables_dict.items():
+        paragraph += f"{key}: {value}\n"
+    paragraph += "----------------------------------------------------------------------------\n"
 
     return paragraph
 
