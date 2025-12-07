@@ -12,18 +12,20 @@ REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESH
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")
+    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper", 
+                  "job_heap", "refined_IV","operating_point","bottom_up_operating_point")
     max_I = None
     max_num_points = None
+    IV_V = None  
+    IV_I = None  
+    operating_point = None
+    num_circuit_elements = 1
+    circuit_depth = 1
     def __init__(self,tag=None):
-        self.IV_V = None  # 1D float64
-        self.IV_I = None  # 1D float64
-        self.operating_point = None #V,I
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
         self.tag = tag
-        self.num_circuit_elements = 1
-        self.circuit_depth = 1
 
     @property
     def IV_table(self):
@@ -49,11 +51,16 @@ class CircuitComponent(ParamSerializable):
         self.IV_I = value[1, :].copy()
 
     def null_IV(self):
-        self.refined_IV = False
-        self.IV_V = None
-        self.IV_I = None
+        self.clear_artifacts()
         if self.parent is not None:
             self.parent.null_IV()
+
+    def null_all_IV(self):
+        self.clear_artifacts()
+        if self._type_number >= 5: # is CircuitGroup
+            for element in self.subgroups:
+                element.null_all_IV()
+
     def build_IV(self):
         gc.disable()
         self.job_heap = IV_Job_Heap(self)
@@ -261,24 +268,6 @@ class CircuitGroup(CircuitComponent):
     def add_element(self,element):
         self.subgroups.append(element)
         element.parent = self
-
-    def null_all_IV(self):
-        self.IV_V = None
-        self.IV_I = None
-        if hasattr(self,"refined_IV") and self.refined_IV:
-            self.refined_IV = False
-        for element in self.subgroups:
-            if isinstance(element,CircuitElement):
-                element.IV_V = None
-                element.IV_I = None
-            else:
-                element.null_all_IV()
-
-    def reassign_parents(self):
-        for element in self.subgroups:
-            element.parent = self
-            if isinstance(element,CircuitGroup):
-                element.reassign_parents()
 
     def set_operating_point(self,V=None,I=None,refine_IV=False):
         if self.IV_V is None or not hasattr(self,"job_heap"):

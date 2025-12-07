@@ -240,9 +240,7 @@ def convert_ndarrays_to_lists(obj):
 
 class ParamSerializable:
     _critical_fields = ()
-    # fields that should NOT go into params (derived or runtime-only)
-    _transient_fields = {"IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper", "job_heap", "refined_IV","operating_point"}
-
+    _artifacts = ()
     def clone(self,parent=None):    
         new = self.__class__.__new__(self.__class__)
         subgroups = getattr(self,"subgroups",[])
@@ -257,14 +255,18 @@ class ParamSerializable:
             if k=="parent": # already done, skip
                 continue 
             if isinstance(v,ParamSerializable):
-                pass
+                if k in self._critical_fields:
+                    d[k] = v.clone()
             elif isinstance(v, list):
                 if len(v)>0 and isinstance(v[0],ParamSerializable):
                     pass
                 else:
                     d[k] = v[:]  # shallow list copy
-            elif k=="IV_V" or k=="IV_I":
-                d[k] = None # just null all the IVs
+            elif k in self._artifacts:
+                if hasattr(type(self), k):
+                    d[k] = getattr(type(self), k)
+                else:
+                    pass # don't copy
             elif hasattr(v, "copy"):  # NumPy array or similar
                 d[k] = v.copy()
             elif isinstance(v, dict):
@@ -282,15 +284,23 @@ class ParamSerializable:
             getattr(self, f) == getattr(other, f)
             for f in self._critical_fields
         )
+    
+    def clear_artifacts(self):
+        for field in self._artifacts:
+            if hasattr(self, field):
+                if hasattr(type(self), field):
+                    setattr(self, field, getattr(type(self), field))
+                elif field in self.__dict__:
+                    delattr(self, field)
 
     def save_toParams(self, critical_fields_only=False):
         data = {
             "__class__": f"{self.__class__.__module__}.{self.__class__.__name__}"
         }
         for name, value in self.__dict__.items():
-            if name in self._transient_fields or (critical_fields_only and name not in self._critical_fields):
+            if name in self._artifacts or (critical_fields_only and name not in self._critical_fields):
                 continue
-            output = self._save_value(name,value,critical_fields_only=critical_fields_only)
+            output = self._save_value(name,value,critical_fields_only=critical_fields_only,critical_fields=self._critical_fields)
             if output is not None:
                 data[name] = output
         return data
@@ -335,19 +345,22 @@ class ParamSerializable:
         return ParamSerializable._restore_value(params)
 
     @staticmethod
-    def _save_value(field_name,value,critical_fields_only=False):
+    def _save_value(field_name,value,critical_fields_only=False,critical_fields=None):
         if isinstance(value, ParamSerializable): # we don't store any references to other ParamSerializables, except those found in subgroups
-            if field_name != "subgroups":
+            if field_name != "subgroups" and (critical_fields is None or field_name not in critical_fields):
                 return None
             return value.save_toParams(critical_fields_only=critical_fields_only)
 
         if isinstance(value, (list, tuple)): # we don't store any references to other ParamSerializables, except those found in subgroups
-            if field_name != "subgroups":
+            if field_name == "subgroups":
+                return [ParamSerializable._save_value(field_name, v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for v in value]
+            elif len(value)>0 and isinstance(value[0],ParamSerializable):
                 return None
-            return [ParamSerializable._save_value(field_name, v) for v in value]
+            else:
+                return value[:]
 
         if isinstance(value, dict):
-            return {k: ParamSerializable._save_value("generic",v) for k, v in value.items()}
+            return {k: ParamSerializable._save_value("generic",v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for k, v in value.items()}
 
         if isinstance(value, np.ndarray):
             return {
