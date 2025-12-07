@@ -175,10 +175,10 @@ cdef class IV_Job_Heap:
             self.run_IV(refine_mode=True)
             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
-            self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve 
+            self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve 
             self.components[0].IV_V_upper = self.components[0].IV_V.copy()
             self.components[0].IV_I_upper = self.components[0].IV_I.copy()
-            self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve 
+            self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve 
             self.components[0].IV_V_lower = self.components[0].IV_V.copy()
             self.components[0].IV_I_lower = self.components[0].IV_I.copy()
             self.components[0].IV_V = self.components[0].IV_V_temp.copy()

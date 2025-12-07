@@ -8746,7 +8746,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_16ca
  *             self.run_IV(refine_mode=True)
  *             self.components[0].IV_V_temp = self.components[0].IV_V.copy()             # <<<<<<<<<<<<<<
  *             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
- *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve
  */
     if (unlikely(__pyx_v_self->components == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
@@ -8790,7 +8790,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_16ca
  *             self.run_IV(refine_mode=True)
  *             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_temp = self.components[0].IV_I.copy()             # <<<<<<<<<<<<<<
- *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve
  *             self.components[0].IV_V_upper = self.components[0].IV_V.copy()
  */
     if (unlikely(__pyx_v_self->components == Py_None)) {
@@ -8834,22 +8834,22 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_16ca
     /* "PV_Circuit_Model/IV_jobs.pyx":178
  *             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
- *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve             # <<<<<<<<<<<<<<
+ *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve             # <<<<<<<<<<<<<<
  *             self.components[0].IV_V_upper = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_upper = self.components[0].IV_I.copy()
  */
     __pyx_t_7.__pyx_n = 3;
     __pyx_t_7.refine_mode = 1;
     __pyx_t_7.interp_method = __pyx_int_2;
-    __pyx_t_7.use_existing_grid = Py_True;
+    __pyx_t_7.use_existing_grid = Py_False;
     ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->run_IV(__pyx_v_self, 0, &__pyx_t_7); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 178, __pyx_L1_error)
 
     /* "PV_Circuit_Model/IV_jobs.pyx":179
  *             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
- *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve
  *             self.components[0].IV_V_upper = self.components[0].IV_V.copy()             # <<<<<<<<<<<<<<
  *             self.components[0].IV_I_upper = self.components[0].IV_I.copy()
- *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve
  */
     if (unlikely(__pyx_v_self->components == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
@@ -8890,10 +8890,10 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_16ca
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
     /* "PV_Circuit_Model/IV_jobs.pyx":180
- *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve
  *             self.components[0].IV_V_upper = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_upper = self.components[0].IV_I.copy()             # <<<<<<<<<<<<<<
- *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve
  *             self.components[0].IV_V_lower = self.components[0].IV_V.copy()
  */
     if (unlikely(__pyx_v_self->components == Py_None)) {
@@ -8937,19 +8937,19 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_16ca
     /* "PV_Circuit_Model/IV_jobs.pyx":181
  *             self.components[0].IV_V_upper = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_upper = self.components[0].IV_I.copy()
- *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve             # <<<<<<<<<<<<<<
+ *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve             # <<<<<<<<<<<<<<
  *             self.components[0].IV_V_lower = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_lower = self.components[0].IV_I.copy()
  */
     __pyx_t_7.__pyx_n = 3;
     __pyx_t_7.refine_mode = 1;
     __pyx_t_7.interp_method = __pyx_int_3;
-    __pyx_t_7.use_existing_grid = Py_True;
+    __pyx_t_7.use_existing_grid = Py_False;
     ((struct __pyx_vtabstruct_16PV_Circuit_Model_14IV_jobs_cython_IV_Job_Heap *)__pyx_v_self->__pyx_vtab)->run_IV(__pyx_v_self, 0, &__pyx_t_7); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 181, __pyx_L1_error)
 
     /* "PV_Circuit_Model/IV_jobs.pyx":182
  *             self.components[0].IV_I_upper = self.components[0].IV_I.copy()
- *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve
  *             self.components[0].IV_V_lower = self.components[0].IV_V.copy()             # <<<<<<<<<<<<<<
  *             self.components[0].IV_I_lower = self.components[0].IV_I.copy()
  *             self.components[0].IV_V = self.components[0].IV_V_temp.copy()
@@ -8993,7 +8993,7 @@ static PyObject *__pyx_pf_16PV_Circuit_Model_14IV_jobs_cython_11IV_Job_Heap_16ca
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
     /* "PV_Circuit_Model/IV_jobs.pyx":183
- *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve
+ *             self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve
  *             self.components[0].IV_V_lower = self.components[0].IV_V.copy()
  *             self.components[0].IV_I_lower = self.components[0].IV_I.copy()             # <<<<<<<<<<<<<<
  *             self.components[0].IV_V = self.components[0].IV_V_temp.copy()
