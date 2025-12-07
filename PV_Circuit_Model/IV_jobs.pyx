@@ -20,7 +20,7 @@ PARAM_DIR = PACKAGE_ROOT / "parameters"
 cdef class IV_Job_Heap:
     cdef public list components
     cdef list min_child_id
-    cdef public object bottom_up_operating_points, timers, errors
+    cdef public object bottom_up_operating_points, timers
     cdef Py_ssize_t job_done_index
     cdef Py_ssize_t n_components
     
@@ -32,7 +32,6 @@ cdef class IV_Job_Heap:
         self.bottom_up_operating_points = None
         self.job_done_index = 1  # will reset in build()
         self.timers = {"build":0.0,"IV":0.0,"refine":0.0,"bounds":0.0}
-        self.errors = {"V":0.0,"I":0.0}
 
     def __init__(self, object circuit_component):
         # build the heap structure
@@ -136,57 +135,6 @@ cdef class IV_Job_Heap:
 
         duration = time.time() - start_time
         self.timers["refine"] = duration
-
-    cpdef void get_bottom_up_operating_points(self):
-        cdef Py_ssize_t n = self.n_components  # already tracked in your class
-        cdef Py_ssize_t i, j, count, n_sub
-        cdef double V, I, max_V, min_V, max_I, min_I, area
-        cdef double[:, :] bop = self.bottom_up_operating_points
-        cdef list comps = self.components
-        # Walk bottom-up via indices instead of reversed(self.components)
-        for i in range(n - 1, -1, -1):
-            component = comps[i]
-            area = 1
-            if component._type_number < 5:
-                # CircuitElement: operating_point is already "exact"
-                # component.operating_point is a Python sequence [V, I]
-                bop[i, 0] = <double> component.operating_point[0]
-                bop[i, 1] = <double> component.operating_point[1]
-                component.bottom_up_operating_point = component.operating_point
-            else:
-                if component._type_number==6: # cell
-                    area = component.area
-                # CircuitGroup: aggregate children
-                V = 0.0
-                I = 0.0
-                subgroups = component.subgroups
-                n_sub = len(subgroups)
-                for j in range(n_sub):
-                    element = subgroups[j]
-                    V_ = <double> element.bottom_up_operating_point[0]
-                    I_ = <double> element.bottom_up_operating_point[1]*area
-                    V += V_
-                    I += I_
-                    if j==0 or V_>max_V:
-                        max_V = V_
-                    if j==0 or V_<min_V:
-                        min_V = V_
-                    if j==0 or I_>max_I:
-                        max_I = I_
-                    if j==0 or I_<min_I:
-                        min_I = I_
-
-                if component.connection == "series":
-                    I /= n_sub
-                else:
-                    V /= n_sub
-                bop[i, 0] = V
-                bop[i, 1] = I
-                bop[i, 2] = max_V
-                bop[i, 3] = min_V
-                bop[i, 4] = max_I
-                bop[i, 5] = min_I
-                component.bottom_up_operating_point = [V,I]
                     
     cpdef void run_IV(self, bint refine_mode=False, interp_method=0, use_existing_grid=False):
         start_time = time.time()
@@ -217,8 +165,11 @@ cdef class IV_Job_Heap:
             self.timers["IV"] = duration
 
     def refine_IV(self):
-        self.run_IV(refine_mode=True)
-        if _REPORT_UNCERTAINTY:
+        if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
+            self.run_IV(refine_mode=True)
+
+    def calc_uncertainty(self):
+        if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
             start_time = time.time()
             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
@@ -238,26 +189,33 @@ cdef class IV_Job_Heap:
 
     def calc_Kirchoff_law_errors(self):
         cdef double worst_V_error, worst_I_error, largest_V, smallest_V, largest_I, smallest_I
-        if hasattr(self.components[0],"refined_IV") and self.components[0].refined_IV:
+        cdef int has_started
+        if self.components[0].refined_IV:
             for component in self.components:
                 if component._type_number>=5: #CircuitGroup
+                    largest_V = 0
+                    smallest_V = 0
+                    largest_I = 0
+                    smallest_I = 0
+                    has_started = 0
                     for i, element in enumerate(component.subgroups):
-                        if i==0:
-                            largest_V = element.bottom_up_operating_point[0]
-                            smallest_V = element.bottom_up_operating_point[0]
-                            largest_I = element.bottom_up_operating_point[1]
-                            smallest_I = element.bottom_up_operating_point[1]
-                        else:
-                            largest_V = max(largest_V,element.bottom_up_operating_point[0])
-                            smallest_V = min(smallest_V,element.bottom_up_operating_point[0])
-                            largest_I = max(largest_I,element.bottom_up_operating_point[1])
-                            smallest_I = min(smallest_I,element.bottom_up_operating_point[1])
+                        if element._type_number >= 5:
+                            if has_started==0:
+                                largest_V = element.bottom_up_operating_point[0]
+                                smallest_V = element.bottom_up_operating_point[0]
+                                largest_I = element.bottom_up_operating_point[1]
+                                smallest_I = element.bottom_up_operating_point[1]
+                                has_started = 1
+                            else:
+                                largest_V = max(largest_V,element.bottom_up_operating_point[0])
+                                smallest_V = min(smallest_V,element.bottom_up_operating_point[0])
+                                largest_I = max(largest_I,element.bottom_up_operating_point[1])
+                                smallest_I = min(smallest_I,element.bottom_up_operating_point[1])
                     if component.connection=="series": # require same I
                         worst_I_error = max(worst_I_error, largest_I-smallest_I)
                     else: # require same V
                         worst_V_error = max(worst_V_error, largest_V-smallest_V)
-            self.errors["V"] = worst_V_error
-            self.errors["I"] = worst_I_error
+            return worst_V_error, worst_I_error
         
                     
         

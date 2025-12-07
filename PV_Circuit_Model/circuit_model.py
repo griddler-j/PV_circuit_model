@@ -18,6 +18,7 @@ class CircuitComponent(ParamSerializable):
     max_num_points = None
     IV_V = None  
     IV_I = None  
+    refined_IV = False
     operating_point = None
     num_circuit_elements = 1
     circuit_depth = 1
@@ -66,10 +67,34 @@ class CircuitComponent(ParamSerializable):
         self.job_heap = IV_Job_Heap(self)
         self.job_heap.run_IV()
         gc.enable()
+
     def refine_IV(self):
-        if not hasattr(self,"job_heap"):
-            self.job_heap = IV_Job_Heap(self)
-        self.job_heap.refine_IV()
+        if hasattr(self,"job_heap") and getattr(self,"operating_point",None) is not None:
+            gc.disable()
+            self.job_heap.refine_IV()
+            self.refined_IV = True
+            gc.enable()
+
+    def solver_summary(self):
+        paragraph = "--------------------------\n"
+        paragraph += "I-V Solver Summary for "
+        if getattr(self,"name",None) is not None and self.name != "":
+            paragraph += f"{self.name} of "
+        paragraph += f" type {type(self).__name__}:\n"
+        paragraph += "--------------------------\n"
+        paragraph += f"Circuit Depth: {self.circuit_depth}\n"
+        paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
+        paragraph += "--------------------------\n"
+        if hasattr(self,"job_heap") and self.IV_V is not None:
+            paragraph += "Solver Environment Variables:\n"
+            solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
+            for key, value in solver_env_variables_dict.items():
+                paragraph += f"{key}: {value}\n"
+            paragraph += "--------------------------\n"
+            paragraph += solver_summary(job_heap)
+        else:
+            paragraph += "I-V Curve has not been calculated"
+        paragraph += "--------------------------\n"
 
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
@@ -270,7 +295,9 @@ class CircuitGroup(CircuitComponent):
         element.parent = self
 
     def set_operating_point(self,V=None,I=None,refine_IV=False):
-        if self.IV_V is None or not hasattr(self,"job_heap"):
+        if not hasattr(self,"job_heap"):
+            self.build_IV()
+        elif self.IV_V is None:
             self.job_heap.run_IV()
         gc.disable()
         self.job_heap.set_operating_point(V,I)

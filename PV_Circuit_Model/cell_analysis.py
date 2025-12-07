@@ -5,8 +5,35 @@ from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
 
+BASE_UNITS = {
+    "Pmax": ("W",  "W"),
+    "Vmp":  ("V",  "V"),
+    "Imp":  ("A",  "A"),
+    "Voc":  ("V",  "V"),
+    "Isc":  ("A",  "A"),
+    "FF":   ("%",  r"\%"),
+    "Eff":   ("%",  r"\%"),
+    "Area": ("cm²", r"cm$^2$"),
+    "Jsc":  ("mA/cm²", r"mA/cm$^2$"),
+    "Jmp":  ("mA/cm²", r"mA/cm$^2$"),
+}
+
+DISPLAY_DECIMALS = {
+    "Pmax": (3,2),
+    "Vmp":  (4,2),
+    "Imp":  (3,3),
+    "Voc":  (4,2),
+    "Isc":  (3,3),
+    "FF":   (3,3),
+    "Eff":   (3,3),
+    "Area": (3,3),
+    "Jsc":  (3,3),
+    "Jmp":  (3,3),
+}
+
 solver_env_variables = ParameterSet.get_set("solver_env_variables")
 REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
+
 
 def get_Voc(argument):
     if isinstance(argument,CircuitGroup):
@@ -55,7 +82,7 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     index = np.argmax(power)
     Vmp = V[index]
     
-    if isinstance(argument,CircuitGroup) and refine_IV and (not hasattr(argument,"refined_IV") or not argument.refined_IV):
+    if isinstance(argument,CircuitGroup) and refine_IV and not argument.refined_IV:
         if not hasattr(argument,"job_heap"):
             argument.build_IV()
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
@@ -187,11 +214,42 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
             break
     return trial_J01, trial_J02
 
+def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decimals=True):
+    words = {}
+    curves = {"normal":np.array([self.IV_V,self.IV_I])}
+    if hasattr(self,"IV_V_lower"):
+        curves["lower"] = np.array([self.IV_V_lower,self.IV_I_lower])
+        curves["upper"] = np.array([self.IV_V_upper,self.IV_I_upper])
+    all_parameters = {}
+    for key, _ in curves.items():
+        all_parameters[key] = {}
+        parameters = all_parameters[key]
+        parameters["Pmax"], parameters["Vmp"], parameters["Imp"] = self.get_Pmax(return_op_point=True)
+        parameters["Imp"] *= -1
+        parameters["Voc"] = self.get_Voc()
+        parameters["Isc"] = self.get_Isc()
+        parameters["FF"] = self.get_FF()*100
+        if hasattr(self,"area"):
+            parameters["Jsc"] = parameters["Isc"]/self.area*1000
+            parameters["Jmp"] = parameters["Imp"]/self.area*1000
+            parameters["Area"] = self.area
+            parameters["Eff"] = parameters["Pmax"]/self.area*1000
+    for key, value in all_parameters["normal"].items():
+        error_word = ""
+        if hasattr(self,"IV_V_lower"):
+            error_word = f" \u00B1 {0.5*abs(all_parameters["upper"][key]-all_parameters["lower"][key]):.1e}"
+        if cap_decimals:
+            decimals = DISPLAY_DECIMALS[key][cell_or_module]
+        else:
+            decimals = 6
+        words[key] = f"{key} = {value:.{decimals}f}{error_word} {BASE_UNITS[key][display_or_latex]}"
+    return words
+
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
     if self.IV_V is None:
         self.build_IV()
     if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
-        max_power, Vmp, Imp = self.get_Pmax(return_op_point=True)
+        _, Vmp, Imp = self.get_Pmax(return_op_point=True)
         Voc = self.get_Voc()
         Isc = self.get_Isc()
         FF = self.get_FF()
@@ -222,31 +280,12 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
     if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
-        Isc_error_word = ""
-        Jsc_error_word = ""
-        Voc_error_word = ""
-        FF_error_word = ""
-        Pmax_error_word = ""
-        Eff_error_word = ""
-        if hasattr(self,"IV_V_lower"):
-            low_arr_ = np.array([self.IV_V_lower,self.IV_I_lower])
-            high_arr_ = np.array([self.IV_V_upper,self.IV_I_upper])
-            Pmax_lower = get_Pmax(low_arr_)
-            Pmax_upper = get_Pmax(high_arr_)
-            Voc_lower = get_Voc(low_arr_)
-            Isc_lower = get_Isc(low_arr_)
-            FF_lower = get_FF(low_arr_)
-            Voc_upper = get_Voc(high_arr_)
-            Isc_upper = get_Isc(high_arr_)
-            FF_upper = get_FF(high_arr_)
-            Isc_error_word = f"\u00B1 {0.5*(Isc_upper-Isc_lower):.1e}"
-            if hasattr(self,"area"):
-                Jsc_error_word = f"\u00B1 {0.5*(Isc_upper-Isc_lower)/self.area*1000:.1e}"
-            Voc_error_word = f"\u00B1 {0.5*(Voc_upper-Voc_lower):.1e}"
-            FF_error_word = f"\u00B1 {0.5*abs(FF_upper-FF_lower)*100:.1e}"
-            Pmax_error_word = f"\u00B1 {0.5*(Pmax_upper-Pmax_lower):.1e}"
-            if hasattr(self,"area"):
-                Eff_error_word = f"\u00B1 {0.5*(Pmax_upper-Pmax_lower)/self.area*1000:.1e}"
+        cell_or_module=1
+        params = ["Isc","Voc","FF","Pmax"]
+        if self._type_number==6 or self._type_number==7: # cell or MJ cell
+            cell_or_module=0
+            params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
+        words = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
     
         y_space = 0.07
         plt.plot(Voc,0,marker='o',color="blue")
@@ -254,19 +293,9 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         if fourth_quadrant:
             Imp *= -1
         plt.plot(Vmp,Imp,marker='o',color="blue")
-        if (isinstance(self,Cell) or isinstance(self,MultiJunctionCell) or self.__class__.__name__=="Cell" or self.__class__.__name__=="MultiJunctionCell"):
-            plt.text(Voc*0.05, Isc*(0.8-0*y_space), f"Isc = {Isc:.3f} {Isc_error_word} A")
-            plt.text(Voc*0.05, Isc*(0.8-1*y_space), f"Jsc = {Isc/self.area*1000:.3f} {Jsc_error_word} mA/cm2")
-            plt.text(Voc*0.05, Isc*(0.8-2*y_space), f"Voc = {Voc:.4f} {Voc_error_word} V")
-            plt.text(Voc*0.05, Isc*(0.8-3*y_space), f"FF = {FF*100:.3f} {FF_error_word} %")
-            plt.text(Voc*0.05, Isc*(0.8-4*y_space), f"Pmax = {max_power:.3f} {Pmax_error_word} W")
-            plt.text(Voc*0.05, Isc*(0.8-5*y_space), f"Eff = {max_power/self.area*1000:.3f} {Eff_error_word} %")
-            plt.text(Voc*0.05, Isc*(0.8-6*y_space), f"Area = {self.area:.3f} cm2")
-        else:
-            plt.text(Voc*0.05, Isc*(0.8-0*y_space), f"Isc = {Isc:.3f} {Isc_error_word} A")
-            plt.text(Voc*0.05, Isc*(0.8-1*y_space), f"Voc = {Voc:.2f} {Voc_error_word} V")
-            plt.text(Voc*0.05, Isc*(0.8-2*y_space), f"FF = {FF*100:.3f} {FF_error_word} %")
-            plt.text(Voc*0.05, Isc*(0.8-3*y_space), f"Pmax = {max_power:.2f} {Pmax_error_word} W")
+        for i, param in enumerate(params):
+            plt.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
+        
     plt.xlabel("Voltage (V)")
     plt.ylabel("Current (A)")
     plt.gcf().canvas.manager.set_window_title(title)
@@ -364,3 +393,68 @@ def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=
         J01, J02 = estimate_cell_J01_J02(Jscs[i],Vocs[i],FF=FFs[i],Rs=Rss[i],Rshunt=Rshunts[i],Si_intrinsic_limit=Si_intrinsic_limit,thickness=thicknesses[i])
         cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], area, shape, thickness=thicknesses[i]))
     return MultiJunctionCell(cells)
+
+def solver_summary_heap(job_heap): 
+    build_time = job_heap.timers["build"]
+    IV_time = job_heap.timers["IV"]
+    refine_time = job_heap.timers["refine"]
+    bounds_time = job_heap.timers["bounds"]
+    paragraph = "I-V Parameters:\n"
+    component = job_heap.components[0]
+    cell_or_module=1
+    params = ["Isc","Imp","Voc","Vmp","FF","Pmax"]
+    if component._type_number==6 or component._type_number==7: # cell or MJ cell
+        cell_or_module=0
+        params = ["Isc","Jsc","Imp","Jmp","Voc","Vmp","FF","Pmax","Eff","Area"]
+    words = get_IV_parameter_words(component, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=False)
+    for param in params:
+        paragraph += words[param] + "\n"
+    paragraph += "-------------------------\n"
+    if component.operating_point is not None:
+        paragraph += "Operating Point:\n"
+        paragraph += f"V = {component.operating_point[0]:.6f} V, I = {-component.operating_point[1]:.6f} A\n"
+        paragraph += "-------------------------\n"
+    if hasattr(component,"bottom_up_operating_point"):
+        paragraph += "Calculation Error of Operating Point\n"
+        worst_V_error, worst_I_error = job_heap.calc_Kirchoff_law_errors()
+        paragraph += f"Kirchhoff’s Voltage Law deviation: V error <= {worst_V_error:.3e} V\n"
+        paragraph += f"Kirchhoff’s Current Law deviation: I error <= {worst_I_error:.3e} A\n"
+        paragraph += "-------------------------\n"
+    paragraph += "Calculation Times:\n"
+    total_time = build_time + IV_time
+    paragraph += f"Build: {build_time:.6f}s\n"
+    paragraph += f"I-V curve stacks: {IV_time:.6f}s\n"
+    if hasattr(component,"bottom_up_operating_point"):
+        total_time += refine_time
+        paragraph += f"Refinement around operating point: {refine_time:.6f}s\n"
+    if hasattr(component,"IV_V_lower"):
+        total_time += bounds_time
+        paragraph += f"Uncertainty Calculations: {bounds_time:.6f}s\n"
+    paragraph += f"Total: {total_time:.6f}s\n"
+
+    return paragraph
+
+def solver_summary(self):
+    paragraph = "--------------------------\n"
+    paragraph += "I-V Solver Summary for "
+    if getattr(self,"name",None) is not None and self.name != "":
+        paragraph += f"{self.name} of "
+    paragraph += f" type {type(self).__name__}:\n"
+    paragraph += "--------------------------\n"
+    paragraph += f"Circuit Depth: {self.circuit_depth}\n"
+    paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
+    paragraph += "--------------------------\n"
+    if hasattr(self,"job_heap") and self.IV_V is not None:
+        paragraph += "Solver Environment Variables:\n"
+        solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
+        for key, value in solver_env_variables_dict.items():
+            paragraph += f"{key}: {value}\n"
+        paragraph += "--------------------------\n"
+        paragraph += solver_summary_heap(self.job_heap)
+    else:
+        paragraph += "I-V Curve has not been calculated"
+    paragraph += "--------------------------\n"
+
+    return paragraph
+
+CircuitGroup.solver_summary = solver_summary

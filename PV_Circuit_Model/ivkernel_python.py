@@ -1,6 +1,7 @@
 import numpy as np
 from PV_Circuit_Model.utilities import *
 import tqdm
+import time
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
@@ -341,8 +342,10 @@ class IV_Job_Heap:
         self.components = [circuit_component]
         self.children_job_ids = [[]]
         self.job_done_index = len(self.components)
+        self.timers = {"build":0.0,"IV":0.0,"refine":0.0,"bounds":0.0}
         self.build()
     def build(self):
+        start_time = time.time()
         pos = 0
         while pos < len(self.components):
             circuit_component = self.components[pos] 
@@ -353,6 +356,8 @@ class IV_Job_Heap:
                     self.children_job_ids.append([])
                     self.children_job_ids[pos].append(len(self.components)-1)
             pos += 1
+        duration = time.time() - start_time
+        self.timers["build"] = duration
     def get_runnable_iv_jobs(self,forward=True,refine_mode=False):
         include_indices = []
         start_job_index = self.job_done_index
@@ -381,6 +386,7 @@ class IV_Job_Heap:
         else:
             self.job_done_index = 0
     def set_operating_point(self,V=None,I=None):
+        start_time = time.time()
         self.reset(forward=False)
         pbar = None
         if V is not None:
@@ -435,7 +441,10 @@ class IV_Job_Heap:
                 pbar.update(self.job_done_index-job_done_index_before)
         if pbar is not None:
             pbar.close()
+        duration = time.time() - start_time
+        self.timers["refine"] = duration
     def run_IV(self, refine_mode=False):
+        start_time = time.time()
         self.reset()
         pbar = None
         if self.job_done_index > 100000:
@@ -451,7 +460,40 @@ class IV_Job_Heap:
         if pbar is not None:
             pbar.close()
 
+        duration = time.time() - start_time
+        if refine_mode:
+            self.timers["refine"] += duration  # added to the operating point time
+        else:
+            self.timers["IV"] = duration
+
     def refine_IV(self):
-        self.run_IV(refine_mode=True)
+        if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
+            self.run_IV(refine_mode=True)
+
+    def calc_Kirchoff_law_errors(self):
+        worst_I_error = 0
+        worst_V_error = 0
+        if self.components[0].refined_IV:
+            for component in self.components:
+                if component._type_number>=5: #CircuitGroup
+                    has_started = False
+                    for i, element in enumerate(component.subgroups):
+                        if element._type_number >= 5:
+                            if not has_started:
+                                largest_V = element.bottom_up_operating_point[0]
+                                smallest_V = element.bottom_up_operating_point[0]
+                                largest_I = element.bottom_up_operating_point[1]
+                                smallest_I = element.bottom_up_operating_point[1]
+                                has_started = True
+                            else:
+                                largest_V = max(largest_V,element.bottom_up_operating_point[0])
+                                smallest_V = min(smallest_V,element.bottom_up_operating_point[0])
+                                largest_I = max(largest_I,element.bottom_up_operating_point[1])
+                                smallest_I = min(smallest_I,element.bottom_up_operating_point[1])
+                    if component.connection=="series": # require same I
+                        worst_I_error = max(worst_I_error, largest_I-smallest_I)
+                    else: # require same V
+                        worst_V_error = max(worst_V_error, largest_V-smallest_V)
+        return worst_V_error, worst_I_error
 
 
