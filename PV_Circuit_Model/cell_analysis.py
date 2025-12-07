@@ -5,6 +5,10 @@ from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
+import tkinter as tk
+from tkinter.scrolledtext import ScrolledText
+
+_TK_ROOT = None
 
 BASE_UNITS = {
     "Pmax": ("W",  "W"),
@@ -249,7 +253,7 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
             words[key] += f", from upper bound curve: {all_parameters["upper"][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]})"
     return words, parameters
 
-def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve"):
+def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve", show_solver_summary=True):
     if self.IV_V is None:
         self.build_IV()
     if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
@@ -270,6 +274,9 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
         find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
+        if show_solver_summary:
+            self.show_solver_summary()
+
         _, ax1 = plt.subplots()
 
         # Left Y-axis
@@ -507,4 +514,34 @@ def solver_summary(self):
 
     return paragraph
 
+def show_solver_summary(self):
+    text = self.solver_summary()
+
+    global _TK_ROOT
+    # Create root only once
+    if _TK_ROOT is None:
+        _TK_ROOT = tk.Tk()
+        _TK_ROOT.withdraw()   # hide the root window
+
+    # Create a non-blocking popup
+    win = tk.Toplevel(_TK_ROOT)
+    win.title("I-V Solver Summary")
+    win.geometry("720x600")
+    win.configure(bg="white")
+
+    text_box = ScrolledText(
+        win,
+        wrap="word",
+        bg="white",
+        fg="black",
+        font=("Consolas", 11)
+    )
+    text_box.pack(expand=True, fill="both", padx=10, pady=10)
+
+    text_box.insert("1.0", text)
+    text_box.configure(state="disabled")  # read-only
+
+    win.update_idletasks()   # non-blocking refresh
+
 CircuitGroup.solver_summary = solver_summary
+CircuitGroup.show_solver_summary = show_solver_summary

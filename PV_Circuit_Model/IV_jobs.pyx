@@ -172,7 +172,6 @@ cdef class IV_Job_Heap:
     def calc_uncertainty(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
             start_time = time.time()
-            self.run_IV(refine_mode=True)
             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve 
