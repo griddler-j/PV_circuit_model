@@ -5,7 +5,9 @@ import pickle
 import json
 import numpy as np
 import time
-import PV_Circuit_Model.IV_jobs as iv_jobs
+from PV_Circuit_Model.utilities import ParamSerializable
+from PV_Circuit_Model.circuit_model import CircuitComponent
+import numbers
 
 def get_mode():
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -49,13 +51,13 @@ def make_timestamp():
 
 def make_file_path_with_timestamp(prefix, extension):
     directory = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(directory, prefix + "_" + make_timestamp() + extension)
+    return os.path.join(directory, prefix + "_" + make_timestamp() + "." + extension)
 
-def find_latest_pickle(prefix):
+def find_latest_file(prefix,extension="pkl"):
     directory = os.path.dirname(os.path.abspath(__file__))
 
     # Regex to match files like prefix_YYYY-MM-DD_HHMMSS.pkl
-    pattern = re.compile(rf"{re.escape(prefix)}_(\d{{4}}-\d{{2}}-\d{{2}}_\d{{6}})\.pkl")
+    pattern = re.compile(rf"{re.escape(prefix)}_(\d{{4}}-\d{{2}}-\d{{2}}_\d{{6}})\.{extension}")
 
     latest_file = None
     latest_time = None
@@ -132,12 +134,69 @@ def run_record_or_test(device, this_file_prefix=None, pytest_mode=False):
     this_time_dict = get_fields(device, prefix=this_file_prefix)
     match mode:
         case "record":
-            with open(make_file_path_with_timestamp(this_file_prefix+"_result", ".pkl"), "wb") as f:
+            with open(make_file_path_with_timestamp(this_file_prefix+"_result", "pkl"), "wb") as f:
                 pickle.dump(this_time_dict, f)
         case "test":
-            filepath = find_latest_pickle(this_file_prefix+"_result")
+            filepath = find_latest_file(this_file_prefix+"_result")
             with open(filepath, "rb") as f:
                 last_time_dict = pickle.load(f)
                 all_pass = compare_nested_dicts(last_time_dict, this_time_dict, pytest_mode=pytest_mode)
                 if all_pass:
                     print(this_file_prefix + " all pass!")
+
+def compare_devices(device1,device2,lineage=[],pytest_mode=False):
+    if pytest_mode:
+        assert(device1==device2)
+    if device1!=device2:
+        lineage_word = ""
+        for num in lineage:
+            lineage_word += f".{num}"
+        print("-------------------------------")
+        print(f"device1{lineage_word} != device2{lineage_word} in the following:")
+        for field in device1._critical_fields:
+            if pytest_mode:
+                assert(hasattr(device1,field))
+                assert(hasattr(device2,field))
+            if not hasattr(device1,field):
+                print(f"device1{lineage_word} is missing field {field}")
+            if not hasattr(device2,field):
+                print(f"device2{lineage_word} is missing field {field}")
+            if hasattr(device1,field) and hasattr(device2,field):
+                device1_field = getattr(device1,field)
+                device2_field = getattr(device2,field)
+                if pytest_mode:
+                    assert(device1_field == device2_field)
+                if device1_field != device2_field:
+                    if isinstance(device1_field,list):
+                        if len(device1_field) != len(device2_field):
+                            print(f"{field} has different lengths in device1{lineage_word} ({len(device1_field)}) vs device2{lineage_word} ({len(device2_field)})")
+                        else:
+                            for i in range(len(device1_field)):
+                                item1 = device1_field[i]
+                                item2 = device2_field[i]
+                                if pytest_mode:
+                                    assert(item1 == item2)
+                                if item1 != item2:
+                                    if isinstance(item1,CircuitComponent):
+                                        lineage_ = lineage + [i]
+                                        compare_devices(item1,item2,lineage=lineage_)
+                                    else:
+                                        print(f"{field}[{i}] is different in device1{lineage_word} ({item1}) vs device2{lineage_word} ({item2})")
+                    else:
+                        print(f"{field} is different in device1{lineage_word} ({device1_field}) vs device2{lineage_word} ({device2_field})")
+
+def record_or_compare_artifact(device, this_file_prefix=None,pytest_mode=False):
+    mode = get_mode()
+    match mode:
+        case "record":
+            device.save_to_bson(make_file_path_with_timestamp(this_file_prefix+"_result", "bson"))
+            return device
+        case "test":
+            filepath = find_latest_file(this_file_prefix+"_result","bson")
+            device2 = ParamSerializable.restore_from_bson(filepath)
+            if device==device2:
+                print(this_file_prefix + " artifact matches!")
+            else:
+                compare_devices(device,device2,pytest_mode=pytest_mode)
+                print("\nLoaded the saved device for subsequent testing")
+            return device2

@@ -27,5 +27,6 @@ def main(display=True):
     return string
 
 if __name__ == "__main__": 
-    string = main(display=False)
-    run_record_or_test(string, this_file_prefix="a04")
+    device = main(display=False)
+    device = record_or_compare_artifact(device, this_file_prefix="a04")
+    run_record_or_test(device, this_file_prefix="a04")

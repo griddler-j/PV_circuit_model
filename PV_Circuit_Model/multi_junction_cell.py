@@ -5,20 +5,25 @@ import numbers
 
 class MultiJunctionCell(CircuitGroup):
     _type_number = 7
-    def __init__(self,subcells,Rs=0.1,location=None,
+    def __init__(self,subcells=None,subgroups=None,Rs=0.1,location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
-        self.area = subcells[0].area
-        self.cells = subcells
         self.is_multi_junction_cell = True
-        if Rs > 0:
-            series_resistor = Resistor(cond=self.area/Rs)
-            series_resistor.aux["area"] = self.area
-            self.series_resistor = series_resistor
-            components = subcells + [series_resistor]
+        if subgroups is not None:
+            components = subgroups
         else:
-            self.series_resistor = None
+            components = subcells
+            components.append(Resistor(cond=subcells[0].area/Rs))
         super().__init__(components, connection="series",location=location,rotation=rotation,
-                         name=name,extent=subcells[0].extent)
+                         name=name,extent=components[0].extent)
+        self.cells = []
+        self.series_resistor = None
+        for item in self.subgroups:
+            if isinstance(item,Cell):
+                self.cells.append(item)
+            elif isinstance(item,Resistor):
+                self.series_resistor = item
+        self.area = self.cells[0].area
+        self.series_resistor.aux["area"] = self.area
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
