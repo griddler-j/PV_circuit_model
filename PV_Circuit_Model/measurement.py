@@ -300,7 +300,7 @@ class IV_measurement(Measurement):
     def derive_key_parameters(data,key_parameters,conditions):
         key_parameters["Voc"] = get_Voc(data)
         key_parameters["Isc"] = get_Isc(data)
-        key_parameters["Pmax"], _, _ = get_Pmax(data)
+        key_parameters["Pmax"] = get_Pmax(data)
     def simulate(self,device=None):
         temperature = self.measurement_condition["temperature"]
         Suns = self.measurement_condition["Suns"]

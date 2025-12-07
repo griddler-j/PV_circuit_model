@@ -96,7 +96,7 @@ CircuitGroup.get_FF = get_FF
 def Rs_extraction_two_light_IVs(IV_curves):
     Isc0 = -1*get_Isc(IV_curves[0])
     Isc1 = -1*get_Isc(IV_curves[1])
-    _, Vmp0, Imp0 = get_Pmax(IV_curves[0])
+    _, Vmp0, Imp0 = get_Pmax(IV_curves[0],return_op_point=True)
     delta_I = -Isc0+Imp0
     delta_Is_halfSun = -Isc1+IV_curves[1][1,:]
     V_point = np.interp(delta_I,delta_Is_halfSun,IV_curves[1][0,:])

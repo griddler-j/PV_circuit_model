@@ -2,7 +2,6 @@ import numpy as np
 from tqdm import tqdm
 from PV_Circuit_Model.measurement import *
 from matplotlib import pyplot as plt
-import copy
 import inspect
 import numbers
 import tkinter as tk
@@ -82,7 +81,7 @@ class Fit_Parameter():
         self.value = max(self.value,self.abs_min)    
         self.value = min(self.value,self.abs_max)  
 
-class Fit_Parameters():
+class Fit_Parameters(ParamSerializable):
     def __init__(self,fit_parameters=None,names=None):
         if fit_parameters is not None:
             self.fit_parameters = fit_parameters
@@ -720,7 +719,7 @@ def fit_routine(measurement_samples,fit_parameters,
                 Y = np.array(output["error_vector"])
                 this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
                 RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements,exclude_tags=None))**2)))
-                fit_parameters_clone = copy.deepcopy(fit_parameters)
+                fit_parameters_clone = fit_parameters.clone()
                 fit_parameters_clone.ref_sample = fit_parameters.ref_sample
                 record.append({"fit_parameters": fit_parameters_clone,"output": output})
                 if fit_dashboard is not None and num_of_epochs>0 and not silent_mode:
