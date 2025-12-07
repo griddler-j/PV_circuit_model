@@ -224,11 +224,11 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
     for key, _ in curves.items():
         all_parameters[key] = {}
         parameters = all_parameters[key]
-        parameters["Pmax"], parameters["Vmp"], parameters["Imp"] = self.get_Pmax(return_op_point=True)
+        parameters["Pmax"], parameters["Vmp"], parameters["Imp"] = get_Pmax(curves[key],return_op_point=True)
         parameters["Imp"] *= -1
-        parameters["Voc"] = self.get_Voc()
-        parameters["Isc"] = self.get_Isc()
-        parameters["FF"] = self.get_FF()*100
+        parameters["Voc"] = get_Voc(curves[key])
+        parameters["Isc"] = get_Isc(curves[key])
+        parameters["FF"] = get_FF(curves[key])*100
         if hasattr(self,"area"):
             parameters["Jsc"] = parameters["Isc"]/self.area*1000
             parameters["Jmp"] = parameters["Imp"]/self.area*1000
@@ -266,6 +266,9 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
         find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
+        if hasattr(self,"IV_V_lower"):
+            plt.plot(self.IV_V_lower,-self.IV_I_lower,color="gray")
+            plt.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
         plt.plot(self.IV_V,-self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
@@ -274,6 +277,9 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve")
         plt.xlim((0,Voc*1.1))
         plt.ylim((0,Isc*1.1))
     else:
+        if hasattr(self,"IV_V_lower"):
+            plt.plot(self.IV_V_lower,-self.IV_I_lower,color="gray")
+            plt.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
         plt.plot(self.IV_V,self.IV_I)
         if find_near_op is not None:
             plt.plot(self.IV_V[find_near_op],self.IV_I[find_near_op],color="red")

@@ -28,7 +28,6 @@ except Exception:
     solver_env_variables.set("REMESH_POINTS_DENSITY", REMESH_POINTS_DENSITY)
     solver_env_variables.set("REFINEMENT_POINTS_DENSITY", REFINEMENT_POINTS_DENSITY)
     solver_env_variables.set("REMESH_NUM_ELEMENTS_THRESHOLD", REMESH_NUM_ELEMENTS_THRESHOLD)
-solver_env_variables.set("_REPORT_UNCERTAINTY", False)
 solver_env_variables.set("_PARALLEL_MODE", False)
 solver_env_variables.set("_USE_CYTHON", False)
 

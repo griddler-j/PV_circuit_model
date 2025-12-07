@@ -75,26 +75,10 @@ class CircuitComponent(ParamSerializable):
             self.refined_IV = True
             gc.enable()
 
-    def solver_summary(self):
-        paragraph = "--------------------------\n"
-        paragraph += "I-V Solver Summary for "
-        if getattr(self,"name",None) is not None and self.name != "":
-            paragraph += f"{self.name} of "
-        paragraph += f" type {type(self).__name__}:\n"
-        paragraph += "--------------------------\n"
-        paragraph += f"Circuit Depth: {self.circuit_depth}\n"
-        paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
-        paragraph += "--------------------------\n"
-        if hasattr(self,"job_heap") and self.IV_V is not None:
-            paragraph += "Solver Environment Variables:\n"
-            solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
-            for key, value in solver_env_variables_dict.items():
-                paragraph += f"{key}: {value}\n"
-            paragraph += "--------------------------\n"
-            paragraph += solver_summary(job_heap)
-        else:
-            paragraph += "I-V Curve has not been calculated"
-        paragraph += "--------------------------\n"
+    def calc_uncertainty(self):
+        if hasattr(self,"job_heap") and self.refined_IV:
+            if hasattr(self.job_heap,"calc_uncertainty"): # python version does not have this
+                self.job_heap.calc_uncertainty()
 
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):

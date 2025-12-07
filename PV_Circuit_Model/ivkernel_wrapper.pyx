@@ -16,7 +16,6 @@ PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
 
 _PARALLEL_MODE = True
-_REPORT_UNCERTAINTY = False
 REFINE_V_HALF_WIDTH = 0.005
 _SUPER_DENSE = 0    # don't change!  for debugging only
 MAX_TOLERABLE_RADIANS_CHANGE = 0.008726638 # half a degree
@@ -29,7 +28,6 @@ try:
     ParameterSet(name="solver_env_variables",filename=PARAM_DIR / "solver_env_variables.json")
     solver_env_variables = ParameterSet.get_set("solver_env_variables")
     _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
-    _REPORT_UNCERTAINTY = solver_env_variables["_REPORT_UNCERTAINTY"]
     REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
     MAX_TOLERABLE_RADIANS_CHANGE = solver_env_variables["MAX_TOLERABLE_RADIANS_CHANGE"]
     REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
@@ -39,7 +37,6 @@ except Exception:
     ParameterSet(name="solver_env_variables",data={})
     solver_env_variables = ParameterSet.get_set("solver_env_variables")
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
-    solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
     solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
     solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
     solver_env_variables.set("MAX_TOLERABLE_RADIANS_CHANGE", MAX_TOLERABLE_RADIANS_CHANGE)
@@ -53,11 +50,6 @@ def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE, solver_env_variables
     _PARALLEL_MODE = bool(enabled)
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
-
-def set_report_uncertainty(enabled: bool):
-    global _REPORT_UNCERTAINTY, solver_env_variables
-    _REPORT_UNCERTAINTY = bool(enabled)
-    solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
 
 def set_super_dense(num_points):
     global _SUPER_DENSE

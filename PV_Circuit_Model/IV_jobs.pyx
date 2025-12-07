@@ -7,7 +7,7 @@ import warnings
 import sys
 from pathlib import Path
 from PV_Circuit_Model import ivkernel
-from PV_Circuit_Model.ivkernel import _PARALLEL_MODE, _REPORT_UNCERTAINTY, _SUPER_DENSE
+from PV_Circuit_Model.ivkernel import _PARALLEL_MODE, _SUPER_DENSE
 import numpy as np
 cimport numpy as np
 import time
@@ -159,18 +159,20 @@ cdef class IV_Job_Heap:
             pbar.close()
 
         duration = time.time() - start_time
-        if refine_mode:
-            self.timers["refine"] += duration  # added to the operating point time
-        else:
+        if not refine_mode:
             self.timers["IV"] = duration
 
     def refine_IV(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
+            start_time = time.time()
             self.run_IV(refine_mode=True)
+            duration = time.time() - start_time
+            self.timers["refine"] += duration
 
     def calc_uncertainty(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
             start_time = time.time()
+            self.run_IV(refine_mode=True)
             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve 
