@@ -177,8 +177,11 @@ tandem_cell.show()
 #%%
 
 from PV_Circuit_Model.data_fitting_tandem_cell import *
+import os
 
 json_directory = r"examples/tandem measurement json files/"
+if not os.path.exists(json_directory):
+    json_directory = r"tandem measurement json files/"
 sample_info = {"area":244.26,"bottom_cell_thickness":180e-4}
 
 measurements = get_measurements(json_directory)
@@ -207,6 +210,8 @@ ref_cell_model.draw(title="Tandem Cell with Best Fit Parameters",display_value=T
 from PV_Circuit_Model.data_fitting_tandem_cell import *
 
 json_directory = r"examples/topcon measurement json files/"
+if not os.path.exists(json_directory):
+    json_directory = r"topcon measurement json files/"
 sample_info = {"area":165.34,"bottom_cell_thickness":180e-4}
 
 measurements = get_measurements(json_directory)

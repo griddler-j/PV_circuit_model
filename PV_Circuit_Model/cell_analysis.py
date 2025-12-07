@@ -4,11 +4,24 @@ from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
 import matplotlib
-matplotlib.use("TkAgg")  # likely already the default on Windows
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
+
+def _in_notebook() -> bool:
+    try:
+        from IPython import get_ipython
+        from IPython.display import display
+        return get_ipython() is not None and hasattr(get_ipython(), "kernel")
+    except Exception:
+        return False
+
+IN_NOTEBOOK = _in_notebook()
+if not IN_NOTEBOOK:
+    matplotlib.use("TkAgg")
+
+print("kaka, ", IN_NOTEBOOK)
 
 BASE_UNITS = {
     "Pmax": ("W",  "W"),
@@ -355,7 +368,11 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
 CircuitComponent.plot = plot
 
 def show(self):
-    plt.show()
+    # In notebooks, figures are auto-shown; don't block
+    if IN_NOTEBOOK:
+        plt.show(block=False)   # or even just `return`
+    else:
+        plt.show()
 CircuitComponent.show = show
 
 def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True, **kwargs):
@@ -517,6 +534,10 @@ def solver_summary(self):
 
 def show_solver_summary(self, fig=None):
     text = self.solver_summary()
+    if IN_NOTEBOOK:
+        print(text)
+        return
+    
     """
     If fig is provided:
         - Shows Matplotlib figure + Tk summary window
