@@ -4,10 +4,9 @@ from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
 from matplotlib import pyplot as plt
-try:
-    from PV_Circuit_Model.ivkernel import REFINE_V_HALF_WIDTH
-except: # no cython
-    from PV_Circuit_Model.ivkernel_python import REFINE_V_HALF_WIDTH
+
+solver_env_variables = ParameterSet.get_set("solver_env_variables")
+REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
 
 def get_Voc(argument):
     if isinstance(argument,CircuitGroup):

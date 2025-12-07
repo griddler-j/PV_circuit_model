@@ -5,9 +5,8 @@ import pickle
 import json
 import numpy as np
 import time
-from PV_Circuit_Model.utilities import ParamSerializable
+from PV_Circuit_Model.utilities import ParamSerializable, ParameterSet
 from PV_Circuit_Model.circuit_model import CircuitComponent
-import numbers
 
 def get_mode():
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +23,6 @@ def get_fields(device, prefix=None):
         keys = ["common", prefix]
         device.null_all_IV()
         t1 = time.time()
-        # iv_jobs.kernel_timer.reset()
         device.build_IV()
         for key in keys:
             if key is not None and key in test_attributes:
@@ -41,9 +39,7 @@ def get_fields(device, prefix=None):
                             dict[attribute_name]["value"] = attr()
                         else:
                             dict[attribute_name]["value"] = attr
-        # iv_jobs.kernel_timer.show_log()
         print(f"Finished in {time.time()-t1} seconds")
-        # print(iv_jobs.kernel_timer)
     return dict
 
 def make_timestamp():
@@ -132,14 +128,24 @@ def compare_nested_dicts(dict1, dict2, path="", pytest_mode=False):
 def run_record_or_test(device, this_file_prefix=None, pytest_mode=False):
     mode = get_mode()
     this_time_dict = get_fields(device, prefix=this_file_prefix)
+    this_time_solver_env_variables = ParameterSet.get_set("solver_env_variables")()
+    total_set = {"solver_env_variables": this_time_solver_env_variables, "results": this_time_dict}
     match mode:
         case "record":
             with open(make_file_path_with_timestamp(this_file_prefix+"_result", "pkl"), "wb") as f:
-                pickle.dump(this_time_dict, f)
+                pickle.dump(total_set, f)
         case "test":
             filepath = find_latest_file(this_file_prefix+"_result")
             with open(filepath, "rb") as f:
-                last_time_dict = pickle.load(f)
+                last_time_set = pickle.load(f)
+                last_time_dict = last_time_set["results"]
+                last_time_solver_env_variables = last_time_set["solver_env_variables"]
+                if this_time_solver_env_variables != last_time_solver_env_variables: 
+                    for key, value in this_time_solver_env_variables.items():
+                        if key in last_time_solver_env_variables:
+                            value2 = last_time_solver_env_variables[key]
+                            if value != value2:
+                                print(f"WARNING: The solver env variable {key} is different between last time ({value2}) and this time ({value})")
                 all_pass = compare_nested_dicts(last_time_dict, this_time_dict, pytest_mode=pytest_mode)
                 if all_pass:
                     print(this_file_prefix + " all pass!")

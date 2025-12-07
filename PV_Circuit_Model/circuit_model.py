@@ -6,10 +6,9 @@ from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
 import gc
 
-try:
-    from PV_Circuit_Model.ivkernel import REMESH_POINTS_DENSITY, REMESH_NUM_ELEMENTS_THRESHOLD
-except: # if no cython
-    from PV_Circuit_Model.ivkernel_python import REMESH_POINTS_DENSITY, REMESH_NUM_ELEMENTS_THRESHOLD
+solver_env_variables = ParameterSet.get_set("solver_env_variables")
+REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
+REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")

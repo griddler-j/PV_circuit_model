@@ -11,7 +11,6 @@ REMESH_POINTS_DENSITY = 500
 REFINEMENT_POINTS_DENSITY = 125
 REMESH_NUM_ELEMENTS_THRESHOLD = 50
 
-solver_env_variables = None
 try:
     ParameterSet(name="solver_env_variables",filename=PARAM_DIR / "solver_env_variables.json")
     solver_env_variables = ParameterSet.get_set("solver_env_variables")
@@ -22,11 +21,15 @@ try:
     REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
 except Exception:
     ParameterSet(name="solver_env_variables",data={})
+    solver_env_variables = ParameterSet.get_set("solver_env_variables")
     solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
     solver_env_variables.set("MAX_TOLERABLE_RADIANS_CHANGE", MAX_TOLERABLE_RADIANS_CHANGE)
     solver_env_variables.set("REMESH_POINTS_DENSITY", REMESH_POINTS_DENSITY)
     solver_env_variables.set("REFINEMENT_POINTS_DENSITY", REFINEMENT_POINTS_DENSITY)
     solver_env_variables.set("REMESH_NUM_ELEMENTS_THRESHOLD", REMESH_NUM_ELEMENTS_THRESHOLD)
+solver_env_variables.set("_REPORT_UNCERTAINTY", False)
+solver_env_variables.set("_PARALLEL_MODE", False)
+solver_env_variables.set("_USE_CYTHON", False)
 
 def get_V_range(component):
     VT = component.VT

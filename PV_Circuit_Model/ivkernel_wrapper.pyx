@@ -37,6 +37,7 @@ try:
     REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
 except Exception:
     ParameterSet(name="solver_env_variables",data={})
+    solver_env_variables = ParameterSet.get_set("solver_env_variables")
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
     solver_env_variables.set("_REPORT_UNCERTAINTY", _REPORT_UNCERTAINTY)
     solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
@@ -45,6 +46,8 @@ except Exception:
     solver_env_variables.set("REMESH_POINTS_DENSITY", REMESH_POINTS_DENSITY)
     solver_env_variables.set("REFINEMENT_POINTS_DENSITY", REFINEMENT_POINTS_DENSITY)
     solver_env_variables.set("REMESH_NUM_ELEMENTS_THRESHOLD", REMESH_NUM_ELEMENTS_THRESHOLD)
+
+solver_env_variables.set("_USE_CYTHON", True)
 
 def set_parallel_mode(enabled: bool):
     global _PARALLEL_MODE, solver_env_variables

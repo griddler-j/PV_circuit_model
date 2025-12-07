@@ -2,8 +2,9 @@
     "mode": "test",
     "test_attributes": {"common": [
         {"name":"get_Voc"}, 
-        {"name":"get_Jsc"},
+        {"name":"get_Isc"},
         {"name":"get_FF"}, 
-        {"name":"get_Eff"}
+        {"name":"get_Pmax"},
+        {"name":"operating_point"}
     ]}
 }
