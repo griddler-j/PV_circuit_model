@@ -255,15 +255,15 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
     for key, value in all_parameters["normal"].items():
         error_word = ""
         if hasattr(self,"IV_V_lower"):
-            error_word = f" \u00B1 {0.5*abs(all_parameters["upper"][key]-all_parameters["lower"][key]):.1e}"
+            error_word = f" \u00B1 {0.5*abs(all_parameters['upper'][key]-all_parameters['lower'][key]):.1e}"
         if cap_decimals:
             decimals = DISPLAY_DECIMALS[key][cell_or_module]
         else:
             decimals = 6
         words[key] = f"{key} = {value:.{decimals}f}{error_word} {BASE_UNITS[key][display_or_latex]}"
         if hasattr(self,"IV_V_lower") and include_bounds:
-            words[key] += f" (from lower bound curve: {all_parameters["lower"][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]}"
-            words[key] += f", from upper bound curve: {all_parameters["upper"][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]})"
+            words[key] += f" (from lower bound curve: {all_parameters['lower'][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]}"
+            words[key] += f", from upper bound curve: {all_parameters['upper'][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]})"
     return words, parameters
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve", show_solver_summary=True):
