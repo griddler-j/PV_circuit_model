@@ -3,12 +3,12 @@ from PV_Circuit_Model.circuit_model import *
 from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.multi_junction_cell import *
+import matplotlib
+matplotlib.use("TkAgg")  # likely already the default on Windows
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
-
-_TK_ROOT = None
 
 BASE_UNITS = {
     "Pmax": ("W",  "W"),
@@ -274,10 +274,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
         find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
     if fourth_quadrant and isinstance(self,CircuitGroup):
-        if show_solver_summary:
-            self.show_solver_summary()
-
-        _, ax1 = plt.subplots()
+        fig, ax1 = plt.subplots()
 
         # Left Y-axis
         # if bottom_up_operating_point:
@@ -324,6 +321,10 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
             for i, param in enumerate(params):
                 ax1.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
         plt.tight_layout()
+
+        if show_solver_summary:
+            self.show_solver_summary(fig=fig)
+
     else:
         plt.plot(self.IV_V,self.IV_I)
         if find_near_op is not None:
@@ -514,17 +515,43 @@ def solver_summary(self):
 
     return paragraph
 
-def show_solver_summary(self):
+def show_solver_summary(self, fig=None):
     text = self.solver_summary()
+    """
+    If fig is provided:
+        - Shows Matplotlib figure + Tk summary window
+        - Closing either closes both
 
-    global _TK_ROOT
-    # Create root only once
-    if _TK_ROOT is None:
-        _TK_ROOT = tk.Tk()
-        _TK_ROOT.withdraw()   # hide the root window
+    If fig is None:
+        - Shows only the Tk summary window
+        - No Matplotlib involved
+    """
+    if fig is None:
+        root = tk.Tk()
+        root.title("I-V Solver Summary")
+        root.geometry("720x600")
+
+        text_box = ScrolledText(
+            root,
+            wrap="word",
+            bg="white",
+            fg="black",
+            font=("Consolas", 11)
+        )
+        text_box.pack(expand=True, fill="both", padx=10, pady=10)
+
+        text_box.insert("1.0", text)
+        text_box.configure(state="disabled")
+
+        root.mainloop()
+        return
+    
+
+    manager = plt.get_current_fig_manager()
+    root = manager.window    
 
     # Create a non-blocking popup
-    win = tk.Toplevel(_TK_ROOT)
+    win = tk.Toplevel(root)
     win.title("I-V Solver Summary")
     win.geometry("720x600")
     win.configure(bg="white")
@@ -541,7 +568,29 @@ def show_solver_summary(self):
     text_box.insert("1.0", text)
     text_box.configure(state="disabled")  # read-only
 
-    win.update_idletasks()   # non-blocking refresh
+    def close_all():
+        plt.close(fig)   # closes the Matplotlib figure
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass  # already closed
+
+    # Close button on the Matplotlib figure window
+    root.protocol("WM_DELETE_WINDOW", close_all)
+    # Close button on the summary window
+    win.protocol("WM_DELETE_WINDOW", close_all)
+
+    # Bring the Matplotlib window to the front *after* the event loop starts
+    def bring_fig_to_front():
+        try:
+            root.lift()
+            root.attributes("-topmost", True)
+            root.after(150, lambda: root.attributes("-topmost", False))
+            root.focus_force()
+        except tk.TclError:
+            pass
+
+    root.after(0, bring_fig_to_front)
 
 CircuitGroup.solver_summary = solver_summary
 CircuitGroup.show_solver_summary = show_solver_summary
