@@ -1,8 +1,10 @@
 import warnings
 import sys
 from pathlib import Path
+import platform
 
-_FORCE_PYTHON = False
+_IS_WINDOWS = platform.system().lower().startswith("win")
+_FORCE_PYTHON = not _IS_WINDOWS 
 
 def _try_import_cython():
     """Try importing the fast extension."""

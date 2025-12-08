@@ -21,8 +21,6 @@ IN_NOTEBOOK = _in_notebook()
 if not IN_NOTEBOOK:
     matplotlib.use("TkAgg")
 
-print("kaka, ", IN_NOTEBOOK)
-
 BASE_UNITS = {
     "Pmax": ("W",  "W"),
     "Vmp":  ("V",  "V"),
