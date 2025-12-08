@@ -138,6 +138,9 @@ def build_component_IV_python(component,refine_mode=False):
             bottom_up_operating_point_V /= len(component.subgroups)
             normalized_operating_point_V /= len(component.subgroups)
 
+        if component._type_number==6:
+            bottom_up_operating_point_I *= component.area
+
         component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
         component.normalized_operating_point = [normalized_operating_point_V,normalized_operating_point_I]
 
@@ -250,6 +253,10 @@ def build_component_IV_python(component,refine_mode=False):
             else:
                 Is += interp_(Vs,element.IV_V,element.IV_I)
 
+    find_ = np.where(Vs[1:]<Vs[:-1])[0]
+    if len(find_)>0:
+        Vs = Vs[:find_[0]]
+        Is = Is[:find_[0]]
     component.IV_V = Vs
     component.IV_I = Is
 
@@ -405,7 +412,7 @@ class IV_Job_Heap:
                         if component._type_number < 5: # CircuitElement, direct evaluate
                             if component._type_number == 0: # CurrentSource
                                 IL = component.IL
-                                component.operating_point[1] = IL
+                                component.operating_point[1] = -IL
                             elif component._type_number == 1: # Resistor
                                 cond = component.cond
                                 component.operating_point[1] = cond*V

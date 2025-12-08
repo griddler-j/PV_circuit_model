@@ -384,6 +384,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 else:
                     bottom_up_operating_point_V /= n_children
                     normalized_operating_point_V /= n_children
+                if circuit_component._type_number == 6: # cell
+                     bottom_up_operating_point_I *= area
                 jobs_c[i].operating_point[0] = circuit_component.operating_point[0]
                 jobs_c[i].operating_point[1] = bottom_up_operating_point_V
                 jobs_c[i].operating_point[2] = normalized_operating_point_V
