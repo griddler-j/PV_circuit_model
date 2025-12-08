@@ -518,7 +518,7 @@ def solver_summary(self):
     else:
         paragraph += "I-V Curve has not been calculated\n"
     paragraph += "----------------------------------------------------------------------------\n"
-    paragraph += f"CircuitGroup Information: {self.circuit_depth}\n"
+    paragraph += f"CircuitGroup Information:\n"
     paragraph += f"Circuit Depth: {self.circuit_depth}\n"
     paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
     paragraph += "----------------------------------------------------------------------------\n"
