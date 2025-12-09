@@ -56,9 +56,9 @@ def get_Voc(argument):
         if argument.IV_V is None:
             argument.build_IV()
         
-        if argument.IV_I[-1] < 0: # can't reach OC
+        if argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
             diodes = argument.findElementType(Diode)
-            while argument.IV_I[-1] < 0: # can't reach OC
+            while argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
                 for diode in diodes:
                     diode.max_I *= 10
                 argument.null_all_IV()
@@ -76,6 +76,12 @@ def get_Isc(argument):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
+
+        # if can't reach SC, that's because of the Idomain cap.  In this case just extend.  Not a problem
+        if argument.IV_V[0] > 0:
+             argument.IV_V = np.insert(argument.IV_V, 0, 0)
+             argument.IV_I = np.insert(argument.IV_I, 0, argument.IV_I[0])
+
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
@@ -95,9 +101,9 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
-        if argument.IV_I[-1] < 0: # can't reach OC
+        if argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
             diodes = argument.findElementType(Diode)
-            while argument.IV_I[-1] < 0: # can't reach OC
+            while argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
                 for diode in diodes:
                     diode.max_I *= 10
                 argument.null_all_IV()
