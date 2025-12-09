@@ -9,6 +9,7 @@ import numpy as np
 import json
 import pickle
 import importlib
+import math
 import inspect
 try:
     import bson
@@ -245,6 +246,8 @@ class ParamSerializable:
     _critical_fields = ()
     _artifacts = ()
     _dont_serialize = ()
+    _float_rtol = 1e-6
+    _float_atol = 1e-6
     def clone(self,parent=None):    
         new = self.__class__.__new__(self.__class__)
         subgroups = getattr(self,"subgroups",[])
@@ -286,10 +289,23 @@ class ParamSerializable:
     def __eq__(self, other): 
         if self.__class__ is not other.__class__:
             return NotImplemented
-        return all(
-            getattr(self, f) == getattr(other, f)
-            for f in self._critical_fields
-        )
+        
+        for f in self._critical_fields:
+            a = getattr(self, f)
+            b = getattr(other, f)
+
+            if isinstance(a, float) and isinstance(b, float):
+                if not math.isclose(
+                    a, b,
+                    rel_tol=self._float_rtol,
+                    abs_tol=self._float_atol,
+                ):
+                    return False
+            else:
+                if a != b:
+                    return False
+
+        return True
     
     def clear_artifacts(self):
         for field in self._artifacts:
