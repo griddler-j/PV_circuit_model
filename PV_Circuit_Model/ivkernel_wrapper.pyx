@@ -11,6 +11,7 @@ from libc.string cimport memset
 from PV_Circuit_Model.utilities import ParameterSet 
 from PV_Circuit_Model.utilities_silicon import bandgap_narrowing_RT
 from pathlib import Path
+from libcpp cimport bool as cbool
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
@@ -63,8 +64,10 @@ cdef extern from "ivkernel.h":
         const double* I      # pointer to I array
         int length           # Ni
         double scale
-        int interpolation_range_left
-        int interpolation_range_right
+        cbool left_extrapolation_allowed
+        cbool right_extrapolation_allowed
+        cbool has_lower_I_domain_limit
+        cbool has_upper_I_domain_limit
         int type_number
         double element_params[5]
 
@@ -84,7 +87,8 @@ cdef extern from "ivkernel.h":
         const double* circuit_element_parameters
         double* out_V
         double* out_I
-        int* out_interpolation_range
+        cbool* out_extrapolation_allowed
+        cbool* out_has_I_domain_limit
         int* out_len
         int all_children_are_elements
 
@@ -220,7 +224,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef double tmp, tmp2
     cdef np.float64_t[::1] mv_big_v 
     cdef np.float64_t[::1] mv_big_i 
-    cdef np.int32_t[::1] mv_big_interpolation_range
+    cdef np.uint8_t[::1] mv_big_extrapolation_allowed
+    cdef np.uint8_t[::1] mv_big_has_I_domain_limit
     cdef double* base 
     cdef Py_ssize_t stride_job 
     cdef Py_ssize_t offset, offset2
@@ -232,7 +237,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef int all_children_are_elements, refine_mode_, interp_method_, use_existing_grid_, refinement_points_density
     cdef double* base_v
     cdef double* base_i
-    cdef int* base_interpolation_range 
+    cdef cbool* base_extrapolation_allowed
+    cdef cbool* base_has_I_domain_limit
 
     if refine_mode:
         refine_mode_ = 1
@@ -365,8 +371,12 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 mv_child_i = element.IV_I
                 Ni = mv_child_v.shape[0]
                 abs_max_num_points += Ni
-                children_views[child_base + j].interpolation_range_left = element.interpolation_range[0]
-                children_views[child_base + j].interpolation_range_right = element.interpolation_range[1]
+
+                children_views[child_base + j].left_extrapolation_allowed = element.extrapolation_allowed[0]
+                children_views[child_base + j].right_extrapolation_allowed = element.extrapolation_allowed[1]
+                children_views[child_base + j].has_lower_I_domain_limit = element.has_I_domain_limit[0]
+                children_views[child_base + j].has_upper_I_domain_limit = element.has_I_domain_limit[1]
+
                 children_views[child_base + j].V           = &mv_child_v[0]
                 children_views[child_base + j].I           = &mv_child_i[0]
                 children_views[child_base + j].length      = Ni
@@ -453,7 +463,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 abs_max_num_points = 2
             elif circuit_component_type_number>=2 and circuit_component_type_number<=4: # diode
                 tmp2 = max(jobs_c[i].max_num_points,100.0)
-                tmp = tmp2 / 0.2 * max_I + 5.0
+                tmp = tmp2 / 0.2 * max_I + 6.0
                 abs_max_num_points = <int>(tmp + 0.999999)  # cheap ceil
 
             abs_max_num_points = int(abs_max_num_points)
@@ -469,21 +479,29 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
             sum_abs_max_num_points += abs_max_num_points
 
         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
-        big_out_interpolation_range = np.empty(n_jobs*2, dtype=np.int32)
         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
-        mv_big_v = big_out_V  # anchors the array
-        mv_big_i = big_out_I  # anchors the array
-        mv_big_interpolation_range = big_out_interpolation_range
-        base_v = &mv_big_v[0]              # base pointer into contiguous buffer
-        base_i = &mv_big_i[0]              # base pointer into contiguous buffer
-        base_interpolation_range = <int*>&mv_big_interpolation_range[0]
+        big_out_extrapolation_allowed = np.empty(n_jobs*2, dtype=np.uint8)
+        big_out_has_I_domain_limit = np.empty(n_jobs*2, dtype=np.uint8)
+        
+        # anchors the array
+        mv_big_v = big_out_V  
+        mv_big_i = big_out_I  
+        mv_big_extrapolation_allowed = big_out_extrapolation_allowed 
+        mv_big_has_I_domain_limit = big_out_has_I_domain_limit 
+
+        # base pointer into contiguous buffer
+        base_v = &mv_big_v[0]              
+        base_i = &mv_big_i[0]              
+        base_extrapolation_allowed = <cbool*>&mv_big_extrapolation_allowed[0]
+        base_has_I_domain_limit = <cbool*>&mv_big_has_I_domain_limit[0]
 
         offset = 0
         offset2 = 0
         for i in range(n_jobs):
             jobs_c[i].out_V   = base_v + offset
             jobs_c[i].out_I   = base_i + offset 
-            jobs_c[i].out_interpolation_range = base_interpolation_range + offset2
+            jobs_c[i].out_extrapolation_allowed = base_extrapolation_allowed + offset2
+            jobs_c[i].out_has_I_domain_limit = base_has_I_domain_limit + offset2
             jobs_c[i].out_len = &c_out_len_all[i]
             offset += jobs_c[i].abs_max_num_points
             offset2 += 2
@@ -503,8 +521,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 raise ValueError(f"Negative out_len for job {i}")
             circuit_component.IV_V = big_out_V[offset:offset+olen]
             circuit_component.IV_I = big_out_I[offset:offset+olen]
-            circuit_component.interpolation_range[0] = big_out_interpolation_range[2*i]
-            circuit_component.interpolation_range[1] = big_out_interpolation_range[2*i+1]
+            circuit_component.extrapolation_allowed = [bool(big_out_extrapolation_allowed[2*i]),bool(big_out_extrapolation_allowed[2*i+1])]
+            circuit_component.has_I_domain_limit = [bool(big_out_has_I_domain_limit[2*i]),bool(big_out_has_I_domain_limit[2*i+1])]
             offset += jobs_c[i].abs_max_num_points
 
     finally:

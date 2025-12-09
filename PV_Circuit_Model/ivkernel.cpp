@@ -118,8 +118,11 @@ void build_resistor_iv(
 ) {
     double cond = circuit_element_parameters[0];
     int n = 2;
+    double step = 1e-3;
+    if (cond > 1)
+        step /= cond;
     for (int i=0; i < n; ++i) {
-        out_V[i] = -0.1 + i*0.2;
+        out_V[i] = -step + i*step*2;
         out_I[i] = cond*out_V[i];
     }
     *out_len = n;
@@ -129,12 +132,9 @@ void interp_monotonic_inc(
     const double* __restrict x,   // size n, increasing
     const double* __restrict y,   // size n
     int n,
-    int interpolation_range_left,
-    int interpolation_range_right,
     const double* __restrict xq,  // size m, increasing
     int m,
     double* __restrict yq,         // size m, output
-    int* __restrict interpolation_range,
     bool additive,        // true: adds to yq
     int method // 0-linear, 1-smooth slope, 2-take max, 3-take min
 ) {
@@ -174,13 +174,6 @@ void interp_monotonic_inc(
         }
     }
 
-    if (interpolation_range) {
-        if (j_left > interpolation_range[0])
-            interpolation_range[0] = j_left;
-        if (j_right < interpolation_range[1])
-            interpolation_range[1] = j_right;
-    }
-
     // --- Main interpolation region: x[0] < xq < x[n-1] ---
     int i = 0; // segment index for x
     int prev_i = -1;
@@ -192,12 +185,6 @@ void interp_monotonic_inc(
         while (i + 1 < n - 1 && x[i+1] < xj) 
             ++i;
         if (i > prev_i) {
-            if (interpolation_range) {
-                if (i+1>=interpolation_range_left && prev_i<interpolation_range_left && j > interpolation_range[0])
-                    interpolation_range[0] = j;
-                if (i>=interpolation_range_right && prev_i<interpolation_range_right && j < interpolation_range[1])
-                    interpolation_range[1] = j;
-            }
             if (method>0) {
                 if (this_slope_i==i-1 && std::isfinite(slope))
                     left_slope = slope;
@@ -322,10 +309,9 @@ void calc_intrinsic_Si_I(
         g_bgn_x.data(),
         g_bgn_y.data(),
         (int)g_bgn_x.size(),
-        -1,(int)g_bgn_x.size()+1,
         delta_n.data(),
         n_V,
-        BGN.data(),nullptr,
+        BGN.data(),
         false,        // overwrite
         0
     );
@@ -388,6 +374,8 @@ int get_V_range(const double* __restrict circuit_element_parameters,
     int N = (int)std::floor(max_num_points_);
 
     if (is_reverse_diode) { // reverse order
+        out_V[N+4] = -V_shift + 11;
+        out_V[N+3] = -V_shift + 10.1;
         out_V[N+2] = -V_shift + 1.1;
         out_V[N+1] = -V_shift + 1.0;
         out_V[N] = -V_shift;
@@ -398,24 +386,30 @@ int get_V_range(const double* __restrict circuit_element_parameters,
             --pos;
         }
     } else {
-        out_V[0] = V_shift - 1.1;
-        out_V[1] = V_shift - 1.0;
-        out_V[2] = V_shift;
-        int pos = 3;
+        out_V[0] = V_shift - 11;
+        out_V[1] = V_shift - 10.1;
+        out_V[2] = V_shift - 1.1;
+        out_V[3] = V_shift - 1.0;
+        out_V[4] = V_shift;
+        int pos = 5;
         for (int k = 1; k < N + 1; ++k) {
             double frac = std::log((double)k) / std::log(max_num_points_ - 1);
             out_V[pos] = V_shift + Voc * frac;
             ++pos;
         }
     }
-    return N+3;
+    return N+5;
 }
 
 inline double calc_forward_diode_I(double I0, double n, double VT, double V_shift, double V) {
+    if ((V - V_shift) < -10) // approx
+        return 0.0;
     return I0 * (std::exp((V - V_shift) / (n * VT)) - 1.0);
 }
 
 inline double calc_reverse_diode_I(double I0, double n, double VT, double V_shift, double V) {
+    if ((-V - V_shift) < -10) // approx
+        return 0.0;
     return -I0 * std::exp((-V - V_shift) / (n * VT));
 }
 
@@ -580,8 +574,9 @@ void combine_iv_job(int connection,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
-    int* out_interpolation_range,
     int* out_len,
+    bool* out_extrapolation_allowed,
+    bool* out_has_I_domain_limit,
     int refine_mode,
     int all_children_are_elements,
     double op_pt_V,
@@ -590,8 +585,10 @@ void combine_iv_job(int connection,
     int refinement_points,
     int interp_method, int use_existing_grid, double refine_V_half_width) {
 
-    out_interpolation_range[0] = -1; // initially all points are in interpolation range
-    out_interpolation_range[1] = abs_max_num_points+1;
+    out_extrapolation_allowed[0] = true; 
+    out_extrapolation_allowed[1] = true;
+    out_has_I_domain_limit[0] = false; 
+    out_has_I_domain_limit[1] = false;
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -600,17 +597,25 @@ void combine_iv_job(int connection,
         switch (circuit_component_type_number) {
             case 0: // CurrentSource
                 build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len);
+                out_has_I_domain_limit[0] = true;
+                out_has_I_domain_limit[1] = true;
                 break;
             case 1: // Resistor
                 build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len);
                 break;
             case 2: // ForwardDiode
                 build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,false);
+                out_has_I_domain_limit[0] = true;
+                out_extrapolation_allowed[1] = false;
                 break;
             case 3: // ReverseDiode
                 build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,true);
+                out_has_I_domain_limit[1] = true;
+                out_extrapolation_allowed[0] = false;
                 break;
             case 4: // Intrinsic Si Diode
+                out_has_I_domain_limit[0] = true;
+                out_extrapolation_allowed[1] = false;
                 build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
                 break;
         }
@@ -664,8 +669,35 @@ void combine_iv_job(int connection,
                 else
                     std::sort(Is, Is + vs_len);
 
-                double eps = I_range/1e8;
-                auto new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
+                double left_limit = Is[0]-1;
+                double right_limit = Is[vs_len-1]+1;
+                for (int i=0; i < n_children; ++i) {
+                    const double* IV_table_I = children_IVs[i].I;
+                    int len = children_IVs[i].length;
+                    if (!children_IVs[i].right_extrapolation_allowed) 
+                        right_limit = std::min(right_limit, IV_table_I[len-1]);
+                        out_extrapolation_allowed[1] = false;
+                    if (!children_IVs[i].left_extrapolation_allowed) 
+                        left_limit = std::max(left_limit, IV_table_I[0]);
+                        out_extrapolation_allowed[0] = false;
+                    if (children_IVs[i].has_upper_I_domain_limit)
+                        right_limit = std::min(right_limit, IV_table_I[len-1]);
+                        out_has_I_domain_limit[1] = true;
+                    if (children_IVs[i].has_lower_I_domain_limit) 
+                        left_limit = std::max(left_limit, IV_table_I[0]);
+                        out_has_I_domain_limit[0] = true;
+                }
+
+                double* new_end = std::remove_if(
+                Is, Is + vs_len,
+                    [left_limit, right_limit](double i_) {
+                        return i_ < left_limit || i_ > right_limit;
+                    }
+                );
+                vs_len = int(new_end - Is);
+
+                double eps = I_range/1e9; // nano amps
+                new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
                     return std::fabs(a - b) < eps;
                 });
                 // auto new_end = std::unique(Is, Is + vs_len);
@@ -677,9 +709,8 @@ void combine_iv_job(int connection,
                 for (int i = 0; i < n_children; ++i) {  
                     int len = children_IVs[i].length;
                     if (len > 0) {
-                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, 
-                            children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
-                            Is, vs_len, Vs, out_interpolation_range, true, interp_method); // keeps adding
+                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len,
+                            Is, vs_len, Vs, true, interp_method); // keeps adding
                     }
                 }  
                 break;
@@ -700,21 +731,21 @@ void combine_iv_job(int connection,
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
 
-                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, -1, pc_len+1,
-                                this_V.data(), (int)this_V.size(), added_I.data(), nullptr, false, 0); 
+                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, 
+                                this_V.data(), (int)this_V.size(), added_I.data(), false, 0); 
                             for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
-                                 xq.data(), (int)xq.size(), this_V.data(),out_interpolation_range,false, interp_method); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, 
+                                 xq.data(), (int)xq.size(), this_V.data(),false, interp_method); 
                             if (use_existing_grid!=1) {
                                 std::vector<double> new_points(vs_len);
                                 std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
                                 extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
                             }
                         } else {
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
-                                Is, vs_len, this_V.data(),out_interpolation_range, false, interp_method); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, 
+                                Is, vs_len, this_V.data(),false, interp_method); 
                         }
                         std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
                     }
@@ -738,16 +769,6 @@ void combine_iv_job(int connection,
             memcpy(Vs, (*this_IV).V, Ni * sizeof(double));
             vs_len = Ni;
         } else {
-            // add current
-            double left_limit = -100;
-            double right_limit = 100;
-            for (int i=0; i < n_children; i++) {
-                int Ni = children_IVs[i].length;
-                if (Ni > 0) {
-                    left_limit = std::min(left_limit, children_IVs[i].V[0]-100);
-                    right_limit = std::max(right_limit, children_IVs[i].V[Ni-1]+100);
-                }
-            }
             if (children_Vs_size > n_children*100 && (refine_mode==0 || all_children_are_elements==0)) // found to be optimal 
                 merge_children_kway_ptr(children_IVs, 0, n_children, Vs,vs_len,abs_max_num_points);
             else {
@@ -774,15 +795,25 @@ void combine_iv_job(int connection,
                 std::sort(Vs, Vs+vs_len); // replace this with smart k way merge since children V's are each sorted 
             }
 
+            out_has_I_domain_limit[0] = true;
+            out_has_I_domain_limit[1] = true;
+            double left_limit = Vs[0]-1;
+            double right_limit = Vs[vs_len-1]+1;
             for (int i=0; i < n_children; ++i) {
                 const double* IV_table_V = children_IVs[i].V;
                 int len = children_IVs[i].length;
-                if (children_IVs[i].type_number==2 || children_IVs[i].type_number==4) { //  forward diode or intrinsic diode
+                if (!children_IVs[i].right_extrapolation_allowed) 
                     right_limit = std::min(right_limit, IV_table_V[len-1]);
-                } else if (children_IVs[i].type_number==3) {  // rev diode
+                    out_extrapolation_allowed[1] = false;
+                if (!children_IVs[i].left_extrapolation_allowed) 
                     left_limit = std::max(left_limit, IV_table_V[0]);
-                }
+                    out_extrapolation_allowed[0] = false;
+                if (!children_IVs[i].has_lower_I_domain_limit) 
+                    out_has_I_domain_limit[0] = false; // relief
+                if (!children_IVs[i].has_upper_I_domain_limit) 
+                    out_has_I_domain_limit[1] = false; // relief
             }
+
             double* new_end = std::remove_if(
                 Vs, Vs + vs_len,
                 [left_limit, right_limit](double v) {
@@ -790,11 +821,10 @@ void combine_iv_job(int connection,
                 }
             );
             vs_len = int(new_end - Vs);
-            double eps = 1e-6; // microvolt
+            double eps = 1e-9; // nanovolt
             new_end = std::unique(Vs, Vs+vs_len, [eps](double a, double b) {
                 return std::fabs(a - b) < eps;
             });
-            // new_end = std::unique(Vs, Vs+vs_len);
             vs_len = int(new_end - Vs);
         }
 
@@ -821,8 +851,8 @@ void combine_iv_job(int connection,
                     calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true);
                 }
                 else
-                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
-                        Vs, vs_len, Is, out_interpolation_range, true, interp_method_); // keeps adding 
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, 
+                        Vs, vs_len, Is, true, interp_method_); // keeps adding 
             }
         }  
     }
@@ -844,7 +874,6 @@ void remesh_IV(
     int refinement_points,
     double* out_V,
     double* out_I,
-    int* out_interpolation_range,
     int* out_len, 
     double refine_V_half_width, 
     double max_tolerable_radians_change) {
@@ -968,19 +997,9 @@ void remesh_IV(
     idx.push_back(n-1);
 
     // remesh
-    int old_left = out_interpolation_range[0];
-    int old_right = out_interpolation_range[1];
-    int new_left = out_interpolation_range[0];
-    int new_right = out_interpolation_range[1];
     int n_out = (int)idx.size();
     for (int i = 0; i < n_out; ++i) {
-        int k = idx[i];
-        if (k>=old_left && (i==0 || idx[i-1]<old_left))
-            new_left = i;
-        if (k==old_right)
-            new_right = i;    
-        if (i>0 && (k>old_right && idx[i-1]<=old_right))
-            new_right = i-1;    
+        int k = idx[i];  
         out_V[i] = Vs[k];
         out_I[i] = Is[k];
     }
@@ -1021,8 +1040,9 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             job.circuit_element_parameters,
             job.out_V,
             job.out_I,
-            job.out_interpolation_range,
             job.out_len,
+            job.out_extrapolation_allowed,
+            job.out_has_I_domain_limit,
             refine_mode,
             job.all_children_are_elements,
             job.operating_point[0],
@@ -1065,7 +1085,6 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
                 job.refinement_points,
                 job.out_V,
                 job.out_I,
-                job.out_interpolation_range,
                 job.out_len,
                 refine_V_half_width,
                 max_tolerable_radians_change

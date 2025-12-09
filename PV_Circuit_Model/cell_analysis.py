@@ -55,10 +55,20 @@ def get_Voc(argument):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
+        
+        if argument.IV_I[-1] < 0: # can't reach OC
+            diodes = argument.findElementType(Diode)
+            while argument.IV_I[-1] < 0: # can't reach OC
+                for diode in diodes:
+                    diode.max_I *= 10
+                argument.null_all_IV()
+                argument.build_IV()
+
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
-    Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])
+    
+    Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])    
     return Voc
 CircuitGroup.get_Voc = get_Voc
 
@@ -85,6 +95,13 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
+        if argument.IV_I[-1] < 0: # can't reach OC
+            diodes = argument.findElementType(Diode)
+            while argument.IV_I[-1] < 0: # can't reach OC
+                for diode in diodes:
+                    diode.max_I *= 10
+                argument.null_all_IV()
+                argument.build_IV()
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
@@ -92,24 +109,26 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     I = IV_curve[1,:]
     power = -V*I
     index = np.argmax(power)
-    V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
-    I = interp_(V,IV_curve[0,:],IV_curve[1,:])
-    power = -V*I
-    index = np.argmax(power)
+    if not (index==0 or index==power.size-1):
+        V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
+        I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+        power = -V*I
+        index = np.argmax(power)
     Vmp = V[index]
     
     if isinstance(argument,CircuitGroup) and refine_IV and not argument.refined_IV:
         if not hasattr(argument,"job_heap"):
             argument.build_IV()
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
-        IV_V = argument.IV_V
-        IV_I = argument.IV_I
-        power = -IV_V*IV_I
-        index = np.argmax(power)
-        V = np.linspace(IV_V[index-1],IV_I[index+1],1000)
-        I = interp_(V,IV_V,IV_I)
+        V = argument.IV_V
+        I = argument.IV_I
         power = -V*I
         index = np.argmax(power)
+        if not (index==0 or index==power.size-1):
+            V = np.linspace(argument.IV_V[index-1],argument.IV_I[index+1],1000)
+            I = interp_(V,argument.IV_V,argument.IV_I)
+            power = -V*I
+            index = np.argmax(power)
     Vmp = V[index]
     Imp = I[index]
     Pmax = power[index]
@@ -205,6 +224,8 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
         for inner_k in range(100):
             if inner_k==0:
                 trial_J02 = 0.0
+                if outer_k==0 and not Si_intrinsic_limit:
+                    trial_J02 = max_J02/2
             elif inner_k==1:
                 trial_J02 = max_J02
             else:
@@ -276,10 +297,8 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
     normalized_operating_point = getattr(self,"bottom_up_operating_point",None)
     find_near_op = None
 
-    left_index = max(0,self.interpolation_range[0])
-    right_index = min(self.IV_V.size,self.interpolation_range[1])
-    IV_V = self.IV_V[left_index:right_index]
-    IV_I = self.IV_I[left_index:right_index]
+    IV_V = self.IV_V
+    IV_I = self.IV_I
 
     if bottom_up_operating_point:
         operating_point_V = self.operating_point[0]

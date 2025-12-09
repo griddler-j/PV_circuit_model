@@ -13,23 +13,27 @@ REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESH
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")
-    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","interpolation_range" 
-                  "job_heap", "refined_IV","operating_point","bottom_up_operating_point")
+    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", 
+                  "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
     _dont_serialize = ("circuit_depth", "num_circuit_elements")
     max_I = None
     max_num_points = None
     IV_V = None  
     IV_I = None  
-    interpolation_range = [-1,-1]
+    extrapolation_allowed = [False,False]
+    has_I_domain_limit = [False,False]
     refined_IV = False
     operating_point = None
     num_circuit_elements = 1
     circuit_depth = 1
+
     def __init__(self,tag=None):
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
         self.tag = tag
+        self.extrapolation_allowed = [False,False]
+        self.has_I_domain_limit = [False,False]
 
     @property
     def IV_table(self):
@@ -86,8 +90,24 @@ class CircuitComponent(ParamSerializable):
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
         if V is not None:
+            if (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): # out of reach of IV curve
+                diodes = self.findElementType(Diode)
+                while (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): 
+                    for diode in diodes:
+                        diode.max_I *= 10
+                    self.null_all_IV()
+                    self.build_IV()
+
             I = interp_(V,self.IV_V,self.IV_I)
         elif I is not None:
+            if (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]): # out of reach of IV curve
+                diodes = self.findElementType(Diode)
+                while (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]):
+                    for diode in diodes:
+                        diode.max_I *= 10
+                    self.null_all_IV()
+                    self.build_IV()
+
             V = interp_(I,self.IV_I,self.IV_V)
         self.operating_point = [V,I]
     def get_value_text(self):
@@ -165,6 +185,7 @@ class Resistor(CircuitElement):
 class Diode(CircuitElement):
     _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT")
     _type_number = 2
+    max_I = 0.2
     def __init__(self,I0=1e-15,n=1,V_shift=0,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(tag=tag)
         self.I0 = I0
@@ -188,7 +209,6 @@ class Diode(CircuitElement):
 class ForwardDiode(Diode):
     def __init__(self,I0=1e-15,n=1,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift=0,tag=tag)
-        self.max_I = 0.2
     def __str__(self):
         return "Forward Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
     def get_value_text(self):
@@ -226,7 +246,6 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.base_thickness = base_thickness
         self.base_type = base_type
         self.base_doping = base_doping
-        self.max_I = 0.2
         self.temperature = temperature
         self.I0 = 0.0
         self.n = 0.0

@@ -244,6 +244,7 @@ def convert_ndarrays_to_lists(obj):
 class ParamSerializable:
     _critical_fields = ()
     _artifacts = ()
+    _dont_serialize = ()
     def clone(self,parent=None):    
         new = self.__class__.__new__(self.__class__)
         subgroups = getattr(self,"subgroups",[])
@@ -265,9 +266,11 @@ class ParamSerializable:
                     pass
                 else:
                     d[k] = v[:]  # shallow list copy
+            elif k in self._dont_serialize:
+                pass # don't copy
             elif k in self._artifacts:
                 if hasattr(type(self), k):
-                    d[k] = getattr(type(self), k)
+                    d[k] = getattr(type(self), k) # revert to default
                 else:
                     pass # don't copy
             elif hasattr(v, "copy"):  # NumPy array or similar
@@ -301,7 +304,7 @@ class ParamSerializable:
             "__class__": f"{self.__class__.__module__}.{self.__class__.__name__}"
         }
         for name, value in self.__dict__.items():
-            if name in self._artifacts or (critical_fields_only and name not in self._critical_fields):
+            if name in self._artifacts or name in self._dont_serialize or (critical_fields_only and name not in self._critical_fields):
                 continue
             output = self._save_value(name,value,critical_fields_only=critical_fields_only,critical_fields=self._critical_fields)
             if output is not None:
