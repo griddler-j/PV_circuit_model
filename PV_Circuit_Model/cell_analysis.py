@@ -275,6 +275,12 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
     bottom_up_operating_point = getattr(self,"bottom_up_operating_point",None)
     normalized_operating_point = getattr(self,"bottom_up_operating_point",None)
     find_near_op = None
+
+    left_index = max(0,self.interpolation_range[0])
+    right_index = min(self.IV_V.size,self.interpolation_range[1])
+    IV_V = self.IV_V[left_index:right_index]
+    IV_I = self.IV_I[left_index:right_index]
+
     if bottom_up_operating_point:
         operating_point_V = self.operating_point[0]
         bottom_up_operating_point_V = bottom_up_operating_point[0]
@@ -283,7 +289,8 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         right_V = max(operating_point_V,bottom_up_operating_point_V)
         left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH
         right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
-        find_near_op = np.where((self.IV_V >= left_V) & (self.IV_V <= right_V))[0]
+        find_near_op = np.where((IV_V >= left_V) & (IV_V <= right_V))[0]
+    
     if fourth_quadrant and isinstance(self,CircuitGroup):
         fig, ax1 = plt.subplots()
 
@@ -291,9 +298,9 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         # if bottom_up_operating_point:
         #     ax1.plot(self.IV_V_lower,-self.IV_I_lower,color="green")
         #     ax1.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
-        ax1.plot(self.IV_V,-self.IV_I)
+        ax1.plot(IV_V,-IV_I)
         if find_near_op is not None:
-            ax1.plot(self.IV_V[find_near_op],-self.IV_I[find_near_op],color="red")
+            ax1.plot(IV_V[find_near_op],-IV_I[find_near_op],color="red")
         if self.operating_point is not None:
             ax1.plot(self.operating_point[0],-self.operating_point[1],marker='o',color="blue")
         ax1.set_xlim((0,Voc*1.1))
@@ -302,11 +309,11 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         ax1.set_ylabel("Current (A)")
         ax2 = ax1.twinx()
 
-        P = -self.IV_V*self.IV_I
+        P = -IV_V*IV_I
         # Right Y-axis (shares same X)
-        ax2.plot(self.IV_V,P,color="orange")
+        ax2.plot(IV_V,P,color="orange")
         if find_near_op is not None:
-            ax2.plot(self.IV_V[find_near_op],P[find_near_op],color="red")
+            ax2.plot(IV_V[find_near_op],P[find_near_op],color="red")
         if self.operating_point is not None:
             ax2.plot(self.operating_point[0],-self.operating_point[0]*self.operating_point[1],marker='o',color="orange")
         ax2.set_ylim((0,np.max(P)*1.1))
@@ -337,9 +344,9 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
             self.show_solver_summary(fig=fig)
 
     else:
-        plt.plot(self.IV_V,self.IV_I)
+        plt.plot(IV_V,IV_I)
         if find_near_op is not None:
-            plt.plot(self.IV_V[find_near_op],self.IV_I[find_near_op],color="red")
+            plt.plot(IV_V[find_near_op],IV_I[find_near_op],color="red")
         if self.operating_point is not None:
             plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
         plt.xlabel("Voltage (V)")

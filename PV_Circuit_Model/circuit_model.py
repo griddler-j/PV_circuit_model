@@ -13,12 +13,14 @@ REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESH
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")
-    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper", 
+    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","interpolation_range" 
                   "job_heap", "refined_IV","operating_point","bottom_up_operating_point")
+    _dont_serialize = ("circuit_depth", "num_circuit_elements")
     max_I = None
     max_num_points = None
     IV_V = None  
     IV_I = None  
+    interpolation_range = [-1,-1]
     refined_IV = False
     operating_point = None
     num_circuit_elements = 1

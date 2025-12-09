@@ -129,9 +129,12 @@ void interp_monotonic_inc(
     const double* __restrict x,   // size n, increasing
     const double* __restrict y,   // size n
     int n,
+    int interpolation_range_left,
+    int interpolation_range_right,
     const double* __restrict xq,  // size m, increasing
     int m,
     double* __restrict yq,         // size m, output
+    int* __restrict interpolation_range,
     bool additive,        // true: adds to yq
     int method // 0-linear, 1-smooth slope, 2-take max, 3-take min
 ) {
@@ -170,6 +173,14 @@ void interp_monotonic_inc(
             --j_right;
         }
     }
+
+    if (interpolation_range) {
+        if (j_left > interpolation_range[0])
+            interpolation_range[0] = j_left;
+        if (j_right < interpolation_range[1])
+            interpolation_range[1] = j_right;
+    }
+
     // --- Main interpolation region: x[0] < xq < x[n-1] ---
     int i = 0; // segment index for x
     int prev_i = -1;
@@ -181,6 +192,12 @@ void interp_monotonic_inc(
         while (i + 1 < n - 1 && x[i+1] < xj) 
             ++i;
         if (i > prev_i) {
+            if (interpolation_range) {
+                if (i+1>=interpolation_range_left && prev_i<interpolation_range_left && j > interpolation_range[0])
+                    interpolation_range[0] = j;
+                if (i>=interpolation_range_right && prev_i<interpolation_range_right && j < interpolation_range[1])
+                    interpolation_range[1] = j;
+            }
             if (method>0) {
                 if (this_slope_i==i-1 && std::isfinite(slope))
                     left_slope = slope;
@@ -305,9 +322,10 @@ void calc_intrinsic_Si_I(
         g_bgn_x.data(),
         g_bgn_y.data(),
         (int)g_bgn_x.size(),
+        -1,(int)g_bgn_x.size()+1,
         delta_n.data(),
         n_V,
-        BGN.data(),
+        BGN.data(),nullptr,
         false,        // overwrite
         0
     );
@@ -562,6 +580,7 @@ void combine_iv_job(int connection,
     const double* circuit_element_parameters,
     double* out_V,
     double* out_I,
+    int* out_interpolation_range,
     int* out_len,
     int refine_mode,
     int all_children_are_elements,
@@ -570,6 +589,9 @@ void combine_iv_job(int connection,
     double normalized_op_pt_V,
     int refinement_points,
     int interp_method, int use_existing_grid, double refine_V_half_width) {
+
+    out_interpolation_range[0] = -1; // initially all points are in interpolation range
+    out_interpolation_range[1] = abs_max_num_points+1;
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -655,7 +677,9 @@ void combine_iv_job(int connection,
                 for (int i = 0; i < n_children; ++i) {  
                     int len = children_IVs[i].length;
                     if (len > 0) {
-                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, Is, vs_len, Vs, true, interp_method); // keeps adding
+                        interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len, 
+                            children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
+                            Is, vs_len, Vs, out_interpolation_range, true, interp_method); // keeps adding
                     }
                 }  
                 break;
@@ -675,18 +699,22 @@ void combine_iv_job(int connection,
                             std::vector<double> added_I(vs_len);
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
-                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, this_V.data(), (int)this_V.size(), added_I.data(), false, 0); 
+
+                            interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, -1, pc_len+1,
+                                this_V.data(), (int)this_V.size(), added_I.data(), nullptr, false, 0); 
                             for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
                             std::vector<double> xq(vs_len);
                             std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, xq.data(), (int)xq.size(), this_V.data(),false, interp_method); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
+                                 xq.data(), (int)xq.size(), this_V.data(),out_interpolation_range,false, interp_method); 
                             if (use_existing_grid!=1) {
                                 std::vector<double> new_points(vs_len);
                                 std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
                                 extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
                             }
                         } else {
-                            interp_monotonic_inc(IV_table_I, IV_table_V, len, Is, vs_len, this_V.data(), false, interp_method); 
+                            interp_monotonic_inc(IV_table_I, IV_table_V, len, children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
+                                Is, vs_len, this_V.data(),out_interpolation_range, false, interp_method); 
                         }
                         std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
                     }
@@ -793,7 +821,8 @@ void combine_iv_job(int connection,
                     calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true);
                 }
                 else
-                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, Vs, vs_len, Is, true, interp_method_); // keeps adding 
+                    interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, children_IVs[i].interpolation_range_left, children_IVs[i].interpolation_range_right,
+                        Vs, vs_len, Is, out_interpolation_range, true, interp_method_); // keeps adding 
             }
         }  
     }
@@ -815,6 +844,7 @@ void remesh_IV(
     int refinement_points,
     double* out_V,
     double* out_I,
+    int* out_interpolation_range,
     int* out_len, 
     double refine_V_half_width, 
     double max_tolerable_radians_change) {
@@ -938,9 +968,19 @@ void remesh_IV(
     idx.push_back(n-1);
 
     // remesh
+    int old_left = out_interpolation_range[0];
+    int old_right = out_interpolation_range[1];
+    int new_left = out_interpolation_range[0];
+    int new_right = out_interpolation_range[1];
     int n_out = (int)idx.size();
     for (int i = 0; i < n_out; ++i) {
         int k = idx[i];
+        if (k>=old_left && (i==0 || idx[i-1]<old_left))
+            new_left = i;
+        if (k==old_right)
+            new_right = i;    
+        if (i>0 && (k>old_right && idx[i-1]<=old_right))
+            new_right = i-1;    
         out_V[i] = Vs[k];
         out_I[i] = Is[k];
     }
@@ -981,6 +1021,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             job.circuit_element_parameters,
             job.out_V,
             job.out_I,
+            job.out_interpolation_range,
             job.out_len,
             refine_mode,
             job.all_children_are_elements,
@@ -1024,6 +1065,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
                 job.refinement_points,
                 job.out_V,
                 job.out_I,
+                job.out_interpolation_range,
                 job.out_len,
                 refine_V_half_width,
                 max_tolerable_radians_change

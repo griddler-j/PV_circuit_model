@@ -63,6 +63,8 @@ cdef extern from "ivkernel.h":
         const double* I      # pointer to I array
         int length           # Ni
         double scale
+        int interpolation_range_left
+        int interpolation_range_right
         int type_number
         double element_params[5]
 
@@ -82,6 +84,7 @@ cdef extern from "ivkernel.h":
         const double* circuit_element_parameters
         double* out_V
         double* out_I
+        int* out_interpolation_range
         int* out_len
         int all_children_are_elements
 
@@ -140,9 +143,9 @@ _init_ivkernel_tables()
 
 def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
 
-    parallel_ = 0
-    if parallel: parallel_ = 1
+    cdef int parallel_ = 1 if parallel else 0
     cdef Py_ssize_t n_jobs = len(components)
+    cdef int n_jobs_c = <int> n_jobs
 
     cdef int PARAMS_LEN = 8
     params_all = np.zeros((n_jobs, PARAMS_LEN), dtype=np.float64)
@@ -217,15 +220,19 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef double tmp, tmp2
     cdef np.float64_t[::1] mv_big_v 
     cdef np.float64_t[::1] mv_big_i 
+    cdef np.int32_t[::1] mv_big_interpolation_range
     cdef double* base 
     cdef Py_ssize_t stride_job 
-    cdef Py_ssize_t offset
+    cdef Py_ssize_t offset, offset2
     cdef int sum_abs_max_num_points
     cdef double normalized_operating_point_V
     cdef double normalized_operating_point_I
     cdef double bottom_up_operating_point_V
     cdef double bottom_up_operating_point_I
     cdef int all_children_are_elements, refine_mode_, interp_method_, use_existing_grid_, refinement_points_density
+    cdef double* base_v
+    cdef double* base_i
+    cdef int* base_interpolation_range 
 
     if refine_mode:
         refine_mode_ = 1
@@ -358,6 +365,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 mv_child_i = element.IV_I
                 Ni = mv_child_v.shape[0]
                 abs_max_num_points += Ni
+                children_views[child_base + j].interpolation_range_left = element.interpolation_range[0]
+                children_views[child_base + j].interpolation_range_right = element.interpolation_range[1]
                 children_views[child_base + j].V           = &mv_child_v[0]
                 children_views[child_base + j].I           = &mv_child_i[0]
                 children_views[child_base + j].length      = Ni
@@ -460,22 +469,28 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
             sum_abs_max_num_points += abs_max_num_points
 
         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
+        big_out_interpolation_range = np.empty(n_jobs*2, dtype=np.int32)
         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
         mv_big_v = big_out_V  # anchors the array
         mv_big_i = big_out_I  # anchors the array
+        mv_big_interpolation_range = big_out_interpolation_range
         base_v = &mv_big_v[0]              # base pointer into contiguous buffer
         base_i = &mv_big_i[0]              # base pointer into contiguous buffer
+        base_interpolation_range = <int*>&mv_big_interpolation_range[0]
 
         offset = 0
+        offset2 = 0
         for i in range(n_jobs):
             jobs_c[i].out_V   = base_v + offset
             jobs_c[i].out_I   = base_i + offset 
+            jobs_c[i].out_interpolation_range = base_interpolation_range + offset2
             jobs_c[i].out_len = &c_out_len_all[i]
             offset += jobs_c[i].abs_max_num_points
+            offset2 += 2
 
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(<int> n_jobs, jobs_c, parallel_, refine_mode_, interp_method_, 
+            kernel_ms = combine_iv_jobs_batch(n_jobs_c, jobs_c, parallel_, refine_mode_, interp_method_, 
             use_existing_grid_, REFINE_V_HALF_WIDTH_, max_tolerable_radians_change)
 
         # ----- unpack outputs -----
@@ -488,6 +503,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 raise ValueError(f"Negative out_len for job {i}")
             circuit_component.IV_V = big_out_V[offset:offset+olen]
             circuit_component.IV_I = big_out_I[offset:offset+olen]
+            circuit_component.interpolation_range[0] = big_out_interpolation_range[2*i]
+            circuit_component.interpolation_range[1] = big_out_interpolation_range[2*i+1]
             offset += jobs_c[i].abs_max_num_points
 
     finally:

@@ -10,6 +10,8 @@ struct IVView {
     const double* I;   // pointer to I array
     int length;        // Ni
     double scale;  
+    int interpolation_range_left;
+    int interpolation_range_right;
     int type_number;
     double element_params[5];
 };
@@ -30,6 +32,7 @@ struct IVJobDesc {
     const double* circuit_element_parameters;
     double* out_V;
     double* out_I;
+    int* out_interpolation_range;
     int* out_len;
     int all_children_are_elements;
 };
