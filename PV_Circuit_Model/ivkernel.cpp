@@ -674,18 +674,22 @@ void combine_iv_job(int connection,
                 for (int i=0; i < n_children; ++i) {
                     const double* IV_table_I = children_IVs[i].I;
                     int len = children_IVs[i].length;
-                    if (!children_IVs[i].right_extrapolation_allowed) 
+                    if (!children_IVs[i].right_extrapolation_allowed) {
                         right_limit = std::min(right_limit, IV_table_I[len-1]);
                         out_extrapolation_allowed[1] = false;
-                    if (!children_IVs[i].left_extrapolation_allowed) 
+                    }
+                    if (!children_IVs[i].left_extrapolation_allowed) {
                         left_limit = std::max(left_limit, IV_table_I[0]);
                         out_extrapolation_allowed[0] = false;
-                    if (children_IVs[i].has_upper_I_domain_limit)
+                    }
+                    if (children_IVs[i].has_upper_I_domain_limit) {
                         right_limit = std::min(right_limit, IV_table_I[len-1]);
                         out_has_I_domain_limit[1] = true;
-                    if (children_IVs[i].has_lower_I_domain_limit) 
+                    }
+                    if (children_IVs[i].has_lower_I_domain_limit) {
                         left_limit = std::max(left_limit, IV_table_I[0]);
                         out_has_I_domain_limit[0] = true;
+                    }
                 }
 
                 double* new_end = std::remove_if(
@@ -802,12 +806,14 @@ void combine_iv_job(int connection,
             for (int i=0; i < n_children; ++i) {
                 const double* IV_table_V = children_IVs[i].V;
                 int len = children_IVs[i].length;
-                if (!children_IVs[i].right_extrapolation_allowed) 
+                if (!children_IVs[i].right_extrapolation_allowed) {
                     right_limit = std::min(right_limit, IV_table_V[len-1]);
                     out_extrapolation_allowed[1] = false;
-                if (!children_IVs[i].left_extrapolation_allowed) 
+                }
+                if (!children_IVs[i].left_extrapolation_allowed) {
                     left_limit = std::max(left_limit, IV_table_V[0]);
                     out_extrapolation_allowed[0] = false;
+                }
                 if (!children_IVs[i].has_lower_I_domain_limit) 
                     out_has_I_domain_limit[0] = false; // relief
                 if (!children_IVs[i].has_upper_I_domain_limit) 
