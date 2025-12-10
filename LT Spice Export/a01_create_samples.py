@@ -29,8 +29,6 @@ module.cells[1].save_to_json(THIS_DIR / "cell.json", critical_fields_only=True)
 module.cells[1].save_to_bson(THIS_DIR / "cell.bson", critical_fields_only=True)
 export_ltspice_netlist(module.cells[1], THIS_DIR / "cell.net")
 
-assert(1==0)
-
 module.save_to_bson(THIS_DIR / "module.bson", critical_fields_only=True)
 export_ltspice_netlist(module, THIS_DIR / "module.net")
 

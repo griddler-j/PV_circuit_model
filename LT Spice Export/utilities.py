@@ -178,6 +178,7 @@ def _build_netlist_text(
     add_vsource: bool,
     vsource_name: str,
     vsource_value: float,
+    temperature = 25
 ) -> str:
     """
     Internal: walk the CircuitGroup and produce a netlist string.
@@ -191,6 +192,8 @@ def _build_netlist_text(
     title = getattr(group, "name", None) or "CircuitGroup"
     lines.append(f"* LTspice netlist generated from {title}")
     lines.append("* Node 0 is global ground")
+    lines.append(f".temp {temperature} ; T = {temperature}C")  
+    lines.append(".options tnom=25 ; Model nominal T = 25C")
     lines.append("")
     # Optional supply (you can also add this in LTspice manually)
     if add_vsource:
