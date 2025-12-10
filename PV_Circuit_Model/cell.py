@@ -11,6 +11,7 @@ from matplotlib.ticker import ScalarFormatter
 class Cell(CircuitGroup):
     _type_number = 6
     photon_coupling_diodes = None
+    _critical_fields = CircuitGroup._critical_fields + ("area",)
     def __init__(self,subgroups,connection="series",area=None,location=None,
                  rotation=0,shape=None,name=None,temperature=25,Suns=1.0):
         x_extent = 0.0

@@ -27,11 +27,11 @@ BASE_UNITS = {
     "Imp":  ("A",  "A"),
     "Voc":  ("V",  "V"),
     "Isc":  ("A",  "A"),
-    "FF":   ("%",  r"\%"),
-    "Eff":   ("%",  r"\%"),
-    "Area": ("cm²", r"cm$^2$"),
-    "Jsc":  ("mA/cm²", r"mA/cm$^2$"),
-    "Jmp":  ("mA/cm²", r"mA/cm$^2$"),
+    "FF":   ("%",  r"%"),
+    "Eff":   ("%",  r"%"),
+    "Area": ("cm²", r"cm^2"),
+    "Jsc":  ("mA/cm²", r"mA/cm^2"),
+    "Jmp":  ("mA/cm²", r"mA/cm^2"),
 }
 
 DISPLAY_DECIMALS = {
@@ -494,7 +494,7 @@ def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=
         cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], area, shape, thickness=thicknesses[i]))
     return MultiJunctionCell(cells)
 
-def solver_summary_heap(job_heap): 
+def solver_summary_heap(job_heap, display_or_latex=0): 
     build_time = job_heap.timers["build"]
     IV_time = job_heap.timers["IV"]
     refine_time = job_heap.timers["refine"]
@@ -509,7 +509,7 @@ def solver_summary_heap(job_heap):
     if component._type_number==6 or component._type_number==7: # cell or MJ cell
         cell_or_module=0
         params = ["Isc","Jsc","Imp","Jmp","Voc","Vmp","FF","Pmax","Eff","Area"]
-    words, _ = get_IV_parameter_words(component, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=False, include_bounds=True)
+    words, _ = get_IV_parameter_words(component, display_or_latex=display_or_latex, cell_or_module=cell_or_module, cap_decimals=False, include_bounds=True)
     for param in params:
         paragraph += words[param]
         paragraph += "\n"
@@ -521,8 +521,8 @@ def solver_summary_heap(job_heap):
     if hasattr(component,"bottom_up_operating_point"):
         paragraph += "Calculation Error of Operating Point:\n"
         worst_V_error, worst_I_error = job_heap.calc_Kirchoff_law_errors()
-        paragraph += f"Kirchhoff’s Voltage Law deviation: V error <= {worst_V_error:.3e} V\n"
-        paragraph += f"Kirchhoff’s Current Law deviation: I error <= {worst_I_error:.3e} A\n"
+        paragraph += f"Kirchhoff's Voltage Law deviation: V error <= {worst_V_error:.3e} V\n"
+        paragraph += f"Kirchhoff's Current Law deviation: I error <= {worst_I_error:.3e} A\n"
         paragraph += "----------------------------------------------------------------------------\n"
     paragraph += "Calculation Times:\n"
     total_time = build_time + IV_time
@@ -538,7 +538,7 @@ def solver_summary_heap(job_heap):
 
     return paragraph
 
-def solver_summary(self):
+def solver_summary(self,display_or_latex=0):
     paragraph = "----------------------------------------------------------------------------\n"
     paragraph += "I-V Solver Summary for "
     if getattr(self,"name",None) is not None and self.name != "":
@@ -546,7 +546,7 @@ def solver_summary(self):
     paragraph += f" type {type(self).__name__}:\n"
     paragraph += "----------------------------------------------------------------------------\n"
     if hasattr(self,"job_heap") and self.IV_V is not None:
-        paragraph += solver_summary_heap(self.job_heap)
+        paragraph += solver_summary_heap(self.job_heap,display_or_latex=display_or_latex)
     else:
         paragraph += "I-V Curve has not been calculated\n"
     paragraph += "----------------------------------------------------------------------------\n"
@@ -561,6 +561,20 @@ def solver_summary(self):
     paragraph += "----------------------------------------------------------------------------\n"
 
     return paragraph
+
+def save_solver_summary(self,filepath):
+    text = self.solver_summary(display_or_latex=1)
+    with open(filepath, "w") as f:
+        f.write(text)
+
+def save_IV_curve(self,filepath):
+    if self.IV_V is not None:
+        V_col = self.IV_V
+        I_col = self.IV_I
+        with open(filepath, "w") as f:
+            f.write("V(V)\tI(A)\n")
+            for V, I in zip(V_col, I_col):
+                f.write(f"{V:.17e}\t{I:.17e}\n")
 
 def show_solver_summary(self, fig=None):
     text = self.solver_summary()
@@ -645,3 +659,5 @@ def show_solver_summary(self, fig=None):
 
 CircuitGroup.solver_summary = solver_summary
 CircuitGroup.show_solver_summary = show_solver_summary
+CircuitGroup.save_solver_summary = save_solver_summary
+CircuitGroup.save_IV_curve = save_IV_curve

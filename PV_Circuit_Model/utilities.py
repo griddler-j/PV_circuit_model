@@ -68,11 +68,15 @@ class ParameterSet:
         if name in dict_:
             return dict_[name]
         return None
-    
-ParameterSet(name="VT_at_25C",data=0.02568)
-VT_at_25C = ParameterSet.get_set("VT_at_25C")()
 
-get_VT = lambda temperature, VT_at_25C: VT_at_25C*(temperature + 273.15)/(25 + 273.15)
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PARAM_DIR = PACKAGE_ROOT / "parameters"
+
+ParameterSet(name="constants",filename=PARAM_DIR / "constants.json")
+constants = ParameterSet.get_set("constants")()
+VT_at_25C = constants["VT_at_25C"]
+zero_C = constants["zero_C"]
+get_VT = lambda temperature, VT_at_25C: VT_at_25C*(temperature + zero_C)/(25 + zero_C)
 
 pbar = None
 x_spacing = 1.5
@@ -247,7 +251,7 @@ class ParamSerializable:
     _artifacts = ()
     _dont_serialize = ()
     _float_rtol = 1e-6
-    _float_atol = 1e-6
+    _float_atol = 1e-23
     def clone(self,parent=None):    
         new = self.__class__.__new__(self.__class__)
         subgroups = getattr(self,"subgroups",[])
@@ -327,8 +331,8 @@ class ParamSerializable:
                 data[name] = output
         return data
 
-    def save_to_json(self, path, *, indent=2):
-        params = self.save_toParams()
+    def save_to_json(self, path, *, indent=2,critical_fields_only=False):
+        params = self.save_toParams(critical_fields_only=critical_fields_only)
         with open(path, "w") as f:
             json.dump(params, f, indent=indent)
         return path
@@ -339,8 +343,8 @@ class ParamSerializable:
             params = json.load(f)
         return ParamSerializable.Restore_fromParams(params)
     
-    def save_to_bson(self, path):
-        params = self.save_toParams()
+    def save_to_bson(self, path, critical_fields_only=False):
+        params = self.save_toParams(critical_fields_only=critical_fields_only)
         data = bson.dumps(params)
         with open(path, "wb") as f:
             f.write(data)

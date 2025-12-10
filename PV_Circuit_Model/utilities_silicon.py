@@ -1,8 +1,8 @@
 import numpy as np
-from PV_Circuit_Model.utilities import ParameterSet
+from PV_Circuit_Model.utilities import ParameterSet, zero_C
 from pathlib import Path
 
-get_ni = lambda temperature: 9.15e19*((temperature+273.15)/300)**2*np.exp(-6880/(temperature+273.15))
+get_ni = lambda temperature: 9.15e19*((temperature+zero_C)/300)**2*np.exp(-6880/(temperature+zero_C))
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"

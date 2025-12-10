@@ -38,7 +38,7 @@ cdef class IV_Job_Heap:
         self.build()
 
     cpdef void build(self):
-        start_time = time.time()
+        start_time = time.perf_counter()
         cdef Py_ssize_t pos = 0
         cdef Py_ssize_t child_idx
         cdef object circuit_component, subgroups, element
@@ -59,7 +59,7 @@ cdef class IV_Job_Heap:
         self.job_done_index = self.n_components
         self.bottom_up_operating_points = np.empty((self.n_components, 6),
                                                dtype=np.float64)
-        duration = time.time() - start_time
+        duration = time.perf_counter() - start_time
         self.timers["build"] = duration
 
     cpdef list get_runnable_iv_jobs(self, bint forward=True, bint refine_mode=False):
@@ -106,7 +106,7 @@ cdef class IV_Job_Heap:
             self.job_done_index = 0
 
     cpdef void set_operating_point(self, V=None, I=None):
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
@@ -133,11 +133,11 @@ cdef class IV_Job_Heap:
         if pbar is not None:
             pbar.close()
 
-        duration = time.time() - start_time
+        duration = time.perf_counter() - start_time
         self.timers["refine"] = duration
                     
     cpdef void run_IV(self, bint refine_mode=False, interp_method=0, use_existing_grid=False):
-        start_time = time.time()
+        start_time = time.perf_counter()
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
@@ -158,20 +158,20 @@ cdef class IV_Job_Heap:
         if pbar is not None:
             pbar.close()
 
-        duration = time.time() - start_time
+        duration = time.perf_counter() - start_time
         if not refine_mode:
             self.timers["IV"] = duration
 
     def refine_IV(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
-            start_time = time.time()
+            start_time = time.perf_counter()
             self.run_IV(refine_mode=True)
-            duration = time.time() - start_time
+            duration = time.perf_counter() - start_time
             self.timers["refine"] += duration
 
     def calc_uncertainty(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
-            start_time = time.time()
+            start_time = time.perf_counter()
             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
             self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve 
@@ -185,7 +185,7 @@ cdef class IV_Job_Heap:
             del self.components[0].IV_V_temp
             del self.components[0].IV_I_temp
             # but the children are all wrecked
-            duration = time.time() - start_time
+            duration = time.perf_counter() - start_time
             self.timers["bounds"] = duration
 
     def calc_Kirchoff_law_errors(self):
