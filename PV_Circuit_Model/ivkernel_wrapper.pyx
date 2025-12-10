@@ -16,7 +16,6 @@ from libcpp cimport bool as cbool
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
 
-_PARALLEL_MODE = True
 REFINE_V_HALF_WIDTH = 0.005
 _SUPER_DENSE = 0    # don't change!  for debugging only
 MAX_TOLERABLE_RADIANS_CHANGE = 0.008726638 # half a degree

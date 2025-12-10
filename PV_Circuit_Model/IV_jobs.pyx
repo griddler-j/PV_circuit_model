@@ -7,7 +7,7 @@ import warnings
 import sys
 from pathlib import Path
 from PV_Circuit_Model import ivkernel
-from PV_Circuit_Model.ivkernel import _PARALLEL_MODE, _SUPER_DENSE
+from PV_Circuit_Model.ivkernel import _SUPER_DENSE, solver_env_variables
 import numpy as np
 cimport numpy as np
 import time
@@ -107,7 +107,7 @@ cdef class IV_Job_Heap:
 
     cpdef void set_operating_point(self, V=None, I=None):
         start_time = time.perf_counter()
-
+        _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
         cdef bint parallel = False
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
@@ -139,6 +139,7 @@ cdef class IV_Job_Heap:
     cpdef void run_IV(self, bint refine_mode=False, interp_method=0, use_existing_grid=False):
         start_time = time.perf_counter()
         cdef bint parallel = False
+        _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
         self.reset()
