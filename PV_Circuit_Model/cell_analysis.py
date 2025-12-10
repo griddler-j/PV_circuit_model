@@ -284,7 +284,7 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
         if cap_decimals:
             decimals = DISPLAY_DECIMALS[key][cell_or_module]
         else:
-            decimals = 6
+            decimals = 12
         words[key] = f"{key} = {value:.{decimals}f}{error_word} {BASE_UNITS[key][display_or_latex]}"
         if hasattr(self,"IV_V_lower") and include_bounds:
             words[key] += f" (from lower bound curve: {all_parameters['lower'][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]}"

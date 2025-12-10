@@ -57,6 +57,9 @@ def set_super_dense(num_points):
     _SUPER_DENSE = int(num_points)
     solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
 
+constants = ParameterSet.get_set("constants")
+_q = constants["q"]
+
 cdef extern from "ivkernel.h":
 
     cdef struct IVView:
@@ -109,10 +112,13 @@ cdef extern from "ivkernel.h":
 
     void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
 
+    void ivkernel_set_q(double q_value)
+
 # Keep arrays alive so C++ can safely hold pointers into them
 cdef object _bgn_x_store = None
 cdef object _bgn_y_store = None
 cdef bint _tables_initialized = False
+cdef bint _q_initialized = False
 
 cdef void _init_ivkernel_tables():
     global _bgn_x_store, _bgn_y_store, _tables_initialized
@@ -140,10 +146,20 @@ cdef void _init_ivkernel_tables():
 
     _tables_initialized = True
 
+cdef void _init_q():
+    global _q
+    if _q_initialized:
+        return
+    ivkernel_set_q(_q)
+
 def init_ivkernel_tables():
     _init_ivkernel_tables()
 
+def init_q():
+    _init_q()
+
 _init_ivkernel_tables()
+_init_q()
 
 def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
 

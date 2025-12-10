@@ -22,7 +22,9 @@ extern "C" {
 
 static std::vector<double> g_bgn_x;
 static std::vector<double> g_bgn_y;
+static double q;
 static bool g_bgn_loaded = false;
+static bool constants_loaded = false;
 
 void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
 {
@@ -33,6 +35,10 @@ void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
     g_bgn_x.assign(x, x + n);
     g_bgn_y.assign(y, y + n);
     g_bgn_loaded = true;
+}
+
+void ivkernel_set_q(double q_value) {
+    q = q_value;
 }
 
 struct MergeNode {

@@ -57,6 +57,8 @@ void interp_monotonic_inc_scalar(
 
 void ivkernel_set_bandgap_table(const double* x, const double* y, int n);
 
+void ivkernel_set_q(double q_value);
+
 #ifdef __cplusplus
 }
 #endif
