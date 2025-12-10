@@ -13,7 +13,7 @@ for sample_name in tqdm(sample_names):
     for parallel_mode_ in [True,False]:
         set_parallel_mode(parallel_mode_)
         times = []
-        for reps in range(20):
+        for reps in range(3):
             sample.null_all_IV()
             t1 = time.perf_counter()
             sample.get_Pmax()
