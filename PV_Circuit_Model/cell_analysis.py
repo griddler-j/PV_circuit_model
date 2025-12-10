@@ -51,7 +51,7 @@ solver_env_variables = ParameterSet.get_set("solver_env_variables")
 REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
 
 
-def get_Voc(argument):
+def get_Voc(argument, interpolation_method=0):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
@@ -68,11 +68,31 @@ def get_Voc(argument):
     else:
         IV_curve = argument
     
-    Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])    
+    Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])  
+
+    if interpolation_method>0: 
+        index = np.searchsorted(IV_curve[1,:], 0, side="right") - 1
+        if index>0 and index+1<IV_curve.shape[1]-1:
+            V = np.linspace(IV_curve[0,index],IV_curve[0,index+1],1000)
+            I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+            slopes = (IV_curve[1,index:index+3]-IV_curve[1,index-1:index+2])/(IV_curve[0,index:index+3]-IV_curve[0,index-1:index+2])
+            left_slope = slopes[0]
+            right_slope = slopes[2]
+            this_slope = slopes[1]
+            if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
+                I_ref_left = IV_curve[1,index-1] + (V-IV_curve[0,index-1])*left_slope
+                I_ref_right = IV_curve[1,index] + (V-IV_curve[0,index])*right_slope
+                I_ref_mid = interp_(V,IV_curve[0,:],IV_curve[1,:])
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                else:
+                    I = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+            Voc = interp_(0,I,V)  
+
     return Voc
 CircuitGroup.get_Voc = get_Voc
 
-def get_Isc(argument):
+def get_Isc(argument, interpolation_method=0):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
@@ -86,6 +106,26 @@ def get_Isc(argument):
     else:
         IV_curve = argument
     Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:])
+
+    if interpolation_method>0: 
+        index = np.searchsorted(IV_curve[0,:], 0, side="right") - 1
+        if index>0 and index+1<IV_curve.shape[1]-1:
+            V = np.linspace(IV_curve[0,index],IV_curve[0,index+1],1000)
+            I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+            slopes = (IV_curve[1,index:index+3]-IV_curve[1,index-1:index+2])/(IV_curve[0,index:index+3]-IV_curve[0,index-1:index+2])
+            left_slope = slopes[0]
+            right_slope = slopes[2]
+            this_slope = slopes[1]
+            if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
+                I_ref_left = IV_curve[1,index-1] + (V-IV_curve[0,index-1])*left_slope
+                I_ref_right = IV_curve[1,index] + (V-IV_curve[0,index])*right_slope
+                I_ref_mid = interp_(V,IV_curve[0,:],IV_curve[1,:])
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                else:
+                    I = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+            Isc = -interp_(0,V,I)  
+
     return Isc
 CircuitGroup.get_Isc = get_Isc
 
@@ -96,8 +136,8 @@ def get_Jsc(argument):
     return Jsc
 CircuitGroup.get_Jsc = get_Jsc
 
-
-def get_Pmax(argument, return_op_point=False, refine_IV=True):
+# interpolation_method 0-linear, 1-upper bound, 2-lowerbound
+def get_Pmax(argument, return_op_point=False, refine_IV=True, interpolation_method=0):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
@@ -118,6 +158,34 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
     if not (index==0 or index==power.size-1):
         V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
         I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+        if interpolation_method>0 and index-1>0 and index+1<IV_curve.shape[1]-1:
+            slopes = (IV_curve[1,index-1:index+3]-IV_curve[1,index-2:index+2])/(IV_curve[0,index-1:index+3]-IV_curve[0,index-2:index+2])
+            find_ = np.where(V <= IV_curve[0,index])[0]
+            left_slope = slopes[0]
+            right_slope = slopes[2]
+            this_slope = slopes[1]
+            if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
+                I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
+                I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
+                I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                else:
+                    I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+
+            find_ = np.where(V > IV_curve[0,index])[0]
+            left_slope = slopes[1]
+            right_slope = slopes[3]
+            this_slope = slopes[2]
+            if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
+                I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
+                I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
+                I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                else:
+                    I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+
         power = -V*I
         index = np.argmax(power)
     Vmp = V[index]
@@ -133,6 +201,34 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True):
         if not (index==0 or index==power.size-1):
             V = np.linspace(argument.IV_V[index-1],argument.IV_I[index+1],1000)
             I = interp_(V,argument.IV_V,argument.IV_I)
+            if interpolation_method>0 and index-1>0 and index+1<IV_curve.shape[1]-1:
+                slopes = (IV_curve[1,index-1:index+3]-IV_curve[1,index-2:index+2])/(IV_curve[0,index-1:index+3]-IV_curve[0,index-2:index+2])
+                find_ = np.where(V <= IV_curve[0,index])[0]
+                left_slope = slopes[0]
+                right_slope = slopes[2]
+                this_slope = slopes[1]
+                if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
+                    I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
+                    I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
+                    I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                    if interpolation_method==1: # get upper bound curve, meaning to go under
+                        I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                    else:
+                        I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+
+                find_ = np.where(V > IV_curve[0,index])[0]
+                left_slope = slopes[1]
+                right_slope = slopes[3]
+                this_slope = slopes[2]
+                if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
+                    I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
+                    I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
+                    I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                    if interpolation_method==1: # get upper bound curve, meaning to go under
+                        I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                    else:
+                        I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+
             power = -V*I
             index = np.argmax(power)
     Vmp = V[index]
@@ -153,10 +249,10 @@ def get_Eff(argument):
     return Eff
 CircuitGroup.get_Eff = get_Eff
 
-def get_FF(argument):
-    Voc = get_Voc(argument)
-    Isc = get_Isc(argument)
-    Pmax = get_Pmax(argument)
+def get_FF(argument,interpolation_method=0):
+    Voc = get_Voc(argument,interpolation_method=interpolation_method)
+    Isc = get_Isc(argument,interpolation_method=interpolation_method)
+    Pmax = get_Pmax(argument,interpolation_method=interpolation_method)
     FF = Pmax/(Isc*Voc)
     return FF
 CircuitGroup.get_FF = get_FF
@@ -265,13 +361,18 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
         curves["upper"] = np.array([self.IV_V_upper,self.IV_I_upper])
     all_parameters = {}
     for key, _ in curves.items():
+        interpolation_method = 0
+        if key=="upper":
+            interpolation_method = 1
+        elif key=="lower":
+            interpolation_method = 2
         all_parameters[key] = {}
         parameters = all_parameters[key]
-        parameters["Pmax"], parameters["Vmp"], parameters["Imp"] = get_Pmax(curves[key],return_op_point=True)
+        parameters["Pmax"], parameters["Vmp"], parameters["Imp"] = get_Pmax(curves[key],return_op_point=True,interpolation_method=interpolation_method)
         parameters["Imp"] *= -1
-        parameters["Voc"] = get_Voc(curves[key])
-        parameters["Isc"] = get_Isc(curves[key])
-        parameters["FF"] = get_FF(curves[key])*100
+        parameters["Voc"] = get_Voc(curves[key],interpolation_method=interpolation_method)
+        parameters["Isc"] = get_Isc(curves[key],interpolation_method=interpolation_method)
+        parameters["FF"] = get_FF(curves[key],interpolation_method=interpolation_method)*100
         if hasattr(self,"area"):
             parameters["Jsc"] = parameters["Isc"]/self.area*1000
             parameters["Jmp"] = parameters["Imp"]/self.area*1000
