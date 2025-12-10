@@ -15,7 +15,7 @@ struct IVView {
     bool has_lower_I_domain_limit;
     bool has_upper_I_domain_limit;
     int type_number;
-    double element_params[5];
+    double element_params[8];
 };
 
 struct IVJobDesc {
@@ -40,8 +40,10 @@ struct IVJobDesc {
     int all_children_are_elements;
 };
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int num_threads, int refine_mode, int interp_method, 
-    int use_existing_grid, double refine_V_half_width, double max_tolerable_radians_change);
+double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
+    int parallel, int refine_mode, int interp_method, int use_existing_grid, 
+    double refine_V_half_width, double max_tolerable_radians_change, 
+    int has_any_intrinsic_diode, int has_any_photon_coupling, int largest_abs_max_num_points);
 
 void interp_monotonic_inc_scalar(
     const double** xs,   // size n, strictly increasing
@@ -51,7 +53,7 @@ void interp_monotonic_inc_scalar(
     double** yqs,        // output (single values)
     int n_jobs,
     int parallel,
-    const double (*element_params)[5],
+    const double (*element_params)[8],
     int* circuit_type_number
 );
 

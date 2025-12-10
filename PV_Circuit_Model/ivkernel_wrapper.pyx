@@ -72,7 +72,7 @@ cdef extern from "ivkernel.h":
         cbool has_lower_I_domain_limit
         cbool has_upper_I_domain_limit
         int type_number
-        double element_params[5]
+        double element_params[8]
 
     cdef struct IVJobDesc:
         int connection
@@ -95,8 +95,10 @@ cdef extern from "ivkernel.h":
         int* out_len
         int all_children_are_elements
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, int parallel, int refine_mode, 
-    int interp_method, int use_existing_grid, double refine_V_half_width, double max_tolerable_radians_change) nogil
+    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
+    int parallel, int refine_mode, int interp_method, int use_existing_grid, 
+    double refine_V_half_width, double max_tolerable_radians_change, 
+    int has_any_intrinsic_diode, int has_any_photon_coupling, int largest_abs_max_num_points) nogil
 
     void interp_monotonic_inc_scalar(
         const double** xs,
@@ -106,7 +108,7 @@ cdef extern from "ivkernel.h":
         double** yqs,
         int n_jobs,
         int parallel,
-        const double (*element_params)[5],
+        const double (*element_params)[8],
         int* circuit_type_number
     ) nogil
 
@@ -164,6 +166,8 @@ _init_q()
 def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
 
     cdef int parallel_ = 1 if parallel else 0
+    cdef int has_any_photon_coupling = 0
+    cdef int has_any_intrinsic_diode = 0
     cdef Py_ssize_t n_jobs = len(components)
     cdef int n_jobs_c = <int> n_jobs
 
@@ -246,6 +250,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef Py_ssize_t stride_job 
     cdef Py_ssize_t offset, offset2
     cdef int sum_abs_max_num_points
+    cdef int largest_abs_max_num_points = 0
     cdef double normalized_operating_point_V
     cdef double normalized_operating_point_I
     cdef double bottom_up_operating_point_V
@@ -296,6 +301,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 mv_params[3] = circuit_component.V_shift
                 mv_params[4] = max_I
             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
+                has_any_intrinsic_diode = 1
                 base_type_number = 0.0  # p
                 try:
                     if circuit_component.base_type == "n":
@@ -403,6 +409,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                     children_views[child_base + j].element_params[2] = element.VT
                     children_views[child_base + j].element_params[3] = element.V_shift
                 elif type_number == 4:    # Intrinsic_Si_diode
+                    has_any_intrinsic_diode = 1
                     base_type_number = 0.0  # p
                     if element.base_type == "n":
                         base_type_number = 1.0
@@ -459,9 +466,10 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                     pc_children_views[child_base + j].scale       = element_area
 
             if abs_max_num_points_multipier == 1:
-                jobs_c[i].has_photon_coupling = 0;
+                jobs_c[i].has_photon_coupling = 0
             else:
-                jobs_c[i].has_photon_coupling = 1;
+                jobs_c[i].has_photon_coupling = 1
+                has_any_photon_coupling = 1
 
             abs_max_num_points = abs_max_num_points_multipier*abs_max_num_points
 
@@ -493,6 +501,8 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
             jobs_c[i].abs_max_num_points = abs_max_num_points
 
             sum_abs_max_num_points += abs_max_num_points
+            if abs_max_num_points > largest_abs_max_num_points:
+                largest_abs_max_num_points = abs_max_num_points
 
         big_out_V = np.empty(sum_abs_max_num_points, dtype=np.float64)
         big_out_I = np.empty(sum_abs_max_num_points, dtype=np.float64)
@@ -525,7 +535,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
             kernel_ms = combine_iv_jobs_batch(n_jobs_c, jobs_c, parallel_, refine_mode_, interp_method_, 
-            use_existing_grid_, REFINE_V_HALF_WIDTH_, max_tolerable_radians_change)
+            use_existing_grid_, REFINE_V_HALF_WIDTH_, max_tolerable_radians_change, has_any_intrinsic_diode, has_any_photon_coupling, largest_abs_max_num_points)
 
         # ----- unpack outputs -----
         free(this_view)
@@ -567,8 +577,8 @@ def run_multiple_operating_points(components, bint parallel=False):
     # Allocate C pointer tables
     cdef const double** xs = <const double**> malloc(n_jobs * sizeof(const double*))
     cdef const double** ys = <const double**> malloc(n_jobs * sizeof(const double*))
-    cdef double[5] *element_params
-    element_params = <double[5] *> malloc(n_jobs * sizeof(double[5]))
+    cdef double[8] *element_params
+    element_params = <double[8] *> malloc(n_jobs * sizeof(double[8]))
     cdef int* circuit_type_number = <int*> malloc(n_jobs * sizeof(int))
     cdef int* ns           = <int*> malloc(n_jobs * sizeof(int))
     cdef double** yqs      = <double**> malloc(n_jobs * sizeof(double*))

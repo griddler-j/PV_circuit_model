@@ -274,9 +274,9 @@ void calc_intrinsic_Si_I(
     double base_thickness,
     double area,               // area is actually always 1
     double* __restrict out_I,             // output: I(V) or dI/dV, length n_V
-    bool additive
+    bool additive,
+    double* delta_n, double* BGN, double* pn
 ) {
-    const double q = 1.602e-19;
     double N_doping = base_doping;
 
     // Equilibrium n0, p0 depend only on doping & ni, not on V
@@ -299,49 +299,76 @@ void calc_intrinsic_Si_I(
     const double Brel = 1.0;
     const double Blow = 4.73e-15;
 
-    std::vector<double> delta_n(n_V);
-    std::vector<double> BGN(n_V);
-    std::vector<double> pn(n_V);
-
-    // Compute delta_n first
-    for (int i = 0; i < n_V; ++i) {
-        double expv = std::exp(V[i]/VT);
-        pn[i] = ni * ni * expv;
-        delta_n[i] = 0.5 * (-N_doping + std::sqrt(N_doping*N_doping + 4.0*ni*ni*expv));
-    }
-
-    // Vector interpolation:
-    interp_monotonic_inc(
-        g_bgn_x.data(),
-        g_bgn_y.data(),
-        (int)g_bgn_x.size(),
-        delta_n.data(),
-        n_V,
-        BGN.data(),
-        false,        // overwrite
-        0
-    );
-
     double termA = 2.5e-31 * geeh * n0;
     double termB = 8.5e-32 * gehh * p0;
-    for (int i = 0; i < n_V; ++i) {
+
+    if (n_V==1) { // just one point 
+        double expv = std::exp(V[0]/VT);
+        double pn0 = ni * ni * expv;
+        double delta_n0 = 0.5 * (-N_doping + std::sqrt(N_doping*N_doping + 4.0*ni*ni*expv));
+        double BGN0;
+        interp_monotonic_inc(
+            g_bgn_x.data(),
+            g_bgn_y.data(),
+            (int)g_bgn_x.size(),
+            &delta_n0,
+            n_V,
+            &BGN0,
+            false,        // overwrite
+            0
+        );
         // ni_eff = ni * exp(BGN/(2*VT))
-        double ni_eff = ni * std::exp(BGN[i] / (2.0 * VT));
+        double ni_eff = ni * std::exp(BGN0 / (2.0 * VT));
 
         // Recombination prefactor
-        double termC = 3e-29   * std::pow(delta_n[i], 0.92);
+        double termC = 3e-29   * std::pow(delta_n0, 0.92);
         double coeff = termA + termB + termC + Brel * Blow;
 
         // intrinsic_recomb = (pn - ni_eff^2)*coeff
-        double intrinsic_recomb = (pn[i] - ni_eff*ni_eff) * coeff;
+        double intrinsic_recomb = (pn0 - ni_eff*ni_eff) * coeff;
 
         // I(V) = q * intrinsic_recomb * thickness * area
-        out_I[i] = (additive? out_I[i]:0.0) + q * intrinsic_recomb * base_thickness * area;
+        out_I[0] = (additive? out_I[0]:0.0) + q * intrinsic_recomb * base_thickness * area;
+
+    } else {
+        // Compute delta_n first
+        for (int i = 0; i < n_V; ++i) {
+            double expv = std::exp(V[i]/VT);
+            pn[i] = ni * ni * expv;
+            delta_n[i] = 0.5 * (-N_doping + std::sqrt(N_doping*N_doping + 4.0*ni*ni*expv));
+        }
+
+        // Vector interpolation:
+        interp_monotonic_inc(
+            g_bgn_x.data(),
+            g_bgn_y.data(),
+            (int)g_bgn_x.size(),
+            delta_n,
+            n_V,
+            BGN,
+            false,        // overwrite
+            0
+        );
+
+        for (int i = 0; i < n_V; ++i) {
+            // ni_eff = ni * exp(BGN/(2*VT))
+            double ni_eff = ni * std::exp(BGN[i] / (2.0 * VT));
+
+            // Recombination prefactor
+            double termC = 3e-29   * std::pow(delta_n[i], 0.92);
+            double coeff = termA + termB + termC + Brel * Blow;
+
+            // intrinsic_recomb = (pn - ni_eff^2)*coeff
+            double intrinsic_recomb = (pn[i] - ni_eff*ni_eff) * coeff;
+
+            // I(V) = q * intrinsic_recomb * thickness * area
+            out_I[i] = (additive? out_I[i]:0.0) + q * intrinsic_recomb * base_thickness * area;
+        }
     }
 }
 
 int get_V_range(const double* __restrict circuit_element_parameters,
-    int max_num_points,bool intrinsic_Si_calc,bool is_reverse_diode,double* out_V) {
+    int max_num_points,bool intrinsic_Si_calc,bool is_reverse_diode,double* out_V,double* delta_n, double* BGN, double* pn) {
     // circuit_component.base_doping, circuit_component.n, circuit_component.VT, circuit_component.base_thickness, max_I, circuit_component.ni, base_type_number
     double n = circuit_element_parameters[1];
     double VT = circuit_element_parameters[2];
@@ -359,16 +386,15 @@ int get_V_range(const double* __restrict circuit_element_parameters,
         if (base_thickness > 0) {
             Voc = 0.7;
             for (int i=0; i<10; ++i) {
-                std::vector<double> V(1);
-                V[0] = Voc;
-                std::vector<double> I(1);
+                double V = Voc;
+                double I;
                 double ni = circuit_element_parameters[5];
                 int base_type_number = static_cast<int>(circuit_element_parameters[6]);
                 double base_doping = circuit_element_parameters[0];
                 double base_thickness = circuit_element_parameters[3];
-                calc_intrinsic_Si_I(V.data(),V.size(),ni,VT,base_doping,base_type_number,base_thickness,1.0,I.data(),false);
-                if (I[0] >= max_I && I[0] <= max_I*1.1) break;
-                Voc += VT*std::log(max_I/I[0]);
+                calc_intrinsic_Si_I(&V,1,ni,VT,base_doping,base_type_number,base_thickness,1.0,&I,false,delta_n, BGN, pn);
+                if (I >= max_I && I <= max_I*1.1) break;
+                Voc += VT*std::log(max_I/I);
             }
         }
     }
@@ -428,7 +454,7 @@ void interp_monotonic_inc_scalar(
     double** __restrict yqs,        // output (single values)
     int n_jobs,
     int parallel,
-    const double (*element_params)[5],
+    const double (*element_params)[8],
     int* __restrict circuit_type_number
 ) {
     int max_threads = omp_get_max_threads();
@@ -465,11 +491,8 @@ void interp_monotonic_inc_scalar(
             double base_doping = diode_param[0];
             double base_thickness = diode_param[3];
             double VT = diode_param[2];
-            std::vector<double> V(1);
-            V[0] = xq;
-            std::vector<double> I(1);
-            calc_intrinsic_Si_I(V.data(),V.size(),ni,VT,base_doping,base_type_number,base_thickness,1,I.data(),false);
-            *yq = I[0];
+            double V = xq;
+            calc_intrinsic_Si_I(&V,1,ni,VT,base_doping,base_type_number,base_thickness,1,yq,false,nullptr,nullptr,nullptr);
             continue;
         }
 
@@ -538,7 +561,7 @@ void build_diode_iv(
     double VT = circuit_element_parameters[2];
     double V_shift = circuit_element_parameters[3];
 
-    int size = get_V_range(circuit_element_parameters, max_num_points,false,is_reverse_diode,out_V);
+    int size = get_V_range(circuit_element_parameters, max_num_points,false,is_reverse_diode,out_V,nullptr,nullptr,nullptr);
 
     if (!is_reverse_diode) {
         for (size_t i = 0; i < size; ++i) 
@@ -555,15 +578,16 @@ void build_Si_intrinsic_diode_iv(
     int max_num_points,
     double* __restrict out_V,
     double* __restrict out_I,
-    int* out_len
+    int* out_len,
+    double* delta_n, double* BGN, double* pn
 ) {
-    int size = get_V_range(circuit_element_parameters, max_num_points,true,false,out_V);
+    int size = get_V_range(circuit_element_parameters, max_num_points,true,false,out_V,delta_n,BGN,pn);
     double ni = circuit_element_parameters[5];
     int base_type_number = static_cast<int>(circuit_element_parameters[6]);
     double base_doping = circuit_element_parameters[0];
     double base_thickness = circuit_element_parameters[3];
     double VT = circuit_element_parameters[2];
-    calc_intrinsic_Si_I(out_V,size,ni,VT,base_doping,base_type_number,base_thickness,1.0,out_I,false);
+    calc_intrinsic_Si_I(out_V,size,ni,VT,base_doping,base_type_number,base_thickness,1.0,out_I,false,delta_n, BGN, pn);
     *out_len = size;
 }
 
@@ -589,7 +613,10 @@ void combine_iv_job(int connection,
     double bottom_up_op_pt_V,
     double normalized_op_pt_V,
     int refinement_points,
-    int interp_method, int use_existing_grid, double refine_V_half_width) {
+    int interp_method, int use_existing_grid, double refine_V_half_width,
+    double* delta_n, double* BGN, double* pn, 
+    double* extra_Is, double* this_V, double* added_I, 
+    double* xq, double* new_points) {
 
     out_extrapolation_allowed[0] = true; 
     out_extrapolation_allowed[1] = true;
@@ -622,7 +649,7 @@ void combine_iv_job(int connection,
             case 4: // Intrinsic Si Diode
                 out_has_I_domain_limit[0] = true;
                 out_extrapolation_allowed[1] = false;
-                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len);
+                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len, delta_n, BGN, pn);
                 break;
         }
         return;
@@ -658,12 +685,12 @@ void combine_iv_job(int connection,
                 }
             }
         }
-        std::vector<double> extra_Is;
+        int extra_Is_length = 0;
         for (int iteration = 0; iteration < 2; ++iteration) {
             if (use_existing_grid!=1) {
-                if (iteration == 1 && !extra_Is.empty()) {
-                    memcpy(Is + vs_len, extra_Is.data(), extra_Is.size() * sizeof(double));
-                    vs_len += extra_Is.size();
+                if (iteration == 1 && extra_Is_length>0) {
+                    memcpy(Is + vs_len, extra_Is, extra_Is_length * sizeof(double));
+                    vs_len += extra_Is_length;
                 }
                 
                 if (iteration==0) 
@@ -725,7 +752,6 @@ void combine_iv_job(int connection,
                 }  
                 break;
             } else {
-                std::vector<double> this_V(vs_len);
                 // do reverse order to allow for photon coupling
                 for (int i = n_children-1; i >= 0; --i) {
                     int len = children_IVs[i].length;
@@ -737,30 +763,28 @@ void combine_iv_job(int connection,
                             const double* pc_IV_table_I = children_pc_IVs[i+1].I; 
                             double scale =  children_pc_IVs[i+1].scale;
                             int pc_len = children_pc_IVs[i+1].length;
-                            std::vector<double> added_I(vs_len);
                             // the first time this is reached, i<n_children-1 (at least second iteration through the loop)
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
 
                             interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, 
-                                this_V.data(), (int)this_V.size(), added_I.data(), false, 0); 
-                            for (int j=0; j < added_I.size(); j++) added_I[j] *= -1*scale;
-                            std::vector<double> xq(vs_len);
-                            std::transform(Is, Is + vs_len,added_I.begin(),xq.begin(),std::minus<double>());
+                                this_V, vs_len, added_I, false, 0); 
+                            for (int j=0; j < vs_len; j++) added_I[j] *= -1*scale;
+                            for (int j=0; j < vs_len; j++) xq[j] = Is[j] - added_I[j];
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, 
-                                 xq.data(), (int)xq.size(), this_V.data(),false, interp_method); 
+                                 xq, vs_len, this_V,false, interp_method); 
                             if (use_existing_grid!=1) {
-                                std::vector<double> new_points(vs_len);
-                                std::transform(Is, Is + vs_len,added_I.begin(),new_points.begin(),std::plus<double>());
-                                extra_Is.insert(extra_Is.end(), new_points.begin(), new_points.end());
+                                for (int j=0; j < vs_len; j++) new_points[j] = Is[j] + added_I[j];
+                                memcpy(extra_Is + extra_Is_length, new_points, vs_len * sizeof(double));
+                                extra_Is_length += vs_len;
                             }
                         } else {
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, 
-                                Is, vs_len, this_V.data(),false, interp_method); 
+                                Is, vs_len, this_V,false, interp_method); 
                         }
-                        std::transform(Vs, Vs+vs_len,this_V.begin(),Vs,std::plus<double>());
+                        for (int j=0; j < vs_len; j++) Vs[j] += this_V[j];
                     }
                 }
-                if (extra_Is.empty()) break;
+                if (extra_Is_length == 0) break;
                 if (use_existing_grid==1) break;
             }
         }
@@ -868,7 +892,7 @@ void combine_iv_job(int connection,
                     double base_thickness = children_IVs[i].element_params[2];
                     double ni = children_IVs[i].element_params[3];
                     double base_type_number = children_IVs[i].element_params[4];
-                    calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true);
+                    calc_intrinsic_Si_I(Vs,vs_len,ni,VT,base_doping,base_type_number,base_thickness,1,Is,true,delta_n, BGN, pn);
                 }
                 else
                     interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, 
@@ -896,7 +920,10 @@ void remesh_IV(
     double* out_I,
     int* out_len, 
     double refine_V_half_width, 
-    double max_tolerable_radians_change) {
+    double max_tolerable_radians_change,
+    double* accum_abs_dir_change, 
+    double* accum_abs_dir_change_near_mpp, 
+    int* idx) {
 
     double* Vs = out_V;
     double* Is = out_I;
@@ -918,9 +945,9 @@ void remesh_IV(
     }
 
     int n = static_cast<int>(*vs_len);
-    std::vector<double> accum_abs_dir_change(n-1); 
-    std::vector<double> accum_abs_dir_change_near_mpp(n-1); 
-    accum_abs_dir_change.push_back(0.0);
+    accum_abs_dir_change[0] = 0.0;
+    if (refine_mode)
+        accum_abs_dir_change_near_mpp[0] = 0.0;
     double V_range = Vs[n-1];
     double left_V = 0.05*Vs[0];
     double right_V = 0.05*Vs[n-1];
@@ -991,50 +1018,57 @@ void remesh_IV(
         variation_segment_mpp =
             accum_abs_dir_change_near_mpp[n - 2] / refinement_points;
     }
-    std::vector<int> idx;
-    idx.reserve(max_num_points+100+refinement_points);
-    idx.push_back(0);
+    idx[0] = 0;
+    int idx_size = 1;
     int count = 1;
     int countmpp = 1;
     for (int i = 1; i < n - 1; ++i) {
         if (accum_abs_dir_change[i] >= count * variation_segment) {
-            int last_index = idx.size()-1;
-            if (last_index >= 0 && i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index]) 
-                idx.push_back(idx_V_closest_to_SC_left);  // just also capture points closest to SC to keep Isc accurate
-            if (last_index >= 0 && i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index]) 
-                idx.push_back(idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
-            if (last_index >= 0 && i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index]) 
-                idx.push_back(idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
-            idx.push_back(i);
+            int last_index = idx_size-1;
+            if (last_index >= 0 && i > idx_V_closest_to_SC_left && idx_V_closest_to_SC_left > idx[last_index]) {
+                idx[idx_size] = (idx_V_closest_to_SC_left);  // just also capture points closest to SC to keep Isc accurate
+                ++idx_size;
+            }
+            if (last_index >= 0 && i > idx_V_closest_to_SC && idx_V_closest_to_SC > idx[last_index]) {
+                idx[idx_size] = (idx_V_closest_to_SC);  // just also capture points closest to SC to keep Isc accurate
+                ++idx_size;
+            }
+            if (last_index >= 0 && i > idx_V_closest_to_SC_right && idx_V_closest_to_SC_right > idx[last_index]) {
+                idx[idx_size] = (idx_V_closest_to_SC_right);  // just also capture points closest to SC to keep Isc accurate
+                ++idx_size;
+            }
+            idx[idx_size] = i;
+            ++idx_size;
             while (accum_abs_dir_change[i] >= count * variation_segment)
                 ++count;
         } else if (refine_mode==1 && variation_segment_mpp>0 && accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp) {
-            idx.push_back(i);
+            idx[idx_size] = i;
+            ++idx_size;
             while (accum_abs_dir_change_near_mpp[i] >= countmpp * variation_segment_mpp)
                 ++countmpp;
         }
     }
-    idx.push_back(n-1);
+    idx[idx_size] = n-1;
+    ++idx_size;
 
     // remesh
-    int n_out = (int)idx.size();
+    int n_out = idx_size;;
     for (int i = 0; i < n_out; ++i) {
         int k = idx[i];  
         out_V[i] = Vs[k];
         out_I[i] = Is[k];
     }
     *out_len = n_out;
-
-
 } 
 
 double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
     int parallel, int refine_mode, int interp_method, int use_existing_grid, 
-    double refine_V_half_width, double max_tolerable_radians_change) {
+    double refine_V_half_width, double max_tolerable_radians_change, 
+    int has_any_intrinsic_diode, int has_any_photon_coupling, int largest_abs_max_num_points) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    int max_threads; 
-    int num_threads;
+    int max_threads = 1;
+    int num_threads = 1;
     if (parallel==1 && n_jobs>1) {
         max_threads = omp_get_max_threads();
         num_threads = max_threads;
@@ -1042,9 +1076,60 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
         if (n_jobs < max_threads) num_threads = max_threads/4;
         if (n_jobs < max_threads/4) num_threads = n_jobs;
     }
+
+    std::vector<double> scratch_delta_n;
+    std::vector<double> scratch_BGN;
+    std::vector<double> scratch_pn;
+    std::vector<double> scratch_extra_Is;
+    std::vector<double> scratch_this_V;
+    std::vector<double> scratch_added_I;
+    std::vector<double> scratch_xq;
+    std::vector<double> scratch_new_points;
+    std::vector<double> scratch_accum_change;
+    std::vector<double> scratch_accum_change_mpp;
+    std::vector<int>    scratch_idx;
+
+    int scratch_size = num_threads * largest_abs_max_num_points;
+    if (has_any_intrinsic_diode) {
+        scratch_delta_n.resize(scratch_size);
+        scratch_BGN.resize(scratch_size);
+        scratch_pn.resize(scratch_size);
+    }
+    if (has_any_photon_coupling) {
+        scratch_extra_Is.resize(scratch_size);
+        scratch_this_V.resize(scratch_size);
+        scratch_added_I.resize(scratch_size);
+        scratch_xq.resize(scratch_size);
+        scratch_new_points.resize(scratch_size);
+    }
     
     #pragma omp parallel for num_threads(num_threads) if(parallel==1 && n_jobs>1)
     for (int j = 0; j < n_jobs; ++j) {
+        int tid = omp_get_thread_num();
+
+        size_t baseP = (size_t)tid * largest_abs_max_num_points;
+
+        double* delta_n = nullptr;
+        double* BGN     = nullptr;
+        double* pn      = nullptr;
+        double* extra_Is   = nullptr;
+        double* this_V     = nullptr;
+        double* added_I    = nullptr;
+        double* xq         = nullptr;
+        double* new_points = nullptr;
+        if (has_any_intrinsic_diode) {
+            delta_n    = scratch_delta_n.data()    + baseP;
+            BGN        = scratch_BGN.data()        + baseP;
+            pn         = scratch_pn.data()         + baseP;
+        }
+        if (has_any_photon_coupling) {
+            extra_Is   = scratch_extra_Is.data()   + baseP;
+            this_V     = scratch_this_V.data()     + baseP;
+            added_I    = scratch_added_I.data()    + baseP;
+            xq         = scratch_xq.data()         + baseP;
+            new_points = scratch_new_points.data() + baseP;
+        }
+
         IVJobDesc& job = jobs[j];
         combine_iv_job(
             job.connection,
@@ -1071,7 +1156,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             job.refinement_points,
             interp_method,
             use_existing_grid,
-            refine_V_half_width
+            refine_V_half_width, 
+            delta_n, BGN, pn, extra_Is, this_V, added_I, xq, new_points
         );
     }
     if (use_existing_grid==1)
@@ -1085,6 +1171,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
     }
     int num_jobs_need_remesh = remesh_indices.size();
     if (num_jobs_need_remesh > 0) {
+        int max_threads = 1;
+        int num_threads = 1;
         if (parallel==1 && num_jobs_need_remesh>1) {
             max_threads = omp_get_max_threads();
             num_threads = max_threads;
@@ -1093,8 +1181,26 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             if (num_jobs_need_remesh < max_threads/4) num_threads = num_jobs_need_remesh;
         }
 
+        int scratch_size = num_threads * largest_abs_max_num_points;
+        scratch_accum_change.resize(scratch_size);
+        if (refine_mode)
+            scratch_accum_change_mpp.resize(scratch_size);
+        scratch_idx.resize(scratch_size);
+
         #pragma omp parallel for num_threads(num_threads) if(parallel==1 && num_jobs_need_remesh>1)
         for (int j = 0; j < num_jobs_need_remesh; ++j) {
+            int tid = omp_get_thread_num();
+
+            size_t baseP = (size_t)tid * largest_abs_max_num_points;
+
+            double* accum_abs_dir_change = nullptr;
+            double* accum_abs_dir_change_near_mpp     = nullptr;
+            int* idx      = nullptr;
+            accum_abs_dir_change = scratch_accum_change.data() + baseP;
+            if (refine_mode)
+                accum_abs_dir_change_near_mpp = scratch_accum_change_mpp.data() + baseP;
+            idx = scratch_idx.data() + baseP;
+            
             IVJobDesc& job = jobs[remesh_indices[j]];
             remesh_IV(
                 job.operating_point[0],
@@ -1107,7 +1213,8 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
                 job.out_I,
                 job.out_len,
                 refine_V_half_width,
-                max_tolerable_radians_change
+                max_tolerable_radians_change,
+                accum_abs_dir_change, accum_abs_dir_change_near_mpp, idx
             );
         }
     }
