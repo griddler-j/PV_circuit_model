@@ -772,7 +772,7 @@ void combine_iv_job(int connection,
                             for (int j=0; j < vs_len; j++) xq[j] = Is[j] - added_I[j];
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, 
                                  xq, vs_len, this_V,false, interp_method); 
-                            if (use_existing_grid!=1) {
+                            if (use_existing_grid!=1 && iteration==0) {
                                 for (int j=0; j < vs_len; j++) new_points[j] = Is[j] + added_I[j];
                                 memcpy(extra_Is + extra_Is_length, new_points, vs_len * sizeof(double));
                                 extra_Is_length += vs_len;
