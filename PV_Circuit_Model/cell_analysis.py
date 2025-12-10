@@ -564,7 +564,7 @@ def solver_summary(self,display_or_latex=0):
 
 def save_solver_summary(self,filepath):
     text = self.solver_summary(display_or_latex=1)
-    with open(filepath, "w") as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         f.write(text)
 
 def save_IV_curve(self,filepath):

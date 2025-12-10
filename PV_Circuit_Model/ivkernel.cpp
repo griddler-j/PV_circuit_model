@@ -700,11 +700,11 @@ void combine_iv_job(int connection,
                 );
                 vs_len = int(new_end - Is);
 
-                double eps = I_range/1e9; // nano amps
-                new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
-                    return std::fabs(a - b) < eps;
-                });
-                // auto new_end = std::unique(Is, Is + vs_len);
+                // double eps = I_range/1e9; // nano amps
+                // new_end = std::unique(Is, Is + vs_len, [eps](double a, double b) {
+                //     return std::fabs(a - b) < eps;
+                // });
+                new_end = std::unique(Is, Is + vs_len);
                 vs_len = int(new_end - Is);
             }
 
@@ -827,11 +827,19 @@ void combine_iv_job(int connection,
                 }
             );
             vs_len = int(new_end - Vs);
-            double eps = 1e-9; // nanovolt
-            new_end = std::unique(Vs, Vs+vs_len, [eps](double a, double b) {
-                return std::fabs(a - b) < eps;
-            });
-            vs_len = int(new_end - Vs);
+
+            if (vs_len > 1) {
+                double eps = 1e-9; // nanovolt
+                double last_val = Vs[vs_len - 1];
+                double* new_end = std::unique(Vs, Vs+vs_len - 1,
+                    [eps](double a, double b) {
+                        return std::fabs(a - b) < eps;
+                    });
+                // always keep the original last point
+                if (std::fabs(last_val - new_end[-1]) >= eps)
+                    *new_end++ = last_val;
+                vs_len = int(new_end - Vs);
+            }
         }
 
         std::fill(Is, Is + vs_len, 0.0);
