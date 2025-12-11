@@ -1,11 +1,12 @@
 from setuptools import setup, Extension
 from pathlib import Path
 import numpy as np
-import sys, io
+import sys, io, os
 from contextlib import contextmanager
 
 force_cython = False
 silent_build = True
+fallback_to_python_if_build_fail = True
 
 @contextmanager
 def silent(build_silently=False):
@@ -22,6 +23,7 @@ def silent(build_silently=False):
         sys.stdout = old_stdout
         sys.stderr = old_stderr
 
+build_error = None
 with silent(silent_build):
     here = Path(__file__).resolve().parent
 
@@ -56,33 +58,40 @@ with silent(silent_build):
                 "Cython is required to run this command.\n"
                 "Install with `pip install cython`."
             ) from e
-            
-    try_paths = ["PV_Circuit_Model.ivkernel","ivkernel"]
-    for try_path in try_paths:
-        try:
-            if not cpp_file.exists() or force_cython:
-                # This will generate ivkernel_wrapper.cpp
-                temp_ext = Extension(
-                name=try_path,      # MUST match your real extension name
-                sources=[str(pyx_file)],
-                language="c++",
-                )
-                cythonize(
-                    [temp_ext],
-                    language_level="3",
-                )
 
-            ext = Extension(
-                name=try_path,
-                sources=sources,
-                language="c++",
-                include_dirs=[np.get_include()],
-                extra_compile_args=compile_args,
-                extra_link_args=link_args
+    if os.path.exists("PV_Circuit_Model"): # meaning we're outside "PV Circuit Model"
+        try_path = "PV_Circuit_Model.ivkernel"
+    else:
+        try_path = "ivkernel"
+
+    try:
+        if not cpp_file.exists() or force_cython:
+            temp_ext = Extension(
+            name=try_path,      # MUST match your real extension name
+            sources=[str(pyx_file)],
+            language="c++",
             )
-            ext_modules = [ext]
+            cythonize(
+                [temp_ext],
+                language_level="3",
+            )
 
-            setup(name="ivkernel",ext_modules=ext_modules)
-            break
-        except:
-            pass
+        ext = Extension(
+            name=try_path,
+            sources=sources,
+            language="c++",
+            include_dirs=[np.get_include()],
+            extra_compile_args=compile_args,
+            extra_link_args=link_args
+        )
+        ext_modules = [ext]
+
+        setup(name="ivkernel",ext_modules=ext_modules)
+    except Exception as ex:
+        build_error = ex
+        
+if build_error is not None:        
+    print("Build ivkernel failed:", build_error)
+    if not fallback_to_python_if_build_fail:
+        raise
+

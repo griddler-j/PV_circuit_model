@@ -19,6 +19,20 @@ To simulate the I–V curve of any photovoltaic (PV) system—whether it is a si
 
 In addition to CurveStack, **PV Circuit Model** also provides tools to simulate and analyze standard PV measurements (e.g., I–V curves, Suns-Voc), along with workflows for **fitting circuit models to experimental data**.
 
+⚙️ Platform Support & Build Requirements
+
+Current support status
+
+✅ Windows: Supported
+⚠️ Linux / macOS: Not yet tested
+
+Important (Windows users): This project includes C++/Cython extensions. You must have the Microsoft Visual C++ Build Tools (MSVC v14.x or newer) installed and upon first running the code, PV Circuit Model will automatically build the ivkernel from source.
+
+Install from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+During installation, select "Desktop development with C++".
+
+Without MSVC, PV Circuit Model will fail to build the ivkernel from source and fall back to a python implementation (which will be deprecated)
+
 # 🛠️ Getting Started
 1. Install dependencies - 
 Navigate to the package directory and run: `pip install -r requirements.txt`
