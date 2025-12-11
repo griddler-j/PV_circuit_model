@@ -13,7 +13,7 @@ REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESH
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")
-    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", 
+    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV"
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
     _dont_serialize = ("circuit_depth", "num_circuit_elements")
     max_I = None
@@ -21,6 +21,7 @@ class CircuitComponent(ParamSerializable):
     IV_V = None  
     IV_I = None  
     extrapolation_allowed = [False,False]
+    extrapolation_dI_dV = [0,0]
     has_I_domain_limit = [False,False]
     refined_IV = False
     operating_point = None
@@ -33,6 +34,7 @@ class CircuitComponent(ParamSerializable):
         self.aux = {}
         self.tag = tag
         self.extrapolation_allowed = [False,False]
+        self.extrapolation_dI_dV = [0,0]
         self.has_I_domain_limit = [False,False]
 
     @property
@@ -98,7 +100,7 @@ class CircuitElement(CircuitComponent):
                     self.null_all_IV()
                     self.build_IV()
 
-            I = interp_(V,self.IV_V,self.IV_I)
+            I = interp_(V,self.IV_V,self.IV_I,self.extrapolation_dI_dV[0],self.extrapolation_dI_dV[1])
         elif I is not None:
             if (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]): # out of reach of IV curve
                 diodes = self.findElementType(Diode)
@@ -108,7 +110,7 @@ class CircuitElement(CircuitComponent):
                     self.null_all_IV()
                     self.build_IV()
 
-            V = interp_(I,self.IV_I,self.IV_V)
+            V = interp_(I,self.IV_I,self.IV_V,1/self.extrapolation_dI_dV[0],1/self.extrapolation_dI_dV[1])
         self.operating_point = [V,I]
     def get_value_text(self):
         pass

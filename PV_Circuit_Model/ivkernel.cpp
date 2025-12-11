@@ -142,7 +142,9 @@ void interp_monotonic_inc(
     int m,
     double* __restrict yq,         // size m, output
     bool additive,        // true: adds to yq
-    int method // 0-linear, 1-smooth slope, 2-take max, 3-take min
+    int method, // 0-linear, 1-smooth slope, 2-take max, 3-take min
+    double extrapolation_left_slope,
+    double extrapolation_right_slope
 ) {
     if (!x || !y || !xq || !yq || n <= 0 || m <= 0) return;
     if (n == 1) {
@@ -161,21 +163,17 @@ void interp_monotonic_inc(
     }
     int j_left = 0;
     // --- Left extrapolation: xq <= x[0] ---
-    double slope_left;
     if (xq[j_left] <= x[0]) {
-        slope_left = (y[1] - y[0])/(x[1] - x[0]);
         while (j_left < m && xq[j_left] <= x[0]) {
-            yq[j_left] = (additive? yq[j_left]:0.0) + y[0] + (xq[j_left] - x[0])*slope_left;
+            yq[j_left] = (additive? yq[j_left]:0.0) + y[0] + (xq[j_left] - x[0])*extrapolation_left_slope;
             ++j_left;
         }
     }
     int j_right = m-1;
     // --- Right extrapolation: xq >= x[n-1] ---
-    double slope_right;
     if (xq[j_right] >= x[n-1]) {
-        slope_right = (y[n-1] - y[n-2])/(x[n-1] - x[n-2]);
         while (j_left <= j_right && xq[j_right] >= x[n-1]) {
-            yq[j_right] = (additive? yq[j_right]:0.0) + y[n-1] + (xq[j_right] - x[n-1])*slope_right;
+            yq[j_right] = (additive? yq[j_right]:0.0) + y[n-1] + (xq[j_right] - x[n-1])*extrapolation_right_slope;
             --j_right;
         }
     }
@@ -221,6 +219,10 @@ void interp_monotonic_inc(
         }
         if (!std::isfinite(slope))
             yq[j] = (additive? yq[j]:0.0) + y[i];
+            // if (method==2)
+            //     yq[j] = (additive? yq[j]:0.0) + y[i+1];
+            // else
+            //     yq[j] = (additive? yq[j]:0.0) + y[i];
         else if (method==1) {
             double delta_x = 0.5*(x[i+1]-x[i]);
             double delta_x_left = xj - x[i];
@@ -237,6 +239,7 @@ void interp_monotonic_inc(
         } else if (method==2 || method==3) {
             double yadd;
             if (!std::isfinite(slope) || !std::isfinite(left_slope) || !std::isfinite(right_slope)) {
+            // if (!std::isfinite(slope) || !std::isfinite(left_slope) || !std::isfinite(right_slope) || i==0 || i>=n-2) {
                 if (method==2)
                     yadd = y[i+1];
                 else
@@ -315,7 +318,7 @@ void calc_intrinsic_Si_I(
             n_V,
             &BGN0,
             false,        // overwrite
-            0
+            0,0,0
         );
         // ni_eff = ni * exp(BGN/(2*VT))
         double ni_eff = ni * std::exp(BGN0 / (2.0 * VT));
@@ -347,7 +350,7 @@ void calc_intrinsic_Si_I(
             n_V,
             BGN,
             false,        // overwrite
-            0
+            0,0,0
         );
 
         for (int i = 0; i < n_V; ++i) {
@@ -606,6 +609,7 @@ void combine_iv_job(int connection,
     double* out_I,
     int* out_len,
     bool* out_extrapolation_allowed,
+    double* out_extrapolation_dI_dV,
     bool* out_has_I_domain_limit,
     int refine_mode,
     int all_children_are_elements,
@@ -622,6 +626,8 @@ void combine_iv_job(int connection,
     out_extrapolation_allowed[1] = true;
     out_has_I_domain_limit[0] = false; 
     out_has_I_domain_limit[1] = false;
+    out_extrapolation_dI_dV[0] = 0;
+    out_extrapolation_dI_dV[1] = 0;
 
     int children_Vs_size = 0;
     for (int i=0; i < n_children; i++) children_Vs_size += children_IVs[i].length;
@@ -632,23 +638,32 @@ void combine_iv_job(int connection,
                 build_current_source_iv(circuit_element_parameters, out_V, out_I, out_len);
                 out_has_I_domain_limit[0] = true;
                 out_has_I_domain_limit[1] = true;
+                out_extrapolation_dI_dV[0] = 0;
+                out_extrapolation_dI_dV[1] = 0;
                 break;
             case 1: // Resistor
                 build_resistor_iv(circuit_element_parameters, out_V, out_I, out_len);
+                out_extrapolation_dI_dV[0] = circuit_element_parameters[0]; // cond
+                out_extrapolation_dI_dV[1] = circuit_element_parameters[0];
+                // std::printf("Yo, out_extrapolation_dI_dV[0] = %e\n", out_extrapolation_dI_dV[0]);
+                // std::printf("Yo, circuit_element_parameters[0] = %e\n", circuit_element_parameters[0]);
                 break;
             case 2: // ForwardDiode
                 build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,false);
                 out_has_I_domain_limit[0] = true;
                 out_extrapolation_allowed[1] = false;
+                out_extrapolation_dI_dV[0] = 0;
                 break;
             case 3: // ReverseDiode
                 build_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len,true);
                 out_has_I_domain_limit[1] = true;
                 out_extrapolation_allowed[0] = false;
+                out_extrapolation_dI_dV[1] = 0;
                 break;
             case 4: // Intrinsic Si Diode
                 out_has_I_domain_limit[0] = true;
                 out_extrapolation_allowed[1] = false;
+                out_extrapolation_dI_dV[0] = 0;
                 build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len, delta_n, BGN, pn);
                 break;
         }
@@ -710,11 +725,21 @@ void combine_iv_job(int connection,
                     if (!children_IVs[i].right_extrapolation_allowed) {
                         right_limit = std::min(right_limit, IV_table_I[len-1]);
                         out_extrapolation_allowed[1] = false;
-                    }
+                        out_extrapolation_dI_dV[1] = 0;
+                    } else 
+                        if (out_extrapolation_dI_dV[1]==0)
+                            out_extrapolation_dI_dV[1] = children_IVs[i].extrapolation_dI_dV[1];
+                        else
+                            out_extrapolation_dI_dV[1] = 1/(1/out_extrapolation_dI_dV[1] + 1/children_IVs[i].extrapolation_dI_dV[1]);
                     if (!children_IVs[i].left_extrapolation_allowed) {
                         left_limit = std::max(left_limit, IV_table_I[0]);
                         out_extrapolation_allowed[0] = false;
-                    }
+                        out_extrapolation_dI_dV[0] = 0;
+                    } else
+                        if (out_extrapolation_dI_dV[0]==0)
+                            out_extrapolation_dI_dV[0] = children_IVs[i].extrapolation_dI_dV[0];
+                        else
+                            out_extrapolation_dI_dV[0] = 1/(1/out_extrapolation_dI_dV[0] + 1/children_IVs[i].extrapolation_dI_dV[0]);
                     if (children_IVs[i].has_upper_I_domain_limit) {
                         right_limit = std::min(right_limit, IV_table_I[len-1]);
                         out_has_I_domain_limit[1] = true;
@@ -747,7 +772,7 @@ void combine_iv_job(int connection,
                     int len = children_IVs[i].length;
                     if (len > 0) {
                         interp_monotonic_inc(children_IVs[i].I, children_IVs[i].V, len,
-                            Is, vs_len, Vs, true, interp_method); // keeps adding
+                            Is, vs_len, Vs, true, interp_method, 1/children_IVs[i].extrapolation_dI_dV[0], 1/children_IVs[i].extrapolation_dI_dV[1]); // keeps adding
                     }
                 }  
                 break;
@@ -767,11 +792,11 @@ void combine_iv_job(int connection,
                             // children_lengths[i+1]>0 which means in the previous iteration, this_V.data() would have been filled already!
 
                             interp_monotonic_inc(pc_IV_table_V, pc_IV_table_I, pc_len, 
-                                this_V, vs_len, added_I, false, 0); 
+                                this_V, vs_len, added_I, false, 0, 1/children_pc_IVs[i+1].extrapolation_dI_dV[0], 1/children_pc_IVs[i+1].extrapolation_dI_dV[1]); 
                             for (int j=0; j < vs_len; j++) added_I[j] *= -1*scale;
                             for (int j=0; j < vs_len; j++) xq[j] = Is[j] - added_I[j];
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, 
-                                 xq, vs_len, this_V,false, interp_method); 
+                                 xq, vs_len, this_V,false, interp_method, 1/children_IVs[i].extrapolation_dI_dV[0], 1/children_IVs[i].extrapolation_dI_dV[1]); 
                             if (use_existing_grid!=1 && iteration==0) {
                                 for (int j=0; j < vs_len; j++) new_points[j] = Is[j] + added_I[j];
                                 memcpy(extra_Is + extra_Is_length, new_points, vs_len * sizeof(double));
@@ -779,7 +804,7 @@ void combine_iv_job(int connection,
                             }
                         } else {
                             interp_monotonic_inc(IV_table_I, IV_table_V, len, 
-                                Is, vs_len, this_V,false, interp_method); 
+                                Is, vs_len, this_V,false, interp_method, 1/children_IVs[i].extrapolation_dI_dV[0], 1/children_IVs[i].extrapolation_dI_dV[1]); 
                         }
                         for (int j=0; j < vs_len; j++) Vs[j] += this_V[j];
                     }
@@ -839,11 +864,13 @@ void combine_iv_job(int connection,
                 if (!children_IVs[i].right_extrapolation_allowed) {
                     right_limit = std::min(right_limit, IV_table_V[len-1]);
                     out_extrapolation_allowed[1] = false;
-                }
+                } else
+                    out_extrapolation_dI_dV[1] = out_extrapolation_dI_dV[1] + children_IVs[i].extrapolation_dI_dV[1];
                 if (!children_IVs[i].left_extrapolation_allowed) {
                     left_limit = std::max(left_limit, IV_table_V[0]);
                     out_extrapolation_allowed[0] = false;
-                }
+                } else
+                    out_extrapolation_dI_dV[0] = out_extrapolation_dI_dV[0] + children_IVs[i].extrapolation_dI_dV[0];
                 if (!children_IVs[i].has_lower_I_domain_limit) 
                     out_has_I_domain_limit[0] = false; // relief
                 if (!children_IVs[i].has_upper_I_domain_limit) 
@@ -896,13 +923,15 @@ void combine_iv_job(int connection,
                 }
                 else
                     interp_monotonic_inc(children_IVs[i].V, children_IVs[i].I, len, 
-                        Vs, vs_len, Is, true, interp_method_); // keeps adding 
+                        Vs, vs_len, Is, true, interp_method_, children_IVs[i].extrapolation_dI_dV[0], children_IVs[i].extrapolation_dI_dV[1]); // keeps adding 
             }
         }  
     }
     
     if (area != 1) {
         for (int i=0; i<vs_len; i++) Is[i] *= area;
+        out_extrapolation_dI_dV[0] *= area;
+        out_extrapolation_dI_dV[1] *= area;
     }
     *out_len = vs_len;
     
@@ -1147,6 +1176,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             job.out_I,
             job.out_len,
             job.out_extrapolation_allowed,
+            job.out_extrapolation_dI_dV,
             job.out_has_I_domain_limit,
             refine_mode,
             job.all_children_are_elements,

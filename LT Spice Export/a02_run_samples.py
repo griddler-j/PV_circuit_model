@@ -7,7 +7,7 @@ sample_names = ["cell","ref_module","module","ref_string","string","parallel_str
 THIS_DIR = Path(__file__).resolve().parent
 
 for sample_name in tqdm(sample_names):
-    sample = ParamSerializable.restore_from_bson(THIS_DIR / Path(sample_name + ".bson"))
+    sample = ParamSerializable.restore_from_bson(THIS_DIR / Path("generated samples/" + sample_name + ".bson"))
     # sample = import_ltspice_netlist(THIS_DIR / Path(sample_name + ".net"))
     # sample = ParamSerializable.restore_from_json(THIS_DIR / Path(sample_name + ".json"))
     # sample.save_to_json(THIS_DIR / Path(sample_name + ".json"), critical_fields_only=True)

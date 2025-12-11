@@ -80,13 +80,19 @@ def get_Voc(argument, interpolation_method=0):
             right_slope = slopes[2]
             this_slope = slopes[1]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index-1] + (V-IV_curve[0,index-1])*left_slope
-                I_ref_right = IV_curve[1,index] + (V-IV_curve[0,index])*right_slope
+                I_ref_left = IV_curve[1,index] + (V-IV_curve[0,index])*left_slope
+                I_ref_right = IV_curve[1,index+1] + (V-IV_curve[0,index+1])*right_slope
                 I_ref_mid = interp_(V,IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
                     I = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
                     I = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+            else:
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I[:] = IV_curve[1,index-1]
+                else: 
+                    I[:] = IV_curve[1,index]
+
             Voc = interp_(0,I,V)  
 
     return Voc
@@ -96,16 +102,11 @@ def get_Isc(argument, interpolation_method=0):
     if isinstance(argument,CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
-
-        # if can't reach SC, that's because of the Idomain cap.  In this case just extend.  Not a problem
-        if argument.IV_V[0] > 0:
-             argument.IV_V = np.insert(argument.IV_V, 0, 0)
-             argument.IV_I = np.insert(argument.IV_I, 0, argument.IV_I[0])
-
         IV_curve = argument.IV_table
+        Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:],argument.extrapolation_dI_dV[0],argument.extrapolation_dI_dV[1])
     else:
         IV_curve = argument
-    Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:])
+        Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:])
 
     if interpolation_method>0: 
         index = np.searchsorted(IV_curve[0,:], 0, side="right") - 1
@@ -117,13 +118,18 @@ def get_Isc(argument, interpolation_method=0):
             right_slope = slopes[2]
             this_slope = slopes[1]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index-1] + (V-IV_curve[0,index-1])*left_slope
-                I_ref_right = IV_curve[1,index] + (V-IV_curve[0,index])*right_slope
+                I_ref_left = IV_curve[1,index] + (V-IV_curve[0,index])*left_slope
+                I_ref_right = IV_curve[1,index+1] + (V-IV_curve[0,index+1])*right_slope
                 I_ref_mid = interp_(V,IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
                     I = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
                     I = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+            else:
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I[:] = IV_curve[1,index-1]
+                else: 
+                    I[:] = IV_curve[1,index]
             Isc = -interp_(0,V,I)  
 
     return Isc
@@ -172,19 +178,29 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True, interpolation_meth
                     I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
                     I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+            else:
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I[find_] = IV_curve[1,index-1]
+                else: 
+                    I[find_] = IV_curve[1,index]
 
             find_ = np.where(V > IV_curve[0,index])[0]
             left_slope = slopes[1]
             right_slope = slopes[3]
             this_slope = slopes[2]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
-                I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
+                I_ref_left = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*left_slope
+                I_ref_right = IV_curve[1,index+1] + (V[find_]-IV_curve[0,index+1])*right_slope
                 I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
                     I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
                     I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+            else:
+                if interpolation_method==1: # get upper bound curve, meaning to go under
+                    I[find_] = IV_curve[1,index]
+                else: 
+                    I[find_] = IV_curve[1,index+1]
 
         power = -V*I
         index = np.argmax(power)
@@ -668,14 +684,19 @@ def save_solver_summary(self,filepath):
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(text)
 
-def save_IV_curve(self,filepath):
-    if self.IV_V is not None:
-        V_col = self.IV_V
-        I_col = self.IV_I
-        with open(filepath, "w") as f:
-            f.write("V(V)\tI(A)\n")
-            for V, I in zip(V_col, I_col):
-                f.write(f"{V:.17e}\t{I:.17e}\n")
+def save_IV_curve(argument,filepath):
+    if not isinstance(argument,CircuitComponent):
+        V_col = argument[0,:]
+        I_col = argument[1,:]
+    elif argument.IV_V is not None:
+        V_col = argument.IV_V
+        I_col = argument.IV_I
+    else:
+        return
+    with open(filepath, "w") as f:
+        f.write("V(V)\tI(A)\n")
+        for V, I in zip(V_col, I_col):
+            f.write(f"{V:.17e}\t{I:.17e}\n")
 
 def show_solver_summary(self, fig=None):
     text = self.solver_summary()

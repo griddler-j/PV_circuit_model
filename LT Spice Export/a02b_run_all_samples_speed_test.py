@@ -9,7 +9,7 @@ sample_names = ["cell","ref_module","module","ref_string","string","parallel_str
 THIS_DIR = Path(__file__).resolve().parent
 
 for sample_name in tqdm(sample_names):
-    sample = ParamSerializable.restore_from_bson(THIS_DIR / Path(sample_name + ".bson"))
+    sample = ParamSerializable.restore_from_bson(THIS_DIR / Path("generated samples/" + sample_name + ".bson"))
     for parallel_mode_ in [True,False]:
         set_parallel_mode(parallel_mode_)
         times = []

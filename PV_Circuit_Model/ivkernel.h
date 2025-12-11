@@ -12,6 +12,7 @@ struct IVView {
     double scale;  
     bool left_extrapolation_allowed;
     bool right_extrapolation_allowed;
+    double extrapolation_dI_dV[2];
     bool has_lower_I_domain_limit;
     bool has_upper_I_domain_limit;
     int type_number;
@@ -36,6 +37,7 @@ struct IVJobDesc {
     double* out_I;
     int* out_len;
     bool* out_extrapolation_allowed;
+    double* out_extrapolation_dI_dV;
     bool* out_has_I_domain_limit;
     int all_children_are_elements;
 };
