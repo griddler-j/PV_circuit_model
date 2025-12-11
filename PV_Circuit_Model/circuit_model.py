@@ -83,7 +83,7 @@ class CircuitComponent(ParamSerializable):
             gc.enable()
 
     def calc_uncertainty(self):
-        if hasattr(self,"job_heap") and self.refined_IV:
+        if hasattr(self,"job_heap"):
             if hasattr(self.job_heap,"calc_uncertainty"): # python version does not have this
                 self.job_heap.calc_uncertainty()
 

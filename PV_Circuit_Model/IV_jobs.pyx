@@ -7,7 +7,7 @@ import warnings
 import sys
 from pathlib import Path
 from PV_Circuit_Model import ivkernel
-from PV_Circuit_Model.ivkernel import _SUPER_DENSE, solver_env_variables
+from PV_Circuit_Model.ivkernel import solver_env_variables
 import numpy as np
 cimport numpy as np
 import time
@@ -140,6 +140,7 @@ cdef class IV_Job_Heap:
         start_time = time.perf_counter()
         cdef bint parallel = False
         _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
+        _SUPER_DENSE = solver_env_variables["_SUPER_DENSE"]
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
             parallel = True
         self.reset()
@@ -171,14 +172,14 @@ cdef class IV_Job_Heap:
             self.timers["refine"] += duration
 
     def calc_uncertainty(self):
-        if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
+        if self.components[0].IV_V is not None:
             start_time = time.perf_counter()
             self.components[0].IV_V_temp = self.components[0].IV_V.copy()
             self.components[0].IV_I_temp = self.components[0].IV_I.copy()
-            self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=False) # get upper bounds of curve 
+            self.run_IV(refine_mode=True,interp_method=2,use_existing_grid=True) # get upper bounds of curve 
             self.components[0].IV_V_upper = self.components[0].IV_V.copy()
             self.components[0].IV_I_upper = self.components[0].IV_I.copy()
-            self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=False) # get lower bounds of curve 
+            self.run_IV(refine_mode=True,interp_method=3,use_existing_grid=True) # get lower bounds of curve 
             self.components[0].IV_V_lower = self.components[0].IV_V.copy()
             self.components[0].IV_I_lower = self.components[0].IV_I.copy()
             self.components[0].IV_V = self.components[0].IV_V_temp.copy()

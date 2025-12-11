@@ -37,13 +37,13 @@ except Exception:
     ParameterSet(name="solver_env_variables",data={})
     solver_env_variables = ParameterSet.get_set("solver_env_variables")
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
-    solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
     solver_env_variables.set("REFINE_V_HALF_WIDTH", REFINE_V_HALF_WIDTH)
     solver_env_variables.set("MAX_TOLERABLE_RADIANS_CHANGE", MAX_TOLERABLE_RADIANS_CHANGE)
     solver_env_variables.set("REMESH_POINTS_DENSITY", REMESH_POINTS_DENSITY)
     solver_env_variables.set("REFINEMENT_POINTS_DENSITY", REFINEMENT_POINTS_DENSITY)
     solver_env_variables.set("REMESH_NUM_ELEMENTS_THRESHOLD", REMESH_NUM_ELEMENTS_THRESHOLD)
 
+solver_env_variables.set("_SUPER_DENSE", _SUPER_DENSE)
 solver_env_variables.set("_USE_CYTHON", True)
 
 def set_parallel_mode(enabled: bool):
@@ -373,18 +373,19 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 element = subgroups[j]
                 type_number = element._type_number
 
-                if refine_mode:
-                    if type_number < 5: # circuitelement
+                if refine_mode and not use_existing_grid:
+                    if type_number < 5:
                         bottom_up_operating_point_V += element.operating_point[0]
                         bottom_up_operating_point_I += element.operating_point[1]
                         normalized_operating_point_V += 1
                         normalized_operating_point_I += 1
                     else:
                         all_children_are_elements = 0
-                        bottom_up_operating_point_V += element.bottom_up_operating_point[0]
-                        bottom_up_operating_point_I += element.bottom_up_operating_point[1]
-                        normalized_operating_point_V += element.normalized_operating_point[0]
-                        normalized_operating_point_I += element.normalized_operating_point[1]
+                        if element.bottom_up_operating_point is not None:
+                            bottom_up_operating_point_V += element.bottom_up_operating_point[0]
+                            bottom_up_operating_point_I += element.bottom_up_operating_point[1]
+                            normalized_operating_point_V += element.normalized_operating_point[0]
+                            normalized_operating_point_I += element.normalized_operating_point[1]
 
                 children_views[child_base + j].type_number = type_number
                 # ensure IV_table is C-contiguous float64 (2, Ni)
@@ -418,7 +419,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                     children_views[child_base + j].element_params[3] = element.ni
                     children_views[child_base + j].element_params[4] = base_type_number
 
-            if refine_mode:
+            if refine_mode and not use_existing_grid:
                 if jobs_c[i].connection == 0:  # series 
                     bottom_up_operating_point_I /= n_children
                     normalized_operating_point_I /= n_children
@@ -491,7 +492,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
 
             abs_max_num_points = int(abs_max_num_points)
 
-            if refine_mode and all_children_are_elements:
+            if refine_mode and all_children_are_elements and not use_existing_grid:
                 abs_max_num_points += jobs_c[i].refinement_points
 
             if use_existing_grid:
