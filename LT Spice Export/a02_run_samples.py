@@ -14,7 +14,7 @@ for sample_name in tqdm(sample_names):
     sample.get_Pmax()
     sample.save_IV_curve(THIS_DIR / Path(sample_name + "_IV.txt"))
     sample.calc_uncertainty()
-    sample.save_solver_summary(THIS_DIR / Path(sample_name + "_solver_summery.txt"))
+    sample.save_solver_summary(THIS_DIR / Path(sample_name + "_solver_summary.txt"))
 
     # assert(1==0)
 

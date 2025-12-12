@@ -8,6 +8,8 @@ from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
+from PV_Circuit_Model import __version__, __git_hash__, __git_date__, __dirty__
+from datetime import datetime, timezone
 
 def _in_notebook() -> bool:
     try:
@@ -656,11 +658,12 @@ def solver_summary_heap(job_heap, display_or_latex=0):
     return paragraph
 
 def solver_summary(self,display_or_latex=0):
+    __now__ = datetime.now().astimezone().replace(microsecond=0).isoformat()
     paragraph = "----------------------------------------------------------------------------\n"
     paragraph += "I-V Solver Summary for "
     if getattr(self,"name",None) is not None and self.name != "":
         paragraph += f"{self.name} of "
-    paragraph += f" type {type(self).__name__}:\n"
+    paragraph += f" type {type(self).__name__}:\nReported on {__now__}\n"
     paragraph += "----------------------------------------------------------------------------\n"
     if hasattr(self,"job_heap") and self.IV_V is not None:
         paragraph += solver_summary_heap(self.job_heap,display_or_latex=display_or_latex)
@@ -675,6 +678,11 @@ def solver_summary(self,display_or_latex=0):
     solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
     for key, value in solver_env_variables_dict.items():
         paragraph += f"{key}: {value}\n"
+    paragraph += "----------------------------------------------------------------------------\n"
+    paragraph += f"PV Circuit Model Version: {__version__}\n"
+    paragraph += f"git commit: {__git_hash__}\n"
+    paragraph += f"git commit date: {__git_date__}\n"
+    paragraph += f"git commit dirty: {__dirty__}\n"
     paragraph += "----------------------------------------------------------------------------\n"
 
     return paragraph
