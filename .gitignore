@@ -164,3 +164,7 @@ example_calc_solar_simulator_error/
 
 *.zip
 *.pdb
+
+LT Spice Export/Experiments/
+PV_Circuit_Model/IV_jobs.cpp
+PV_Circuit_Model/ivkernel_wrapper.cpp
