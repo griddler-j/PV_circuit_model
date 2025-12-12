@@ -677,11 +677,11 @@ void combine_iv_job(int connection,
                 out_extrapolation_dI_dV[0] = (out_I[1]-out_I[0])/(out_V[1]-out_V[0]);
                 break;
             case 4: // Intrinsic Si Diode
+                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len, delta_n, BGN, pn);
                 out_has_I_domain_limit[0] = true;
                 out_extrapolation_allowed[1] = false;
                 out_extrapolation_dI_dV[0] = 0;
                 out_extrapolation_dI_dV[1] = (out_I[*out_len-1]-out_I[*out_len-2])/(out_V[*out_len-1]-out_V[*out_len-2]);
-                build_Si_intrinsic_diode_iv(circuit_element_parameters, max_num_points, out_V, out_I, out_len, delta_n, BGN, pn);
                 break;
         }
         return;
