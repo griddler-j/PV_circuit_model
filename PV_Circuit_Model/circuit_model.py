@@ -140,6 +140,11 @@ class CircuitComponent(ParamSerializable):
             getattr(self, "connection", None),
             tuple(c.structure() for c in children) if children else (),
         )
+    
+    def copy(self,other): # weak copy, only critical fields
+        for field in self._critical_fields:
+            if hasattr(self,field) and hasattr(other,field):
+                setattr(self,field,getattr(other,field))
 
 def flatten_connection(parts_list,connection):
     flat_list = []
