@@ -306,7 +306,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
                           temperature=25,Sun=1.0,Si_intrinsic_limit=True,**kwargs):
     if Pmax is None:
         Pmax = Jsc*Voc*FF          
-    VT = get_VT(temperature,VT_at_25C)
+    VT = get_VT(temperature)
     max_J01 = Jsc/np.exp(Voc/VT)
     for inner_k in range(100):
         trial_cell = make_solar_cell(Jsc, max_J01, 0.0, Rshunt, 

@@ -77,7 +77,7 @@ constants = ParameterSet.get_set("constants")()
 VT_at_25C = constants["VT_at_25C"]
 zero_C = constants["zero_C"]
 q = constants["q"]
-get_VT = lambda temperature, VT_at_25C: VT_at_25C*(temperature + zero_C)/(25 + zero_C)
+get_VT = lambda temperature: VT_at_25C*(temperature + zero_C)/(25 + zero_C)
 
 pbar = None
 x_spacing = 1.5

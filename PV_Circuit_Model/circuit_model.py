@@ -280,7 +280,7 @@ class Diode(CircuitElement):
         self.I0 = I0
         self.n = n
         self.V_shift = V_shift
-        self.VT = get_VT(temperature,VT_at_25C)
+        self.VT = get_VT(temperature)
         self.refI0 = I0
         self.refT = temperature
     def set_I0(self,I0):
@@ -289,7 +289,7 @@ class Diode(CircuitElement):
     def set_operating_point(self,V=None,I=None):
         pass
     def changeTemperature(self,temperature):
-        self.VT = get_VT(temperature,VT_at_25C)
+        self.VT = get_VT(temperature)
         old_ni  = get_ni(self.refT)
         new_ni  = get_ni(temperature)
         scale_factor = (new_ni/old_ni)**(2/self.n)
@@ -350,7 +350,7 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.n = 0.0
         self.V_shift = 0.0
         self.area = area
-        self.VT = get_VT(self.temperature,VT_at_25C)
+        self.VT = get_VT(self.temperature)
         self.ni = get_ni(self.temperature)
     def __str__(self):
         return "Si Intrinsic Diode"
@@ -389,7 +389,7 @@ class Intrinsic_Si_diode(ForwardDiode):
         pass # does nothing
     def changeTemperature(self,temperature):
         self.temperature = temperature
-        self.VT = get_VT(self.temperature,VT_at_25C)
+        self.VT = get_VT(self.temperature)
         self.ni = get_ni(self.temperature)
         self.null_IV()
 
