@@ -189,27 +189,7 @@ def parallel(*args,flatten_connection_=False,**kwargs):
 
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
-        if V is not None:
-            if (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): # out of reach of IV curve
-                diodes = self.findElementType(Diode)
-                while (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): 
-                    for diode in diodes:
-                        diode.max_I *= 10
-                    self.null_all_IV()
-                    self.build_IV()
-
-            I = interp_(V,self.IV_V,self.IV_I,self.extrapolation_dI_dV[0],self.extrapolation_dI_dV[1])
-        elif I is not None:
-            if (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]): # out of reach of IV curve
-                diodes = self.findElementType(Diode)
-                while (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]):
-                    for diode in diodes:
-                        diode.max_I *= 10
-                    self.null_all_IV()
-                    self.build_IV()
-
-            V = interp_(I,self.IV_I,self.IV_V,1/self.extrapolation_dI_dV[0],1/self.extrapolation_dI_dV[1])
-        self.operating_point = [V,I]
+        pass
     def get_value_text(self):
         pass
     def get_draw_func(self):
@@ -239,6 +219,10 @@ class CurrentSource(CircuitElement):
         self.refT = temperature
         self.T = temperature
         self.temp_coeff = temp_coeff
+    def set_operating_point(self,V=None,I=None):
+        if I is not None:
+            raise NotImplementedError
+        self.operating_point = [V,-self.IL]
     def set_IL(self,IL):
         self.IL = IL
         self.null_IV()
@@ -266,6 +250,11 @@ class Resistor(CircuitElement):
     def set_cond(self,cond):
         self.cond = cond
         self.null_IV()
+    def set_operating_point(self,V=None,I=None):
+        if I is not None:
+            self.operating_point = [I/self.cond,I]
+        if V is not None:
+            self.operating_point = [V,V*self.cond]
     def __str__(self):
         return "Resistor: R = " + self.get_value_text()
     def get_value_text(self):
@@ -294,11 +283,11 @@ class Diode(CircuitElement):
         self.VT = get_VT(temperature,VT_at_25C)
         self.refI0 = I0
         self.refT = temperature
-
     def set_I0(self,I0):
         self.I0 = I0
         self.null_IV()
-
+    def set_operating_point(self,V=None,I=None):
+        pass
     def changeTemperature(self,temperature):
         self.VT = get_VT(temperature,VT_at_25C)
         old_ni  = get_ni(self.refT)
@@ -317,6 +306,11 @@ class ForwardDiode(Diode):
             word += f"\n\u00B1{self.aux['error']:.3e}"
         word += f" A\nn = {self.n:.2f}"
         return word
+    def set_operating_point(self,V=None,I=None):
+        if V is not None:
+            self.operating_point = [V, self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)]
+        else:
+            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
     def get_draw_func(self):
         return draw_forward_diode_symbol
     
@@ -334,6 +328,11 @@ class ReverseDiode(Diode):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
     def get_value_text(self):
         return f"I0 = {self.I0:.3e}A\nn = {self.n:.2f}\nbreakdown V = {self.V_shift:.2f}"
+    def set_operating_point(self,V=None,I=None):
+        if V is not None:
+            self.operating_point = [V, -self.I0*np.exp((-V-self.V_shift)/(self.n*self.VT))]
+        else:
+            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
     def get_draw_func(self):
         return draw_reverse_diode_symbol
     
@@ -355,6 +354,34 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.ni = get_ni(self.temperature)
     def __str__(self):
         return "Si Intrinsic Diode"
+    
+    def calc_intrinsic_Si_I(self, V):
+        ni = self.ni
+        VT = self.VT
+        N_doping = self.base_doping
+        pn = ni**2*np.exp(V/VT)
+        delta_n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
+        if self.base_type == "p":
+            n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+        else:
+            p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+            n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
+        BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
+        ni_eff = ni*np.exp(BGN/2/VT)
+        geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
+        gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
+        Brel = 1
+        Blow = 4.73e-15
+        intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
+        return q*intrinsic_recomb*self.base_thickness*self.area
+
+    def set_operating_point(self,V=None,I=None):
+        if V is not None:
+            self.operating_point = [V, self.calc_intrinsic_Si_I(V)]
+        else:
+            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
+
     def get_value_text(self):
         word = f"intrinsic:\nt={self.base_thickness:.2e}\n{self.base_type} type\n{self.base_doping:.2e} cm-3"
         return word
@@ -396,13 +423,51 @@ class CircuitGroup(CircuitComponent):
         self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
         self.is_circuit_group = True
 
-    def set_operating_point(self,V=None,I=None,refine_IV=False):
+    def set_operating_point(self,V=None,I=None,refine_IV=False,shallow=False):
         if not hasattr(self,"job_heap"):
             self.build_IV()
         elif self.IV_V is None:
             self.job_heap.run_IV()
+
+        # autorange
+        if V is not None:
+            if (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): # out of reach of IV curve
+                diodes = self.findElementType(Diode)
+                while (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): 
+                    for diode in diodes:
+                        diode.max_I *= 10
+                    self.null_all_IV()
+                    self.build_IV()
+        elif I is not None:
+            if (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]): # out of reach of IV curve
+                diodes = self.findElementType(Diode)
+                while (not self.extrapolation_allowed[1] and I > self.IV_I[-1]) or (not self.extrapolation_allowed[0] and I < self.IV_I[0]):
+                    for diode in diodes:
+                        diode.max_I *= 10
+                    self.null_all_IV()
+                    self.build_IV()
+
+        if shallow or self.num_circuit_elements < 10000: # no need to go c++ overkill
+            V_ = V
+            I_ = I
+            if V is not None:
+                I_ = np.interp(V,self.IV_V,self.IV_I)
+            if I is not None:
+                V_ = np.interp(I,self.IV_I,self.IV_V)
+            self.operating_point = [V_,I_]
+            if self._type_number==6: # cell, has area
+                I_ /= self.area
+            if shallow:   
+                return
+            for item in self.subgroups:
+                if self.connection=="series":
+                    item.set_operating_point(I=I_)
+                else:
+                    item.set_operating_point(V=V_)
+        else:
+            self.job_heap.set_operating_point(V,I)
+
         gc.disable()
-        self.job_heap.set_operating_point(V,I)
         if refine_IV:
             self.job_heap.refine_IV()
         self.refined_IV = True

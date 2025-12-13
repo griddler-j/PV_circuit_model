@@ -57,30 +57,6 @@ def get_V_range(component):
     V = np.array(V) + component.V_shift
     return V
 
-def calc_intrinsic_Si_I(component, V):
-    ni = component.ni
-    VT = component.VT
-    N_doping = component.base_doping
-    pn = ni**2*np.exp(V/VT)
-    delta_n = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2*np.exp(V/VT)))
-    if component.base_type == "p":
-        n0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        p0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-    else:
-        p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-    BGN = interp_(delta_n,component.bandgap_narrowing_RT[:,0],component.bandgap_narrowing_RT[:,1])
-    ni_eff = ni*np.exp(BGN/2/VT)
-
-    q = 1.602e-19
-    geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
-    gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
-    Brel = 1
-    Blow = 4.73e-15
-    intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
-    return q*intrinsic_recomb*component.base_thickness*component.area
-
-
 def build_component_IV_python(component,refine_mode=False):
     if refine_mode:
         refinement_points = int(REFINEMENT_POINTS_DENSITY*np.sqrt(component.num_circuit_elements))
@@ -109,7 +85,7 @@ def build_component_IV_python(component,refine_mode=False):
                 component.IV_V = component.IV_V[::-1].copy()
                 component.IV_I = component.IV_I[::-1].copy()
             else:
-                component.IV_I = calc_intrinsic_Si_I(component, component.IV_V)
+                component.IV_I = component.calc_intrinsic_Si_I(component.IV_V)
         return
 
     if refine_mode:

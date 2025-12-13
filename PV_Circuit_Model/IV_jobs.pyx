@@ -17,6 +17,9 @@ np.import_array()
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
 
+def _pickle_return_none():
+    return None
+
 cdef class IV_Job_Heap:
     cdef public list components
     cdef list min_child_id
@@ -36,6 +39,12 @@ cdef class IV_Job_Heap:
     def __init__(self, object circuit_component):
         # build the heap structure
         self.build()
+
+    def __reduce__(self): # make pickle not complain, just store as None
+        return (_pickle_return_none, ())
+
+    def __reduce_ex__(self, protocol):
+        return (_pickle_return_none, ())
 
     cpdef void build(self):
         start_time = time.perf_counter()
