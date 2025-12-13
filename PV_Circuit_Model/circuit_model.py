@@ -409,11 +409,12 @@ class CircuitGroup(CircuitComponent):
         gc.enable()
 
     def removeElementOfTag(self,tag):
-        for element in self.subgroups[:]:
-            if isinstance(element,CircuitElement):
-                if element.tag==tag:
-                    self.subgroups.remove(element)
-            elif isinstance(element,CircuitGroup):
+        for j in range(len(self.subgroups) - 1, -1, -1):
+            element = self.subgroups[j]
+            if isinstance(element, CircuitElement):
+                if element.tag == tag:
+                    self.subgroups.pop(j)
+            elif isinstance(element, CircuitGroup):
                 element.removeElementOfTag(tag)
         self.null_IV()
 
