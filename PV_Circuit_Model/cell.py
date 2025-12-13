@@ -12,7 +12,7 @@ class Cell(CircuitGroup):
     _type_number = 6
     photon_coupling_diodes = None
     _critical_fields = CircuitGroup._critical_fields + ("area",)
-    def __init__(self,subgroups,connection="series",area=None,location=None,
+    def __init__(self,subgroups,connection="series",area=1,location=None,
                  rotation=0,shape=None,name=None,temperature=25,Suns=1.0):
         x_extent = 0.0
         y_extent = 0.0
@@ -205,7 +205,14 @@ class Cell(CircuitGroup):
         self.set_specific_shunt_cond(1/Rsh)
     def set_shunt_res(self,Rsh):
         self.set_specific_shunt_res(Rsh*self.area)
-    
+    def set_shape(self,wafer_format="M10",half_cut=True):
+        self.shape, self.area = wafer_shape(format=wafer_format,half_cut=half_cut)
+
+    @classmethod
+    def from_circuitgroup(cls, comp, **kwargs):
+        return cls(comp.subgroups,comp.connection, **kwargs)
+
+
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
 def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",min_value=None,max_value=None,title="Cells Layout",colormap=cm.plasma):
     shapes = []

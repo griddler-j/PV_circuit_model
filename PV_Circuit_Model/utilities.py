@@ -471,3 +471,10 @@ class ParamSerializable:
 
         # primitives
         return value
+    
+def filter_kwargs(func, kwargs):
+    sig = inspect.signature(func)
+    return {
+        k: v for k, v in kwargs.items()
+        if k in sig.parameters
+    }

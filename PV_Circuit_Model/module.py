@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
 class Module(CircuitGroup):
+    _type_number = 8
     def __init__(self,subgroups,connection="series",location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
         super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
@@ -22,6 +23,9 @@ class Module(CircuitGroup):
     def set_temperature(self,temperature):
         super().set_temperature(temperature)
         self.temperature = temperature
+    @classmethod
+    def from_circuitgroup(cls, comp, **kwargs):
+        return cls(comp.subgroups,comp.connection, **kwargs)
 
 # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
 def draw_modules(modules,show_names=False,colour_what="EL_Vint",show_module_names=False,fontsize=9,colour_bar=False,min_value=None,max_value=None,colormap=cm.plasma,title=None):

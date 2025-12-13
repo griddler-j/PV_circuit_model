@@ -7,7 +7,6 @@ class MultiJunctionCell(CircuitGroup):
     _type_number = 7
     def __init__(self,subcells=None,subgroups=None,Rs=0.1,location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
-        self.is_multi_junction_cell = True
         if subgroups is not None:
             components = subgroups
         else:
@@ -23,7 +22,8 @@ class MultiJunctionCell(CircuitGroup):
             elif isinstance(item,Resistor):
                 self.series_resistor = item
         self.area = self.cells[0].area
-        self.series_resistor.aux["area"] = self.area
+        if self.series_resistor is not None:
+            self.series_resistor.aux["area"] = self.area
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
@@ -65,4 +65,22 @@ class MultiJunctionCell(CircuitGroup):
         self.set_specific_Rs_cond(1/Rs)
     def set_Rs(self,Rs):
         self.set_Rs_cond(1/Rs)
-    
+
+    @classmethod
+    def from_circuitgroup(cls, comp, **kwargs):
+        total_Rs = 0
+        subcells = []
+        for item in comp.subgroups:
+            if isinstance(item,Cell):
+                if item.series_resistor is not None:
+                    total_Rs += 1/(item.series_resistor.cond*item.area)
+                    subcells.append(item.diode_branch.as_cell(area=item.area,
+                        location=item.location,rotation=item.rotation,shape=item.shape,name=item.name,
+                        temperature=item.temperature,Suns=item.Suns))
+                else:
+                    subcells.append(item.clone())
+            elif isinstance(item,Resistor):
+                total_Rs += 1/item.cond
+            else:
+                raise NotImplementedError
+        return cls(subcells=subcells,Rs=total_Rs, **kwargs)

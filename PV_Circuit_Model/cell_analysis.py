@@ -410,7 +410,7 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
             words[key] += f", from upper bound curve: {all_parameters['upper'][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]})"
     return words, parameters
 
-def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve", show_solver_summary=True):
+def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve", show_solver_summary=False):
     if self.IV_V is None:
         self.build_IV()
     if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):

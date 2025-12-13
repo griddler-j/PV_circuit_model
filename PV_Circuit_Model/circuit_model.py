@@ -5,7 +5,7 @@ from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.utilities_silicon import *
 from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
-import gc
+import gc, inspect
 
 solver_env_variables = ParameterSet.get_set("solver_env_variables")
 REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
@@ -13,7 +13,7 @@ REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESH
       
 class CircuitComponent(ParamSerializable):
     _critical_fields = ("max_I","max_num_points")
-    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV"
+    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
     _dont_serialize = ("circuit_depth", "num_circuit_elements")
     max_I = None
@@ -36,6 +36,9 @@ class CircuitComponent(ParamSerializable):
         self.extrapolation_allowed = [False,False]
         self.extrapolation_dI_dV = [0,0]
         self.has_I_domain_limit = [False,False]
+
+    def __len__(self):
+        return self.num_circuit_elements
 
     @property
     def IV_table(self):
@@ -88,6 +91,96 @@ class CircuitComponent(ParamSerializable):
         if hasattr(self,"job_heap"):
             if hasattr(self.job_heap,"calc_uncertainty"): # python version does not have this
                 self.job_heap.calc_uncertainty()
+
+    def __call__(self, *, atomic=True):
+        clone = self.clone()
+        clone._is_atomic = atomic
+        return clone
+
+    def __add__(self, other):
+        if not isinstance(other, CircuitComponent):
+            return NotImplemented
+        return series(self, other, flatten_connection_=True)
+    
+    def __or__(self, other):
+        if not isinstance(other, CircuitComponent):
+            return NotImplemented
+        return parallel(self, other, flatten_connection_=True)
+    
+    def __mul__(self, other):
+        # component * scalar
+        if isinstance(other, (int, float)):
+            return series(*[circuit_deepcopy(self)() for _ in range(int(other))])
+        return NotImplemented
+
+    def __rmul__(self, other):
+        # scalar * component
+        return self.__mul__(other)
+    
+    def __imul__(self, other):
+        return self.__mul__(other)
+
+    def __pow__(self, other):
+        # component ** scalar
+        if isinstance(other, (int, float)):
+            return parallel(*[circuit_deepcopy(self)() for _ in range(int(other))])
+        return NotImplemented
+
+    def __rpow__(self, other):
+        # scalar * component
+        return self.__pow__(other)
+
+    def __ipow__(self, other):
+        return self.__pow__(other)
+    
+    def structure(self):
+        children = getattr(self, "subgroups", None)
+        return (
+            type(self),
+            getattr(self, "connection", None),
+            tuple(c.structure() for c in children) if children else (),
+        )
+
+def flatten_connection(parts_list,connection):
+    flat_list = []
+    for part in parts_list:
+        # _type_number > 5 means already a special grouping like cell, module, so cannot break apart
+        if isinstance(part,CircuitGroup) and part.connection==connection and not getattr(part,"_is_atomic",False) and part._type_number==5:
+            flat_list.extend(part.subgroups)
+        else:
+            flat_list.append(part)
+    return flat_list
+
+def connect(*args,connection="series",flatten_connection_=False,**kwargs):
+    flat_list = []
+    for arg in args:
+        if isinstance(arg,(list, tuple)):
+            flat_list.extend(arg)
+        else:
+            flat_list.append(arg)
+    if flatten_connection_:
+        flat_list = flatten_connection(flat_list,connection=connection)
+    all_items_have_extent = True
+    for item in flat_list:
+        if hasattr(item,"_is_atomic"):
+            del item._is_atomic
+        if not hasattr(item,"extent"):
+            all_items_have_extent = False
+    if all_items_have_extent:
+        safe_kwargs = filter_kwargs(tile_elements, kwargs)
+        tile_elements(flat_list, **safe_kwargs)
+    safe_kwargs = filter_kwargs(CircuitGroup.__init__, kwargs)
+    return CircuitGroup(subgroups=flat_list,connection=connection,**safe_kwargs)
+
+def series(*args,flatten_connection_=False,**kwargs):
+    kwargs.pop("connection", None)
+    return connect(*args,connection="series",flatten_connection_=flatten_connection_,**kwargs)
+
+def parallel(*args,flatten_connection_=False,**kwargs):
+    kwargs.pop("connection", None)
+    return connect(*args,connection="parallel",flatten_connection_=flatten_connection_,**kwargs)
+
+
 
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
@@ -162,7 +255,7 @@ class CurrentSource(CircuitElement):
 class Resistor(CircuitElement):
     _critical_fields = CircuitComponent._critical_fields + ("cond",)
     _type_number = 1
-    def __init__(self, cond=1, tag=None):
+    def __init__(self, cond=1.0, tag=None):
         super().__init__(tag=tag)
         self.cond = cond
     def set_cond(self,cond):
@@ -298,10 +391,6 @@ class CircuitGroup(CircuitComponent):
         self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
         self.is_circuit_group = True
 
-    def add_element(self,element):
-        self.subgroups.append(element)
-        element.parent = self
-
     def set_operating_point(self,V=None,I=None,refine_IV=False):
         if not hasattr(self,"job_heap"):
             self.build_IV()
@@ -342,6 +431,9 @@ class CircuitGroup(CircuitComponent):
             for i, element in enumerate(list_):
                 element.name = str(i)
         return list_
+    
+    def __getitem__(self,type_):
+        return self.findElementType(type_)
     
     def __str__(self):
         if self.num_circuit_elements > 2000:
@@ -412,132 +504,13 @@ class CircuitGroup(CircuitComponent):
             fig.tight_layout()
             fig.canvas.manager.set_window_title(title)
             plt.show()
-
-    # # This is only an approx way to visualize the curve stacking, by no means rigorous!  
-    # # Idea is to just draw the 4th quadrant of the curve stretched within the bounds 
-    # def draw_curve_stack(self,max_depth=3,left_bound_curve=None,right_bound_curve=None,origin_V=0,origin_I=0,is_root=True,group_origin_V=None):
-    #     fills = []
-    #     plots = []
-    #     if self._type_number < 5: # don't draw elements
-    #         return [], []
-    #     if max_depth==0 or self._type_number == 6: # draw at cell level
-    #         Voc = self.get_Voc()
-    #         V_sample = np.linspace(0,Voc*1.5,5000) 
-    #         find_ = np.where((V_sample>=self.IV_V[0]) & (V_sample<=self.IV_V[-1]))[0]
-    #         V_sample = V_sample[find_]
-    #         I_sample = interp_(V_sample,self.IV_V,self.IV_I)
-    #         V_final = V_sample + origin_V
-    #         I_final = I_sample + origin_I
-    #         if left_bound_curve is not None:
-    #             V_final += interp_(I_final, left_bound_curve[1,:], left_bound_curve[0,:]) - origin_V
-    #         if right_bound_curve is not None:
-    #             V_final = np.minimum(V_final,interp_(I_final, right_bound_curve[1,:], right_bound_curve[0,:]))
-    #         if group_origin_V is not None:
-    #             find2_ = np.where(V_final>group_origin_V)[0]
-    #             return [[V_final,I_final,Voc]], [[V_final[find2_],I_final[find2_]]]
-    #         return [[V_final,I_final,Voc]], []
-    #     if self.connection=="series":
-    #         Iscs = []
-    #         I_domain = None
-    #         for item_ in self.subgroups:
-    #             if item_._type_number < 5: # a resistor or diode, whatever
-    #                 Iscs.append(0)
-    #             else:
-    #                 if I_domain is None:
-    #                     I_domain = np.linspace(np.min(item_.IV_I),np.max(item_.IV_I),20000) 
-    #                 Iscs.append(item_.get_Isc())
-    #         Iscs = np.array(Iscs)
-    #         indices = np.argsort(Iscs)
-    #         if left_bound_curve is None:
-    #             left_bound_curve_ = np.array([np.zeros_like(I_domain),I_domain])
-    #         else:
-    #             left_bound_curve_ = left_bound_curve.copy()
-    #         Voc_sum = 0
-    #         for index in indices:
-    #             item = self.subgroups[index]
-    #             added_V = interp_(left_bound_curve_[1,:],item.IV_I+origin_I,item.IV_V)
-    #             right_bound_curve_ = left_bound_curve_.copy()
-    #             right_bound_curve_[0,:] += added_V
-    #             if item._type_number >= 5:
-    #                 new_origin_V = interp_(origin_I,right_bound_curve_[1,:],right_bound_curve_[0,:])
-    #                 min_right_bound_ = right_bound_curve_.copy()
-    #                 if right_bound_curve is not None:
-    #                     min_right_bound_[0,:] = np.minimum(min_right_bound_[0,:],interp_(min_right_bound_[1,:],right_bound_curve[1,:],right_bound_curve[0,:]))
-
-    #                 is_last = index==indices[-1]
-    #                 group_origin_V = None
-    #                 if is_last:
-    #                     group_origin_V = origin_V
-    #                 fills_, plots_ = item.draw_curve_stack(max_depth=max_depth-1, left_bound_curve=left_bound_curve_, right_bound_curve=min_right_bound_,
-    #                                          origin_V=new_origin_V,origin_I=origin_I,is_root=False,group_origin_V=group_origin_V)
-    #                 fills.extend(fills_)
-    #                 plots.extend(plots_)
-    #                 Voc_sum += item.get_Voc()
-    #             left_bound_curve_[0,:] += added_V
-    #     else: # parallel
-    #         Vocs = []
-    #         V_domain = None
-    #         for item_ in self.subgroups:
-    #             if item_._type_number < 5: # a resistor or diode, whatever
-    #                 Vocs.append(0)
-    #             else:
-    #                 if V_domain is None:
-    #                     V_domain = np.linspace(np.min(item_.IV_V),np.max(item_.IV_V),20000) 
-    #                 Vocs.append(item_.get_Voc())
-    #         Vocs = np.array(Vocs)
-    #         indices = np.argsort(Vocs)
-    #         Isc_sum = 0
-                
-    #         for index in indices:
-    #             item = self.subgroups[index]
-    #             if item._type_number >= 5:
-    #                 new_origin_I = origin_I-Isc_sum
-    #                 if left_bound_curve is not None:
-    #                     new_origin_V = interp_(new_origin_I,left_bound_curve[1,:],left_bound_curve[0,:])
-    #                 else:
-    #                     new_origin_V = 0
-    #                 is_last = index==indices[-1]
-    #                 group_origin_V = None
-    #                 if is_last:
-    #                     group_origin_V = new_origin_V
-    #                 fills_, plots_ = item.draw_curve_stack(max_depth=max_depth-1, left_bound_curve=left_bound_curve, right_bound_curve=right_bound_curve,
-    #                                          origin_V=new_origin_V,origin_I=new_origin_I,is_root=False,group_origin_V=group_origin_V)
-    #                 fills.extend(fills_)
-    #                 plots.extend(plots_)
-    #                 Isc_sum += item.get_Isc() # mindful that it is flipped 
-    #     if is_root:
-    #         min_Voc = 10000
-    #         max_Voc = 0
-    #         for fill_ in reversed(fills):
-    #             Voc = fill_[2]
-    #             min_Voc = min(min_Voc,Voc)
-    #             max_Voc = max(max_Voc,Voc)
-    #         for fill_ in reversed(fills):
-    #             V_final = fill_[0]
-    #             I_final = fill_[1]
-    #             Voc = fill_[2]
-    #             Voc_norm = np.clip((Voc - min_Voc) / (max_Voc - min_Voc + 1e-12), 0, 1)
-
-    #             # Pick a nice scientific colormap
-    #             cmap = cm.plasma   # also great: plasma, inferno, turbo, magma
-    #             color = cmap(Voc_norm)  # RGBA tuple
-
-    #             plt.fill_between(V_final, -I_final, 0, color=color)
-    #         for plot_ in reversed(plots):
-    #             V_final = plot_[0]
-    #             I_final = plot_[1]
-    #             plt.plot(V_final, -I_final, color="black",linewidth=5)
-    #         Voc = self.get_Voc()
-    #         Isc = self.get_Isc()
-    #         plt.plot(self.IV_V,-self.IV_I,color="black",linewidth=5)
-    #         plt.xlim((0,Voc*1.1))
-    #         plt.ylim((0,Isc*1.1))
-    #         plt.show()
-    #     return fills, plots
-
-            
-            
-
+    
+    def as_type(self, cls, **kwargs):
+        if not issubclass(cls, CircuitComponent):
+            raise TypeError(...)
+        if hasattr(cls, "from_circuitgroup"):
+            return cls.from_circuitgroup(self, **kwargs)
+        raise TypeError(f"{cls.__name__} does not support conversion")
 
 def get_extent(elements, center=True):
     x_bounds = [None,None]
@@ -592,7 +565,8 @@ def get_circuit_diagram_extent(elements,connection):
     return total_extent
 
 def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=True, col_wise_ordering=True):
-    assert((rows is not None) or (cols is not None))
+    if rows is None and cols is None:
+        rows = 1
     if rows is None:
         rows = int(np.ceil(float(len(elements))/float(cols)))
     if cols is None:
@@ -645,8 +619,8 @@ def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn
                         pos[0] = 0
             
 
-def circuit_deepcopy(circuit_group):
-    return circuit_group.clone()
+def circuit_deepcopy(circuit_component):
+    return circuit_component.clone()
 
 def find_subgroups_by_name(circuit_group, target_name):
     result = []
@@ -665,3 +639,6 @@ def find_subgroups_by_tag(circuit_group, tag):
         if isinstance(element, CircuitGroup):
             result.extend(find_subgroups_by_name(element, tag))
     return result
+
+
+
