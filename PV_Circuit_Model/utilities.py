@@ -83,43 +83,56 @@ pbar = None
 x_spacing = 1.5
 y_spacing = 0.2
 
+# requires x values to be in ascending order now
 def interp_(x, xp, fp, optional_left_slope=None, optional_right_slope=None, extrap = True):
-    if xp.size==1:
+    if xp[-1] < xp[0]:
+        raise AttributeError("interp_ requires xp to be in increasing order1")
+    if xp.size==1 or xp[-1]==xp[0]:
         return fp[0]*np.ones_like(x)
-    if xp[-1] > xp[0]:
-        y = np.interp(x, xp, fp)
-    else:
-        y = np.interp(-x, -xp, fp)
-    if isinstance(x,Number):
-        if extrap:
-            if x < xp[0]:
-                if optional_left_slope is not None:
-                    left_slope = optional_left_slope
-                else:
-                    left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
-                y = fp[0] + (x-xp[0])*left_slope
-            elif x > xp[-1]:
-                if optional_right_slope is not None:
-                    right_slope = optional_right_slope
-                else:
-                    right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
-                y = fp[-1] + (x-xp[-1])*right_slope
+    y = np.interp(x, xp, fp)
+    if not extrap:
         return y
-    if extrap:
-        if x[0] < xp[0]:
+    if isinstance(x,Number):
+        if x < xp[0]:
             if optional_left_slope is not None:
                 left_slope = optional_left_slope
             else:
-                left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
-            find_ = np.where(x < xp[0])[0]
-            y[find_] = fp[0] + (x[find_]-xp[0])*left_slope
-        if x[-1] > xp[-1]:
+                for j in range(1,xp.size):
+                    if xp[j] > xp[0]:
+                        left_slope = (fp[j]-fp[0])/(xp[j]-xp[0])
+                        break
+                y = fp[0] + (x-xp[0])*left_slope
+        elif x > xp[-1]:
             if optional_right_slope is not None:
                 right_slope = optional_right_slope
             else:
-                right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
-            find_ = np.where(x > xp[-1])[0]
-            y[find_] = fp[-1] + (x[find_]-xp[-1])*right_slope
+                for j in range(xp.size-2,-1,-1):
+                    if xp[j] < xp[-1]:
+                        right_slope = (fp[-1]-fp[j])/(xp[-1]-xp[j])
+                        break
+            y = fp[-1] + (x-xp[-1])*right_slope
+        return y
+
+    if x[0] < xp[0]:
+        if optional_left_slope is not None:
+            left_slope = optional_left_slope
+        else:
+            for j in range(1,xp.size):
+                if xp[j] > xp[0]:
+                    left_slope = (fp[j]-fp[0])/(xp[j]-xp[0])
+                    break
+        find_ = np.where(x < xp[0])[0]
+        y[find_] = fp[0] + (x[find_]-xp[0])*left_slope
+    if x[-1] > xp[-1]:
+        if optional_right_slope is not None:
+            right_slope = optional_right_slope
+        else:
+            for j in range(xp.size-2,-1,-1):
+                if xp[j] < xp[-1]:
+                    right_slope = (fp[-1]-fp[j])/(xp[-1]-xp[j])
+                    break
+        find_ = np.where(x > xp[-1])[0]
+        y[find_] = fp[-1] + (x[find_]-xp[-1])*right_slope
     return y
 
 def rotate_points(xy_pairs, origin, angle_deg):

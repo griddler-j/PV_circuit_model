@@ -337,7 +337,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
             outer_record_ = np.array(outer_record)
             indices = np.argsort(outer_record_[:,0])
             outer_record_ = outer_record_[indices,:]
-            trial_J01 = interp_(Pmax, outer_record_[:,1], outer_record_[:,0], extrap=False)
+            trial_J01 = interp_(Pmax, outer_record_[:,1], outer_record_[:,0])
             trial_J01 = max(trial_J01, 0.0)
             trial_J01 = min(trial_J01, max_J01)
         inner_record = []
@@ -350,9 +350,9 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
                 trial_J02 = max_J02
             else:
                 inner_record_ = np.array(inner_record)
-                indices = np.argsort(inner_record_[:,0])
+                indices = np.argsort(inner_record_[:,1])
                 inner_record_ = inner_record_[indices,:]
-                trial_J02 = interp_(Voc, inner_record_[:,1], inner_record_[:,0],extrap=False)
+                trial_J02 = interp_(Voc, inner_record_[:,1], inner_record_[:,0])
                 trial_J02 = max(trial_J02, 0.0)
                 trial_J02 = min(trial_J02, max_J02)
             trial_cell = make_solar_cell(Jsc, trial_J01, trial_J02, Rshunt, Rs,
