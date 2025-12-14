@@ -80,6 +80,6 @@ else:
             "Falling back to pure-Python implementation (much slower and has a tiny numerical difference).",
             RuntimeWarning
         )
-    from PV_Circuit_Model.ivkernel_python import build_component_IV_python, calc_intrinsic_Si_I, IV_Job_Heap
+    from PV_Circuit_Model.ivkernel_python import build_component_IV_python, IV_Job_Heap
 
     

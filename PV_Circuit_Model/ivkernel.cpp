@@ -765,6 +765,12 @@ void combine_iv_job(int connection,
                     }
                 }
 
+                // guard against no domain
+                if (left_limit >= right_limit) {
+                    *out_len = 0;
+                    return;
+                }
+
                 double* new_end = std::remove_if(
                 Is, Is + vs_len,
                     [left_limit, right_limit](double i_) {
@@ -1118,11 +1124,10 @@ void remesh_IV(
     *out_len = n_out;
 } 
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
+bool combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
     int parallel, int refine_mode, int interp_method, int use_existing_grid, 
     double refine_V_half_width, double max_tolerable_radians_change, 
     int has_any_intrinsic_diode, int has_any_photon_coupling, int largest_abs_max_num_points) {
-    auto t0 = std::chrono::high_resolution_clock::now();
 
     int max_threads = 1;
     int num_threads = 1;
@@ -1218,8 +1223,13 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             delta_n, BGN, pn, extra_Is, this_V, added_I, xq, new_points
         );
     }
+
+    for (int j = 0; j < n_jobs; ++j) 
+        if (*jobs[j].out_len==0)
+            return false; // some mesh have no overlaps, fail! 
+
     if (use_existing_grid==1)
-        return 0;
+        return true; // success
 
     std::vector<int> remesh_indices;
     remesh_indices.reserve(n_jobs);
@@ -1276,9 +1286,7 @@ double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs,
             );
         }
     }
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    return ms;
+    return true; // success!
 }
 
 }// extern "C"

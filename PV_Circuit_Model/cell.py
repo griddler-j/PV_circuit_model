@@ -42,14 +42,14 @@ class Cell(CircuitGroup):
             self.diode_branch = self
 
     # a weak copy, only the parameters
-    def copy(self,cell2):
+    def copy_values(self,cell2):
         self.temperature = cell2.temperature
         self.Suns = cell2.Suns
         if self.series_resistor is not None:
-            self.series_resistor.copy(cell2.series_resistor)
+            self.series_resistor.copy_values(cell2.series_resistor)
         for i, element in enumerate(self.diode_branch.subgroups):
-            if i < len(cell2.diode_branch.subgroups):
-                element.copy(cell2.diode_branch.subgroups[i])
+            if i < len(cell2.diode_branch.subgroups) and type(element)==type(cell2.diode_branch.subgroups[i]):
+                element.copy_values(cell2.diode_branch.subgroups[i])
 
     def set_Suns(self,Suns):
         self.Suns = Suns
@@ -89,8 +89,8 @@ class Cell(CircuitGroup):
         J0 = 0.0
         diodes = self.findElementType(ForwardDiode)
         for diode in diodes:
-            if diode.n==n:
-                if not isinstance(diode,Intrinsic_Si_diode) and not isinstance(diode,PhotonCouplingDiode):
+            if not isinstance(diode,Intrinsic_Si_diode) and not isinstance(diode,PhotonCouplingDiode):
+                if diode.n==n:
                     J0 += diode.I0
         return J0
     def J01(self):

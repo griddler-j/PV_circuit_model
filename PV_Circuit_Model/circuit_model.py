@@ -77,7 +77,17 @@ class CircuitComponent(ParamSerializable):
     def build_IV(self):
         gc.disable()
         self.job_heap = IV_Job_Heap(self)
-        self.job_heap.run_IV()
+        success = self.job_heap.run_IV()
+        if not success:
+            diodes = self.findElementType(Diode)
+            for _ in range(5): # try to autorange a few times before giving up
+                for diode in diodes:
+                    diode.max_I *= 10
+                self.null_all_IV()
+                if self.job_heap.run_IV():
+                    break
+            if not success:
+                raise RuntimeError
         gc.enable()
 
     def refine_IV(self):
@@ -141,7 +151,7 @@ class CircuitComponent(ParamSerializable):
             tuple(c.structure() for c in children) if children else (),
         )
     
-    def copy(self,other): # weak copy, only critical fields
+    def copy_values(self,other): # weak copy, only critical fields
         for field in self._critical_fields:
             if hasattr(self,field) and hasattr(other,field):
                 setattr(self,field,getattr(other,field))
@@ -337,6 +347,7 @@ class ReverseDiode(Diode):
         return draw_reverse_diode_symbol
     
 class Intrinsic_Si_diode(ForwardDiode):
+    _critical_fields = CircuitComponent._critical_fields + ("base_thickness","base_type","base_doping","temperature","VT","ni","area")
     _type_number = 4
     bandgap_narrowing_RT = np.array(bandgap_narrowing_RT)
     # area is 1 is OK because the cell subgroup has normalized area of 1
@@ -346,10 +357,8 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.base_type = base_type
         self.base_doping = base_doping
         self.temperature = temperature
-        self.I0 = 0.0
-        self.n = 0.0
-        self.V_shift = 0.0
         self.area = area
+        self.V_shift = 0
         self.VT = get_VT(self.temperature)
         self.ni = get_ni(self.temperature)
     def __str__(self):

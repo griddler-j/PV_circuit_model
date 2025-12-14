@@ -42,7 +42,7 @@ struct IVJobDesc {
     int all_children_are_elements;
 };
 
-double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
+bool combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
     int parallel, int refine_mode, int interp_method, int use_existing_grid, 
     double refine_V_half_width, double max_tolerable_radians_change, 
     int has_any_intrinsic_diode, int has_any_photon_coupling, int largest_abs_max_num_points);

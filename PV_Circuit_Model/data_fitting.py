@@ -10,7 +10,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from types import SimpleNamespace
 from joblib import Parallel, delayed
 from pathlib import Path
-
+from PV_Circuit_Model.ivkernel import set_parallel_mode, get_parallel_mode
 
 def _in_notebook() -> bool:
     try:
@@ -641,6 +641,9 @@ def construct_M(iteration,measurement_samples,fit_parameters,
 def fit_routine(measurement_samples,fit_parameters,
                 routine_functions,fit_dashboard=None,
                 aux={},num_of_epochs=10,enable_pbar=True,parallel=False):
+    if parallel:
+        parallel_mode_prior = get_parallel_mode()
+        set_parallel_mode(False)
     if "initial_guess" in routine_functions:
         routine_functions["initial_guess"](fit_parameters,measurement_samples,aux)
     RMS_errors = []
@@ -779,4 +782,7 @@ def fit_routine(measurement_samples,fit_parameters,
         routine_functions["update_function"](M, Y, fit_parameters, aux)
         if "post_update_function" in routine_functions:
             routine_functions["post_update_function"](fit_parameters)
+
+    if parallel:
+        set_parallel_mode(parallel_mode_prior)
     

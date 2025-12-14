@@ -45,7 +45,7 @@ def get_V_range(component):
         if component.base_thickness>0:
             Voc = 0.7
             for _ in range(10):
-                I = calc_intrinsic_Si_I(component,Voc)
+                I = component.calc_intrinsic_Si_I(Voc)
                 if I >= max_I and I <= max_I*1.1:
                     break
                 Voc += VT*np.log(max_I/I)
@@ -71,10 +71,11 @@ def build_component_IV_python(component,refine_mode=False):
             component.IV_V = np.array([-0.1,0.1])
             component.IV_I = component.IV_V*cond
         else:
-            I0 = component.I0
-            n = component.n
             VT = component.VT
-            V_shift = component.V_shift
+            if circuit_component_type_number < 4:
+                I0 = component.I0
+                n = component.n
+                V_shift = component.V_shift
             component.IV_V = get_V_range(component)
             if circuit_component_type_number == 2: # ForwardDiode
                 component.IV_I = I0*(np.exp((component.IV_V-V_shift)/(n*VT))-1)
@@ -216,8 +217,9 @@ def build_component_IV_python(component,refine_mode=False):
                     cond = element.cond
                     Is += cond*Vs
                 else:
-                    I0 = element.I0
-                    n = element.n
+                    if element._type_number < 4:
+                        I0 = element.I0
+                        n = element.n
                     VT = element.VT
                     V_shift = element.V_shift
                     if element._type_number == 2: # ForwardDiode
@@ -225,7 +227,7 @@ def build_component_IV_python(component,refine_mode=False):
                     elif element._type_number == 3: # ReverseDiode
                         Is += -I0*np.exp((-Vs-V_shift)/(n*VT))
                     else:
-                        Is += calc_intrinsic_Si_I(element, Vs)
+                        Is += element.calc_intrinsic_Si_I(Vs)
             else:
                 Is += interp_(Vs,element.IV_V,element.IV_I)
 
@@ -393,8 +395,9 @@ class IV_Job_Heap:
                                 cond = component.cond
                                 component.operating_point[1] = cond*V
                             else:
-                                I0 = component.I0
-                                n = component.n
+                                if component._type_number < 4:
+                                    I0 = component.I0
+                                    n = component.n
                                 VT = component.VT
                                 V_shift = component.V_shift
                                 if component._type_number == 2: # ForwardDiode
@@ -402,7 +405,7 @@ class IV_Job_Heap:
                                 elif component._type_number == 3: # ReverseDiode
                                     component.operating_point[1] = -I0*np.exp((-V-V_shift)/(n*VT))
                                 else:
-                                    component.operating_point[1] = calc_intrinsic_Si_I(component, V)
+                                    component.operating_point[1] = component.calc_intrinsic_Si_I(V)
                         else:
                             component.operating_point[1] = interp_(V,component.IV_V,component.IV_I)
                     elif I is not None:
@@ -447,6 +450,7 @@ class IV_Job_Heap:
             self.timers["refine"] += duration  # added to the operating point time
         else:
             self.timers["IV"] = duration
+        return True # no error
 
     def refine_IV(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:

@@ -12,6 +12,7 @@ from PV_Circuit_Model.utilities import ParameterSet
 from PV_Circuit_Model.utilities_silicon import bandgap_narrowing_RT
 from pathlib import Path
 from libcpp cimport bool as cbool
+from libc.math cimport isfinite  # C-level, fast
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
@@ -51,6 +52,10 @@ def set_parallel_mode(enabled: bool):
     _PARALLEL_MODE = bool(enabled)
     solver_env_variables.set("_PARALLEL_MODE", _PARALLEL_MODE)
 
+def get_parallel_mode():
+    global solver_env_variables
+    return solver_env_variables["_PARALLEL_MODE"]
+
 def set_super_dense(num_points):
     global _SUPER_DENSE
     _SUPER_DENSE = int(num_points)
@@ -68,9 +73,9 @@ cdef extern from "ivkernel.h":
         double scale
         cbool left_extrapolation_allowed
         cbool right_extrapolation_allowed
+        double extrapolation_dI_dV[2]
         cbool has_lower_I_domain_limit
         cbool has_upper_I_domain_limit
-        double extrapolation_dI_dV[2]
         int type_number
         double element_params[8]
 
@@ -90,13 +95,13 @@ cdef extern from "ivkernel.h":
         const double* circuit_element_parameters
         double* out_V
         double* out_I
-        cbool* out_extrapolation_allowed
-        double* out_extrapolation_dI_dV
-        cbool* out_has_I_domain_limit
-        int* out_len
-        int all_children_are_elements
+        int* out_len;
+        cbool* out_extrapolation_allowed;
+        double* out_extrapolation_dI_dV;
+        cbool* out_has_I_domain_limit;
+        int all_children_are_elements;
 
-    double combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
+    bint combine_iv_jobs_batch(int n_jobs, IVJobDesc* jobs, 
     int parallel, int refine_mode, int interp_method, int use_existing_grid, 
     double refine_V_half_width, double max_tolerable_radians_change, 
     int has_any_intrinsic_diode, int has_any_photon_coupling, int largest_abs_max_num_points) nogil
@@ -150,10 +155,11 @@ cdef void _init_ivkernel_tables():
     _tables_initialized = True
 
 cdef void _init_q():
-    global _q
+    global _q, _q_initialized
     if _q_initialized:
         return
     ivkernel_set_q(_q)
+    _q_initialized = True
 
 def init_ivkernel_tables():
     _init_ivkernel_tables()
@@ -163,6 +169,12 @@ def init_q():
 
 _init_ivkernel_tables()
 _init_q()
+
+cdef inline bint _setp(double[:] p, int k, double v) nogil:
+    if not isfinite(v):
+        return 0
+    p[k] = v
+    return 1
 
 def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
 
@@ -263,6 +275,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
     cdef double* base_extrapolation_dI_dV
     cdef cbool* base_extrapolation_allowed
     cdef cbool* base_has_I_domain_limit
+    cdef int abs_max_num_points_multipier
 
     if refine_mode:
         refine_mode_ = 1
@@ -291,18 +304,18 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
             mv_params = mv_params_all[i]  # shape (PARAMS_LEN,)
             jobs_c[i].circuit_element_parameters = &mv_params[0]
             max_I = circuit_component.max_I
-            if not max_I:
+            if max_I is None:
                 max_I = 0.2
             if circuit_component_type_number == 0:      # CurrentSource
-                mv_params[0] = circuit_component.IL
+                if not _setp(mv_params, 0, circuit_component.IL): return 1
             elif circuit_component_type_number == 1:    # Resistor
-                mv_params[0] = circuit_component.cond
+                if not _setp(mv_params, 0, circuit_component.cond): return 1
             elif circuit_component_type_number in (2, 3):  # diodes
-                mv_params[0] = circuit_component.I0
-                mv_params[1] = circuit_component.n
-                mv_params[2] = circuit_component.VT
-                mv_params[3] = circuit_component.V_shift
-                mv_params[4] = max_I
+                if not _setp(mv_params, 0, circuit_component.I0): return 1
+                if not _setp(mv_params, 1, circuit_component.n): return 1
+                if not _setp(mv_params, 2, circuit_component.VT): return 1
+                if not _setp(mv_params, 3, circuit_component.V_shift): return 1
+                if not _setp(mv_params, 4, max_I): return 1
             elif circuit_component_type_number == 4:    # Intrinsic_Si_diode
                 has_any_intrinsic_diode = 1
                 base_type_number = 0.0  # p
@@ -312,13 +325,13 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 except AttributeError:
                     pass
 
-                mv_params[0] = circuit_component.base_doping
+                if not _setp(mv_params, 0, circuit_component.base_doping): return 1
                 mv_params[1] = 1.0
-                mv_params[2] = circuit_component.VT
-                mv_params[3] = circuit_component.base_thickness
-                mv_params[4] = max_I
-                mv_params[5] = circuit_component.ni
-                mv_params[6] = base_type_number
+                if not _setp(mv_params, 2, circuit_component.VT): return 1
+                if not _setp(mv_params, 3, circuit_component.base_thickness): return 1
+                if not _setp(mv_params, 4, max_I): return 1
+                if not _setp(mv_params, 5, circuit_component.ni): return 1
+                if not _setp(mv_params, 6, base_type_number): return 1
             else:
                 # CircuitGroup or unknown
                 pass 
@@ -328,7 +341,7 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
             if circuit_component._type_number==6 and circuit_component.area is not None:
                 area = circuit_component.area
             max_num_points = circuit_component.max_num_points
-            if not max_num_points:
+            if max_num_points is None:
                 max_num_points = -1
             # ----- fill IVJobDesc scalars -----
             jobs_c[i].connection = -1
@@ -544,11 +557,13 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
 
         # ----- call C++ batched kernel (no Python inside) -----
         with nogil:
-            kernel_ms = combine_iv_jobs_batch(n_jobs_c, jobs_c, parallel_, refine_mode_, interp_method_, 
+            success = combine_iv_jobs_batch(n_jobs_c, jobs_c, parallel_, refine_mode_, interp_method_, 
             use_existing_grid_, REFINE_V_HALF_WIDTH_, max_tolerable_radians_change, has_any_intrinsic_diode, has_any_photon_coupling, largest_abs_max_num_points)
 
         # ----- unpack outputs -----
-        free(this_view)
+        if not success:
+            return 2
+
         offset = 0
         for i in range(n_jobs):
             circuit_component = components[i]
@@ -565,10 +580,13 @@ def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=
                 circuit_component.has_I_domain_limit = [bool(big_out_has_I_domain_limit[2*i]),bool(big_out_has_I_domain_limit[2*i+1])]
             offset += jobs_c[i].abs_max_num_points
 
+        return 0
+
     finally:
         free(jobs_c)
         free(children_views)
         free(pc_children_views)
+        free(this_view)
         
 
 def run_multiple_operating_points(components, bint parallel=False):
@@ -600,7 +618,7 @@ def run_multiple_operating_points(components, bint parallel=False):
     cdef object circuit_component
     cdef object operating_point
 
-    if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL or element_params == NULL:
+    if xs == NULL or ys == NULL or ns == NULL or yqs == NULL or known_is_V == NULL or element_params == NULL or circuit_type_number==NULL:
         if xs != NULL:       free(<void*> xs)
         if ys != NULL:       free(<void*> ys)
         if ns != NULL:       free(<void*> ns)

@@ -145,9 +145,13 @@ cdef class IV_Job_Heap:
         duration = time.perf_counter() - start_time
         self.timers["refine"] = duration
                     
-    cpdef void run_IV(self, bint refine_mode=False, interp_method=0, use_existing_grid=False):
+    cpdef bint run_IV(self, bint refine_mode=False, interp_method=0, use_existing_grid=False):
         start_time = time.perf_counter()
         cdef bint parallel = False
+        cdef int error_code
+        cdef int interp_method_i = <int>interp_method
+        cdef bint use_existing_grid_b = <bint>use_existing_grid
+
         _PARALLEL_MODE = solver_env_variables["_PARALLEL_MODE"]
         _SUPER_DENSE = solver_env_variables["_SUPER_DENSE"]
         if _PARALLEL_MODE and self.components[0].max_num_points is not None:
@@ -161,8 +165,12 @@ cdef class IV_Job_Heap:
             job_done_index_before = self.job_done_index
             components_ = self.get_runnable_iv_jobs(refine_mode=refine_mode)
             if components_:
-                ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, 
+                error_code = ivkernel.run_multiple_jobs(components_, refine_mode=refine_mode, parallel=parallel, 
                 interp_method=interp_method, super_dense=_SUPER_DENSE, use_existing_grid=use_existing_grid)
+                if error_code==1: # some Nan numbers in circuit element parameters
+                    raise FloatingPointError("Non-finite (NaN/Inf) detected in circuit element parameters")
+                if error_code==2: # children have no overlapping current ranges in series connection
+                    return False
             if pbar is not None:
                 pbar.update(job_done_index_before - self.job_done_index)
 
@@ -172,6 +180,7 @@ cdef class IV_Job_Heap:
         duration = time.perf_counter() - start_time
         if not refine_mode:
             self.timers["IV"] = duration
+        return True
 
     def refine_IV(self):
         if self.components[0].IV_V is not None and self.components[0].operating_point is not None:
