@@ -91,6 +91,18 @@ def interp_(x, xp, fp, optional_left_slope=None, optional_right_slope=None):
     else:
         y = np.interp(-x, -xp, fp)
     if isinstance(x,Number):
+        if x < xp[0]:
+            if optional_left_slope is not None:
+                left_slope = optional_left_slope
+            else:
+                left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
+            y = fp[0] + (x-xp[0])*left_slope
+        elif x > xp[-1]:
+            if optional_right_slope is not None:
+                right_slope = optional_right_slope
+            else:
+                right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
+            y = fp[-1] + (x-xp[-1])*right_slope
         return y
     if x[0] < xp[0]:
         if optional_left_slope is not None:
