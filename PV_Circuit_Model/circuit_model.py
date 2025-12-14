@@ -208,7 +208,7 @@ class CircuitElement(CircuitComponent):
         pass
 
 class CurrentSource(CircuitElement):
-    _critical_fields = CircuitComponent._critical_fields + ("IL",)
+    _critical_fields = CircuitComponent._critical_fields + ("IL","refSuns","Suns","refIL","refT","T","temp_coeff")
     _type_number = 0
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
         super().__init__(tag=tag)
@@ -272,7 +272,7 @@ class Resistor(CircuitElement):
         return draw_resistor_symbol
 
 class Diode(CircuitElement):
-    _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT")
+    _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT","refI0","refT")
     _type_number = 2
     max_I = 0.2
     def __init__(self,I0=1e-15,n=1,V_shift=0,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
