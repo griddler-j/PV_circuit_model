@@ -88,7 +88,7 @@ class Tandem_Cell_Fit_Parameters(Fit_Parameters):
             if res.tag != "defect":
                 res.aux["error"] = errors[2]
         for diode in diodes:
-            if diode.tag != "defect" and diode.tag != "intrinsic" and not isinstance(diode,PhotonCouplingDiode):
+            if diode.tag != "defect" and not isinstance(diode,Intrinsic_Si_diode) and not isinstance(diode,PhotonCouplingDiode):
                 if diode.n==1:
                     diode.aux["error"] = errors[0]
                 elif diode.n==2:

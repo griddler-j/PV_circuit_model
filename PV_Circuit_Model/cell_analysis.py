@@ -567,7 +567,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
             if np.abs(Pmax-target_Pmax) < 1e-6:
                 break
             record_ = np.array(record)
-            record_ = record_[record_[:, 0].argsort()]
+            record_ = record_[record_[:, 1].argsort()]
             if np.max(record_[:,1])>=target_Pmax and np.min(record_[:,1])<=target_Pmax:
                 try_R = interp_(target_Pmax, record_[:,1], record_[:,0])
             elif np.max(record_[:,1])<target_Pmax:
