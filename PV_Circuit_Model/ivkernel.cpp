@@ -1076,10 +1076,14 @@ void remesh_IV(
     }
 
     double variation_segment = accum_abs_dir_change[n-2]/(max_num_points-2);
+    if (!std::isfinite(variation_segment) || variation_segment <= 0.0) 
+        return;  // keep original mesh; no remesh
     double variation_segment_mpp = 0.0;
     if (refine_mode == 1) {
         variation_segment_mpp =
             accum_abs_dir_change_near_mpp[n - 2] / refinement_points;
+        if (!std::isfinite(variation_segment_mpp) || variation_segment_mpp <= 0.0) 
+            return;  // keep original mesh; no remesh
     }
     idx[0] = 0;
     int idx_size = 1;

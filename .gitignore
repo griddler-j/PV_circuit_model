@@ -166,6 +166,7 @@ example_calc_solar_simulator_error/
 *.pdb
 
 LT Spice Export/Experiments/
+sandbox/
 tests/Experiments/
 PV_Circuit_Model/IV_jobs.cpp
 PV_Circuit_Model/ivkernel_wrapper.cpp

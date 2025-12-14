@@ -84,6 +84,7 @@ class CircuitComponent(ParamSerializable):
                 for diode in diodes:
                     diode.max_I *= 10
                 self.null_all_IV()
+                self.job_heap = IV_Job_Heap(self)
                 if self.job_heap.run_IV():
                     break
             if not success:

@@ -1,0 +1,15 @@
+services:
+  ivbuild:
+    build:
+      context: .
+    image: iv-linux-build
+    working_dir: /work
+    stdin_open: true   # keeps STDIN open (like -i)
+    tty: true          # allocates a TTY (like -t)
+    volumes:
+      - ../../PV_Circuit_Model:/work
+    command: >
+      bash -c "
+      python setup_ivkernel.py build_ext --inplace -v &&
+      python setup_IV_jobs.py build_ext --inplace -v
+      "
