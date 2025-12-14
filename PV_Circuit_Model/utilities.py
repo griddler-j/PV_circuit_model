@@ -83,7 +83,7 @@ pbar = None
 x_spacing = 1.5
 y_spacing = 0.2
 
-def interp_(x, xp, fp, optional_left_slope=None, optional_right_slope=None):
+def interp_(x, xp, fp, optional_left_slope=None, optional_right_slope=None, extrap = True):
     if xp.size==1:
         return fp[0]*np.ones_like(x)
     if xp[-1] > xp[0]:
@@ -91,33 +91,35 @@ def interp_(x, xp, fp, optional_left_slope=None, optional_right_slope=None):
     else:
         y = np.interp(-x, -xp, fp)
     if isinstance(x,Number):
-        if x < xp[0]:
+        if extrap:
+            if x < xp[0]:
+                if optional_left_slope is not None:
+                    left_slope = optional_left_slope
+                else:
+                    left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
+                y = fp[0] + (x-xp[0])*left_slope
+            elif x > xp[-1]:
+                if optional_right_slope is not None:
+                    right_slope = optional_right_slope
+                else:
+                    right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
+                y = fp[-1] + (x-xp[-1])*right_slope
+        return y
+    if extrap:
+        if x[0] < xp[0]:
             if optional_left_slope is not None:
                 left_slope = optional_left_slope
             else:
                 left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
-            y = fp[0] + (x-xp[0])*left_slope
-        elif x > xp[-1]:
+            find_ = np.where(x < xp[0])[0]
+            y[find_] = fp[0] + (x[find_]-xp[0])*left_slope
+        if x[-1] > xp[-1]:
             if optional_right_slope is not None:
                 right_slope = optional_right_slope
             else:
                 right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
-            y = fp[-1] + (x-xp[-1])*right_slope
-        return y
-    if x[0] < xp[0]:
-        if optional_left_slope is not None:
-            left_slope = optional_left_slope
-        else:
-            left_slope = (fp[1]-fp[0])/(xp[1]-xp[0])
-        find_ = np.where(x < xp[0])[0]
-        y[find_] = fp[0] + (x[find_]-xp[0])*left_slope
-    if x[-1] > xp[-1]:
-        if optional_right_slope is not None:
-            right_slope = optional_right_slope
-        else:
-            right_slope = (fp[-1]-fp[-2])/(xp[-1]-xp[-2])
-        find_ = np.where(x > xp[-1])[0]
-        y[find_] = fp[-1] + (x[find_]-xp[-1])*right_slope
+            find_ = np.where(x > xp[-1])[0]
+            y[find_] = fp[-1] + (x[find_]-xp[-1])*right_slope
     return y
 
 def rotate_points(xy_pairs, origin, angle_deg):
