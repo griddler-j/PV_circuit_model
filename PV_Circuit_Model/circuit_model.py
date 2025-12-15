@@ -5,7 +5,7 @@ from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.utilities_silicon import *
 from tqdm import tqdm
 from PV_Circuit_Model.IV_jobs import *
-import gc, inspect
+import gc
 
 solver_env_variables = ParameterSet.get_set("solver_env_variables")
 REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
@@ -27,6 +27,7 @@ class CircuitComponent(ParamSerializable):
     operating_point = None
     num_circuit_elements = 1
     circuit_depth = 1
+    registered_type_numbers = set()
 
     def __init__(self,tag=None):
         self.circuit_diagram_extent = [0, 0.8]
@@ -36,6 +37,23 @@ class CircuitComponent(ParamSerializable):
         self.extrapolation_allowed = [False,False]
         self.extrapolation_dI_dV = [0,0]
         self.has_I_domain_limit = [False,False]
+
+    def __init_subclass__(cls, *, _type_number=-1, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if _type_number == -1:
+            for base in cls.__mro__[1:]:
+                tn = getattr(base, "_type_number", -1)
+                if tn >= 0:
+                    _type_number = tn
+                    cls._type_number = _type_number
+                    return
+        if _type_number >= 0:
+            if _type_number in CircuitComponent.registered_type_numbers:
+                raise ValueError(
+                        f"_type_number {_type_number} already used"
+                    )
+            CircuitComponent.registered_type_numbers.add(_type_number)
+        cls._type_number = _type_number
 
     def __len__(self):
         return self.num_circuit_elements
@@ -70,7 +88,7 @@ class CircuitComponent(ParamSerializable):
 
     def null_all_IV(self):
         self.clear_artifacts()
-        if self._type_number >= 5: # is CircuitGroup
+        if isinstance(self,CircuitGroup):
             for element in self.subgroups:
                 element.null_all_IV()
 
@@ -160,8 +178,8 @@ class CircuitComponent(ParamSerializable):
 def flatten_connection(parts_list,connection):
     flat_list = []
     for part in parts_list:
-        # _type_number > 5 means already a special grouping like cell, module, so cannot break apart
-        if isinstance(part,CircuitGroup) and part.connection==connection and not getattr(part,"_is_atomic",False) and part._type_number==5:
+        # do not flatten if it's subclass of CircuitGroup, like cell or module or mj cell
+        if type(part) is CircuitGroup and part.connection==connection and not getattr(part,"_is_atomic",False):
             flat_list.extend(part.subgroups)
         else:
             flat_list.append(part)
@@ -218,9 +236,8 @@ class CircuitElement(CircuitComponent):
     def calc_dI_dV(self,V):
         pass
 
-class CurrentSource(CircuitElement):
+class CurrentSource(CircuitElement,_type_number=0):
     _critical_fields = CircuitComponent._critical_fields + ("IL","refSuns","Suns","refIL","refT","T","temp_coeff")
-    _type_number = 0
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
         super().__init__(tag=tag)
         self.IL = IL
@@ -252,9 +269,8 @@ class CurrentSource(CircuitElement):
     def get_draw_func(self):
         return draw_CC_symbol
 
-class Resistor(CircuitElement):
+class Resistor(CircuitElement,_type_number=1):
     _critical_fields = CircuitComponent._critical_fields + ("cond",)
-    _type_number = 1
     def __init__(self, cond=1.0, tag=None):
         super().__init__(tag=tag)
         self.cond = cond
@@ -282,9 +298,8 @@ class Resistor(CircuitElement):
     def get_draw_func(self):
         return draw_resistor_symbol
 
-class Diode(CircuitElement):
+class Diode(CircuitElement,_type_number=2):
     _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT","refI0","refT")
-    _type_number = 2
     max_I = 0.2
     def __init__(self,I0=1e-15,n=1,V_shift=0,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(tag=tag)
@@ -331,8 +346,7 @@ class PhotonCouplingDiode(ForwardDiode):
     def __str__(self):
         return "Photon Coupling Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
 
-class ReverseDiode(Diode):
-    _type_number = 3
+class ReverseDiode(Diode,_type_number=3):
     def __init__(self,I0=1e-15,n=1, V_shift=0,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(I0, n, V_shift, tag=tag)
     def __str__(self):
@@ -347,9 +361,8 @@ class ReverseDiode(Diode):
     def get_draw_func(self):
         return draw_reverse_diode_symbol
     
-class Intrinsic_Si_diode(ForwardDiode):
+class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
     _critical_fields = CircuitComponent._critical_fields + ("base_thickness","base_type","base_doping","temperature","VT","ni","area")
-    _type_number = 4
     bandgap_narrowing_RT = np.array(bandgap_narrowing_RT)
     # area is 1 is OK because the cell subgroup has normalized area of 1
     def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,tag=None):
@@ -403,9 +416,8 @@ class Intrinsic_Si_diode(ForwardDiode):
         self.ni = get_ni(self.temperature)
         self.null_IV()
 
-class CircuitGroup(CircuitComponent):
+class CircuitGroup(CircuitComponent,_type_number=5):
     _critical_fields = CircuitComponent._critical_fields + ("connection","subgroups")
-    _type_number = 5
     def __init__(self,subgroups,connection="series",name=None,location=None,
                  rotation=0,x_mirror=1,y_mirror=1,extent=None):
         super().__init__()
@@ -465,7 +477,7 @@ class CircuitGroup(CircuitComponent):
             if I is not None:
                 V_ = np.interp(I,self.IV_I,self.IV_V)
             self.operating_point = [V_,I_]
-            if self._type_number==6: # cell, has area
+            if hasattr(self,"area") and hasattr(self,"shape"): # cell
                 I_ /= self.area
             if shallow:   
                 return

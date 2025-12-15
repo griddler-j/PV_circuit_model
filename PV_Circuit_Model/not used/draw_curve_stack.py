@@ -1,14 +1,15 @@
 
 from PV_Circuit_Model.circuit_model import *
+from PV_Circuit_Model.cell import Cell
 
 # This is only an approx way to visualize the curve stacking, by no means rigorous!  
 # Idea is to just draw the 4th quadrant of the curve stretched within the bounds 
 def draw_curve_stack(self,max_depth=3,left_bound_curve=None,right_bound_curve=None,origin_V=0,origin_I=0,is_root=True,group_origin_V=None):
     fills = []
     plots = []
-    if self._type_number < 5: # don't draw elements
+    if isinstance(self,CircuitElement): # don't draw elements
         return [], []
-    if max_depth==0 or self._type_number == 6: # draw at cell level
+    if max_depth==0 or isinstance(self,Cell): # draw at cell level
         Voc = self.get_Voc()
         V_sample = np.linspace(0,Voc*1.5,5000) 
         find_ = np.where((V_sample>=self.IV_V[0]) & (V_sample<=self.IV_V[-1]))[0]
@@ -28,7 +29,7 @@ def draw_curve_stack(self,max_depth=3,left_bound_curve=None,right_bound_curve=No
         Iscs = []
         I_domain = None
         for item_ in self.subgroups:
-            if item_._type_number < 5: # a resistor or diode, whatever
+            if isinstance(item_,CircuitElement):
                 Iscs.append(0)
             else:
                 if I_domain is None:
@@ -46,7 +47,7 @@ def draw_curve_stack(self,max_depth=3,left_bound_curve=None,right_bound_curve=No
             added_V = interp_(left_bound_curve_[1,:],item.IV_I+origin_I,item.IV_V)
             right_bound_curve_ = left_bound_curve_.copy()
             right_bound_curve_[0,:] += added_V
-            if item._type_number >= 5:
+            if isinstance(item,CircuitGroup):
                 new_origin_V = interp_(origin_I,right_bound_curve_[1,:],right_bound_curve_[0,:])
                 min_right_bound_ = right_bound_curve_.copy()
                 if right_bound_curve is not None:
@@ -66,7 +67,7 @@ def draw_curve_stack(self,max_depth=3,left_bound_curve=None,right_bound_curve=No
         Vocs = []
         V_domain = None
         for item_ in self.subgroups:
-            if item_._type_number < 5: # a resistor or diode, whatever
+            if isinstance(item_, CircuitElement):
                 Vocs.append(0)
             else:
                 if V_domain is None:
@@ -78,7 +79,7 @@ def draw_curve_stack(self,max_depth=3,left_bound_curve=None,right_bound_curve=No
             
         for index in indices:
             item = self.subgroups[index]
-            if item._type_number >= 5:
+            if isinstance(item, CircuitGroup):
                 new_origin_I = origin_I-Isc_sum
                 if left_bound_curve is not None:
                     new_origin_V = interp_(new_origin_I,left_bound_curve[1,:],left_bound_curve[0,:])

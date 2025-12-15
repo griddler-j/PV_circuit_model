@@ -8,8 +8,7 @@ from shapely.geometry import Polygon, Point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import ScalarFormatter
 
-class Cell(CircuitGroup):
-    _type_number = 6
+class Cell(CircuitGroup,_type_number=6):
     photon_coupling_diodes = None
     _critical_fields = CircuitGroup._critical_fields + ("area",)
     def __init__(self,subgroups,connection="series",area=1,location=None,

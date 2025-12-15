@@ -468,7 +468,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
             cell_or_module=1
             params = ["Isc","Voc","FF","Pmax"]
-            if self._type_number==6 or self._type_number==7: # cell or MJ cell
+            if isinstance(self,Cell) or isinstance(self,MultiJunctionCell): # cell or MJ cell
                 cell_or_module=0
                 params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
             words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
@@ -498,7 +498,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
             cell_or_module=1
             params = ["Isc","Voc","FF","Pmax"]
-            if self._type_number==6 or self._type_number==7: # cell or MJ cell
+            if isinstance(self,Cell) or isinstance(self,MultiJunctionCell): 
                 cell_or_module=0
                 params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
             words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
@@ -625,7 +625,7 @@ def solver_summary_heap(job_heap, display_or_latex=0):
         paragraph = "I-V Parameters (coarse - run device.get_Pmax() to get refinement!):\n"
     cell_or_module=1
     params = ["Isc","Imp","Voc","Vmp","FF","Pmax"]
-    if component._type_number==6 or component._type_number==7: # cell or MJ cell
+    if isinstance(component,Cell) or isinstance(component,MultiJunctionCell):
         cell_or_module=0
         params = ["Isc","Jsc","Imp","Jmp","Voc","Vmp","FF","Pmax","Eff","Area"]
     words, _ = get_IV_parameter_words(component, display_or_latex=display_or_latex, cell_or_module=cell_or_module, cap_decimals=False, include_bounds=True)

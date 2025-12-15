@@ -34,7 +34,7 @@ def assign_nodes(circuit_group,node_count=0,scale=1.0):
         for element in circuit_group.subgroups:
             node_count = assign_nodes(element,node_count=node_count,scale=circuit_group.aux["scale"])
     # PC diodes
-    if circuit_group._type_number==7:
+    if type(circuit_group).__name__=="MultiJunctionCell":
         for i, cell in enumerate(circuit_group.cells):
             PC_diodes = cell.findElementType("PhotonCouplingDiode")
             if len(PC_diodes)>0 and i>0:

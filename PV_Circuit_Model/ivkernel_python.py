@@ -1,5 +1,7 @@
 import numpy as np
 from PV_Circuit_Model.utilities import *
+from PV_Circuit_Model.circuit_model import *
+from PV_Circuit_Model.cell import *
 import tqdm
 import time
 
@@ -41,7 +43,7 @@ def get_V_range(component):
         max_I = 0.2
     max_num_points_ = max_num_points*max_I/0.2
     Voc = 10
-    if component._type_number == 4: # Intrinsic Si Diode
+    if isinstance(component,Intrinsic_Si_diode): # Intrinsic Si Diode
         if component.base_thickness>0:
             Voc = 0.7
             for _ in range(10):
@@ -60,26 +62,25 @@ def get_V_range(component):
 def build_component_IV_python(component,refine_mode=False):
     if refine_mode:
         refinement_points = int(REFINEMENT_POINTS_DENSITY*np.sqrt(component.num_circuit_elements))
-    circuit_component_type_number = component._type_number
-    if circuit_component_type_number <=4: # CircuitElement
-        if circuit_component_type_number == 0: # CurrentSource
+    if isinstance(component, CircuitElement): 
+        if isinstance(component, CurrentSource):
             IL = component.IL
             component.IV_V = np.array([0])
             component.IV_I = np.array([-IL])
-        elif circuit_component_type_number == 1: # Resistor
+        elif isinstance(component, Resistor):
             cond = component.cond
             component.IV_V = np.array([-0.1,0.1])
             component.IV_I = component.IV_V*cond
         else:
             VT = component.VT
-            if circuit_component_type_number < 4:
+            if not isinstance(component, Intrinsic_Si_diode):
                 I0 = component.I0
                 n = component.n
                 V_shift = component.V_shift
             component.IV_V = get_V_range(component)
-            if circuit_component_type_number == 2: # ForwardDiode
+            if isinstance(component, ForwardDiode):
                 component.IV_I = I0*(np.exp((component.IV_V-V_shift)/(n*VT))-1)
-            elif circuit_component_type_number == 3: # ReverseDiode
+            elif isinstance(component, ReverseDiode):
                 component.IV_I = I0*(np.exp((component.IV_V-V_shift)/(n*VT)))
                 component.IV_V *= -1
                 component.IV_I *= -1
@@ -96,7 +97,7 @@ def build_component_IV_python(component,refine_mode=False):
         normalized_operating_point_I = 0
         all_children_are_elements = True
         for element in component.subgroups:
-            if element._type_number >= 5: # circuitgroup
+            if isinstance(element,CircuitGroup): # circuitgroup
                 all_children_are_elements = False
                 bottom_up_operating_point_V += element.bottom_up_operating_point[0]
                 bottom_up_operating_point_I += element.bottom_up_operating_point[1]
@@ -115,7 +116,7 @@ def build_component_IV_python(component,refine_mode=False):
             bottom_up_operating_point_V /= len(component.subgroups)
             normalized_operating_point_V /= len(component.subgroups)
 
-        if component._type_number==6:
+        if isinstance(component,Cell):
             bottom_up_operating_point_I *= component.area
 
         component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
@@ -177,16 +178,17 @@ def build_component_IV_python(component,refine_mode=False):
         right_limit = None
         for element in component.subgroups:
             Vs.extend(list(element.IV_table[0,:]))
-            if element._type_number == 2 or element._type_number == 4: # ForwardDiode
-                if right_limit is None:
-                    right_limit = element.IV_V[-1]
-                else:
-                    right_limit = min(element.IV_V[-1],right_limit)
-            elif element._type_number == 3: # ReverseDiode
-                if left_limit is None:
-                    left_limit = element.IV_V[0]
-                else:
-                    left_limit = max(element.IV_V[0],left_limit)
+            if isinstance(element,Diode):
+                if isinstance(element,ForwardDiode): # ForwardDiode
+                    if right_limit is None:
+                        right_limit = element.IV_V[-1]
+                    else:
+                        right_limit = min(element.IV_V[-1],right_limit)
+                else: # ReverseDiode
+                    if left_limit is None:
+                        left_limit = element.IV_V[0]
+                    else:
+                        left_limit = max(element.IV_V[0],left_limit)
         Vs = np.sort(np.array(Vs))
         if left_limit is not None:
             find_ = np.where(Vs >= left_limit)[0]
@@ -209,25 +211,25 @@ def build_component_IV_python(component,refine_mode=False):
 
         Is = np.zeros_like(Vs)
         for element in component.subgroups:
-            if element._type_number < 5: # CircuitElement, direct evaluate
-                if element._type_number == 0: # CurrentSource
+            if isinstance(element,CircuitElement):
+                if isinstance(element,CurrentSource):
                     IL = element.IL
                     Is -= IL*np.ones_like(Vs) 
-                elif element._type_number == 1: # Resistor
+                elif isinstance(element,Resistor):
                     cond = element.cond
                     Is += cond*Vs
                 else:
-                    if element._type_number < 4:
-                        I0 = element.I0
-                        n = element.n
                     VT = element.VT
                     V_shift = element.V_shift
-                    if element._type_number == 2: # ForwardDiode
-                        Is += I0*(np.exp((Vs-V_shift)/(n*VT))-1)
-                    elif element._type_number == 3: # ReverseDiode
-                        Is += -I0*np.exp((-Vs-V_shift)/(n*VT))
-                    else:
+                    if isinstance(element,Intrinsic_Si_diode):
                         Is += element.calc_intrinsic_Si_I(Vs)
+                    else:
+                        I0 = element.I0
+                        n = element.n
+                        if isinstance(element,ForwardDiode):
+                            Is += I0*(np.exp((Vs-V_shift)/(n*VT))-1)
+                        else: 
+                            Is += -I0*np.exp((-Vs-V_shift)/(n*VT))
             else:
                 Is += interp_(Vs,element.IV_V,element.IV_I)
 
@@ -238,7 +240,7 @@ def build_component_IV_python(component,refine_mode=False):
     component.IV_V = Vs
     component.IV_I = Is
 
-    if component._type_number == 6: # cell
+    if isinstance(component,Cell):
         component.IV_I *= component.area
 
     #remesh
@@ -387,35 +389,35 @@ class IV_Job_Heap:
                     V = component.operating_point[0]
                     I = component.operating_point[1]
                     if V is not None:
-                        if component._type_number < 5: # CircuitElement, direct evaluate
-                            if component._type_number == 0: # CurrentSource
+                        if isinstance(component,CircuitElement):
+                            if isinstance(component,CurrentSource):
                                 IL = component.IL
                                 component.operating_point[1] = -IL
-                            elif component._type_number == 1: # Resistor
+                            elif isinstance(component,Resistor):
                                 cond = component.cond
                                 component.operating_point[1] = cond*V
                             else:
-                                if component._type_number < 4:
-                                    I0 = component.I0
-                                    n = component.n
                                 VT = component.VT
                                 V_shift = component.V_shift
-                                if component._type_number == 2: # ForwardDiode
-                                    component.operating_point[1] = I0*(np.exp((V-V_shift)/(n*VT))-1)
-                                elif component._type_number == 3: # ReverseDiode
-                                    component.operating_point[1] = -I0*np.exp((-V-V_shift)/(n*VT))
-                                else:
+                                if isinstance(component,Intrinsic_Si_diode):
+                                    I0 = component.I0
+                                    n = component.n
                                     component.operating_point[1] = component.calc_intrinsic_Si_I(V)
+                                else:
+                                    if isinstance(component,ForwardDiode):
+                                        component.operating_point[1] = I0*(np.exp((V-V_shift)/(n*VT))-1)
+                                    else:
+                                        component.operating_point[1] = -I0*np.exp((-V-V_shift)/(n*VT))
                         else:
                             component.operating_point[1] = interp_(V,component.IV_V,component.IV_I)
                     elif I is not None:
                         component.operating_point[0] = interp_(I,component.IV_I,component.IV_V)
-                    if component._type_number>=5:
+                    if isinstance(component,CircuitGroup):
                         is_series = False
                         if component.connection=="series":
                             is_series = True
                         current_ = component.operating_point[1]
-                        if component._type_number==6: # cell
+                        if isinstance(component,Cell):
                             current_ /= component.area
                         for child in component.subgroups:
                             if is_series:
@@ -461,10 +463,10 @@ class IV_Job_Heap:
         worst_V_error = 0
         if self.components[0].refined_IV:
             for component in self.components:
-                if component._type_number>=5: #CircuitGroup
+                if isinstance(component,CircuitGroup):
                     has_started = False
-                    for i, element in enumerate(component.subgroups):
-                        if element._type_number >= 5:
+                    for element in component.subgroups:
+                        if isinstance(element,CircuitGroup):
                             if not has_started:
                                 largest_V = element.bottom_up_operating_point[0]
                                 smallest_V = element.bottom_up_operating_point[0]

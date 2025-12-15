@@ -4,7 +4,6 @@ from PV_Circuit_Model.cell import *
 import numbers
 
 class MultiJunctionCell(CircuitGroup):
-    _type_number = 7
     def __init__(self,subcells=None,subgroups=None,Rs=0.1,location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
         if subgroups is not None:

@@ -7,7 +7,6 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
 class Module(CircuitGroup):
-    _type_number = 8
     def __init__(self,subgroups,connection="series",location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
         super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
