@@ -214,11 +214,12 @@ def parallel(*args,flatten_connection_=False,**kwargs):
     kwargs.pop("connection", None)
     return connect(*args,connection="parallel",flatten_connection_=flatten_connection_,**kwargs)
 
-
-
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
-        pass
+        if V is not None:
+            self.operating_point = [V, self.calc_I(V)]
+        else:
+            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
     def get_value_text(self):
         pass
     def get_draw_func(self):
@@ -232,9 +233,9 @@ class CircuitElement(CircuitComponent):
             ax.text(x,y-0.5,str(self.aux["neg_node"]), va='center', fontsize=6)
             ax.text(x,y+0.5,str(self.aux["pos_node"]), va='center', fontsize=6)
     def calc_I(self,V):
-        pass
-    def calc_dI_dV(self,V):
-        pass
+        raise NotImplementedError("Every child class of CircuitElement must have its own calc_I function")
+    def get_V_range(self):
+        raise NotImplementedError("Every child class of CircuitElement must have its own get_V_range function")
 
 class CurrentSource(CircuitElement,_type_number=0):
     _critical_fields = CircuitComponent._critical_fields + ("IL","refSuns","Suns","refIL","refT","T","temp_coeff")
@@ -250,7 +251,11 @@ class CurrentSource(CircuitElement,_type_number=0):
     def set_operating_point(self,V=None,I=None):
         if I is not None:
             raise NotImplementedError
-        self.operating_point = [V,-self.IL]
+        super().set_operating_point(V,I)
+    def calc_I(self,V):
+        return -self.IL if np.isscalar(V) else -self.IL*np.ones_like(V)
+    def get_V_range(self):
+        return np.array([0.0])
     def set_IL(self,IL):
         self.IL = IL
         self.null_IV()
@@ -277,11 +282,14 @@ class Resistor(CircuitElement,_type_number=1):
     def set_cond(self,cond):
         self.cond = cond
         self.null_IV()
-    def set_operating_point(self,V=None,I=None):
-        if I is not None:
-            self.operating_point = [I/self.cond,I]
-        if V is not None:
-            self.operating_point = [V,V*self.cond]
+    def calc_I(self,V):
+        return V*self.cond
+    def get_V_range(self):
+        cond = self.cond
+        step = 1e-3
+        if (cond > 1):
+            step /= cond
+        return np.array([-step,step])
     def __str__(self):
         return "Resistor: R = " + self.get_value_text()
     def get_value_text(self):
@@ -312,8 +320,23 @@ class Diode(CircuitElement,_type_number=2):
     def set_I0(self,I0):
         self.I0 = I0
         self.null_IV()
-    def set_operating_point(self,V=None,I=None):
-        pass
+    def get_V_range(self):
+        max_num_points = self.max_num_points
+        if max_num_points is None:
+            max_num_points = 100
+        max_I = self.max_I
+        if max_I is None:
+            max_I = 0.2
+        max_num_points_ = max_num_points*max_I/0.2
+        Voc = self.estimate_Voc(max_I)
+        V = [-1.1,-1.0,0]+list(Voc*np.log(np.arange(1,max_num_points_))/np.log(max_num_points_-1))
+        V = np.array(V) + self.V_shift
+        return V
+    def estimate_Voc(self,max_I):
+        Voc = 10
+        if self.I0>0:
+            Voc = self.n*self.VT*np.log(max_I/self.I0) 
+        return Voc
     def changeTemperature(self,temperature):
         self.VT = get_VT(temperature)
         old_ni  = get_ni(self.refT)
@@ -332,11 +355,8 @@ class ForwardDiode(Diode):
             word += f"\n\u00B1{self.aux['error']:.3e}"
         word += f" A\nn = {self.n:.2f}"
         return word
-    def set_operating_point(self,V=None,I=None):
-        if V is not None:
-            self.operating_point = [V, self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)]
-        else:
-            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
+    def calc_I(self,V):
+        return self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
     def get_draw_func(self):
         return draw_forward_diode_symbol
     
@@ -353,11 +373,11 @@ class ReverseDiode(Diode,_type_number=3):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
     def get_value_text(self):
         return f"I0 = {self.I0:.3e}A\nn = {self.n:.2f}\nbreakdown V = {self.V_shift:.2f}"
-    def set_operating_point(self,V=None,I=None):
-        if V is not None:
-            self.operating_point = [V, -self.I0*np.exp((-V-self.V_shift)/(self.n*self.VT))]
-        else:
-            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
+    def calc_I(self,V):
+        return -self.I0*np.exp((-V-self.V_shift)/(self.n*self.VT))
+    def get_V_range(self):
+        V_range = super().get_V_range()
+        return -V_range[::-1]
     def get_draw_func(self):
         return draw_reverse_diode_symbol
     
@@ -377,8 +397,7 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         self.ni = get_ni(self.temperature)
     def __str__(self):
         return "Si Intrinsic Diode"
-    
-    def calc_intrinsic_Si_I(self, V):
+    def calc_I(self, V):
         ni = self.ni
         VT = self.VT
         N_doping = self.base_doping
@@ -398,13 +417,16 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         Blow = 4.73e-15
         intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
         return q*intrinsic_recomb*self.base_thickness*self.area
-
-    def set_operating_point(self,V=None,I=None):
-        if V is not None:
-            self.operating_point = [V, self.calc_intrinsic_Si_I(V)]
-        else:
-            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
-
+    def estimate_Voc(self,max_I):
+        Voc = 10
+        if self.base_thickness>0:
+            Voc = 0.7
+            for _ in range(10):
+                I = self.calc_I(Voc)
+                if I >= max_I and I <= max_I*1.1:
+                    break
+                Voc += self.VT*np.log(max_I/I)
+        return Voc
     def get_value_text(self):
         word = f"intrinsic:\nt={self.base_thickness:.2e}\n{self.base_type} type\n{self.base_doping:.2e} cm-3"
         return word
@@ -469,7 +491,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                     self.null_all_IV()
                     self.build_IV()
 
-        if shallow or self.num_circuit_elements < 10000: # no need to go c++ overkill
+        if shallow or self.num_circuit_elements < 10000 or not hasattr(IV_Job_Heap,"set_operating_point"): # no need to go c++ overkill
             V_ = V
             I_ = I
             if V is not None:

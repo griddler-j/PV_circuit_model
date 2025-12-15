@@ -33,61 +33,38 @@ except Exception:
 solver_env_variables.set("_PARALLEL_MODE", False)
 solver_env_variables.set("_USE_CYTHON", False)
 
-def get_V_range(component):
-    VT = component.VT
-    max_num_points = getattr(component,"max_num_points",None)
-    if not max_num_points:
-        max_num_points = 100
-    max_I = getattr(component,"max_I",None)
-    if not max_I:
-        max_I = 0.2
-    max_num_points_ = max_num_points*max_I/0.2
-    Voc = 10
-    if isinstance(component,Intrinsic_Si_diode): # Intrinsic Si Diode
-        if component.base_thickness>0:
-            Voc = 0.7
-            for _ in range(10):
-                I = component.calc_intrinsic_Si_I(Voc)
-                if I >= max_I and I <= max_I*1.1:
-                    break
-                Voc += VT*np.log(max_I/I)
-    else:
-        if component.I0>0:
-            Voc = component.n*VT*np.log(max_I/component.I0) 
-
-    V = [-1.1,-1.0,0]+list(Voc*np.log(np.arange(1,max_num_points_))/np.log(max_num_points_-1))
-    V = np.array(V) + component.V_shift
-    return V
-
 def build_component_IV_python(component,refine_mode=False):
+    extrapolation_allowed_0 = True
+    extrapolation_allowed_1 = True
+    has_I_domain_limit_0 = False
+    has_I_domain_limit_1 = False
+    extrapolation_dI_dV_0 = 0
+    extrapolation_dI_dV_1 = 0
+
     if refine_mode:
         refinement_points = int(REFINEMENT_POINTS_DENSITY*np.sqrt(component.num_circuit_elements))
-    if isinstance(component, CircuitElement): 
-        if isinstance(component, CurrentSource):
-            IL = component.IL
-            component.IV_V = np.array([0])
-            component.IV_I = np.array([-IL])
-        elif isinstance(component, Resistor):
-            cond = component.cond
-            component.IV_V = np.array([-0.1,0.1])
-            component.IV_I = component.IV_V*cond
-        else:
-            VT = component.VT
-            if not isinstance(component, Intrinsic_Si_diode):
-                I0 = component.I0
-                n = component.n
-                V_shift = component.V_shift
-            component.IV_V = get_V_range(component)
-            if isinstance(component, ForwardDiode):
-                component.IV_I = I0*(np.exp((component.IV_V-V_shift)/(n*VT))-1)
-            elif isinstance(component, ReverseDiode):
-                component.IV_I = I0*(np.exp((component.IV_V-V_shift)/(n*VT)))
-                component.IV_V *= -1
-                component.IV_I *= -1
-                component.IV_V = component.IV_V[::-1].copy()
-                component.IV_I = component.IV_I[::-1].copy()
-            else:
-                component.IV_I = component.calc_intrinsic_Si_I(component.IV_V)
+    if component._type_number < 5: # circuit element 
+        component.IV_V = component.get_V_range()
+        component.IV_I = component.calc_I(component.IV_V)
+        if component._type_number==0: # current source
+            has_I_domain_limit_0 = True
+            has_I_domain_limit_1 = True
+            extrapolation_dI_dV_0 = 0
+            extrapolation_dI_dV_1 = 0
+        elif component._type_number==1: # resistor
+            extrapolation_dI_dV_0 = component.cond
+            extrapolation_dI_dV_1 = component.cond
+        elif component._type_number==2 or component._type_number==4: # forward diode or intrinsic diode
+            extrapolation_allowed_1 = False
+            extrapolation_dI_dV_0 = 0
+            extrapolation_dI_dV_1 = (component.IV_I[-1]-component.IV_I[-2])/(component.IV_V[-1]-component.IV_V[-2])
+        elif component._type_number==3: #reverse diode
+            extrapolation_allowed_0 = False
+            extrapolation_dI_dV_0 = (component.IV_I[1]-component.IV_I[0])/(component.IV_V[1]-component.IV_V[0])
+            extrapolation_dI_dV_1 = 0
+        component.extrapolation_allowed = [extrapolation_allowed_0,extrapolation_allowed_1]
+        component.has_I_domain_limit = [has_I_domain_limit_0,has_I_domain_limit_1]
+        component.extrapolation_dI_dV = [extrapolation_dI_dV_0,extrapolation_dI_dV_1]
         return
 
     if refine_mode:
@@ -97,7 +74,7 @@ def build_component_IV_python(component,refine_mode=False):
         normalized_operating_point_I = 0
         all_children_are_elements = True
         for element in component.subgroups:
-            if isinstance(element,CircuitGroup): # circuitgroup
+            if element._type_number >= 5: # circuit group 
                 all_children_are_elements = False
                 bottom_up_operating_point_V += element.bottom_up_operating_point[0]
                 bottom_up_operating_point_I += element.bottom_up_operating_point[1]
@@ -116,7 +93,7 @@ def build_component_IV_python(component,refine_mode=False):
             bottom_up_operating_point_V /= len(component.subgroups)
             normalized_operating_point_V /= len(component.subgroups)
 
-        if isinstance(component,Cell):
+        if component._type_number == 6: # cell
             bottom_up_operating_point_I *= component.area
 
         component.bottom_up_operating_point = [bottom_up_operating_point_V,bottom_up_operating_point_I]
@@ -136,18 +113,66 @@ def build_component_IV_python(component,refine_mode=False):
         for iteration in [0,1]: # goes to 1 only if there is PC diode
             # add voltage
             Is = []
+            left_limit = None
+            right_limit = None
             for element in component.subgroups:
+                if not element.extrapolation_allowed[1]:
+                    if right_limit is None:
+                        right_limit = element.IV_I[-1]
+                    else:
+                        right_limit = min(element.IV_I[-1],right_limit)
+                    extrapolation_allowed_1 = False
+                if not element.extrapolation_allowed[0]:
+                    if left_limit is None:
+                        left_limit = element.IV_I[0]
+                    else:
+                        left_limit = min(element.IV_I[0],left_limit)
+                    extrapolation_allowed_0 = False
+                if (extrapolation_dI_dV_1==0):
+                    extrapolation_dI_dV_1 = element.extrapolation_dI_dV[1]
+                else:
+                    extrapolation_dI_dV_1 = 1/(1/extrapolation_dI_dV_1 + 1/element.extrapolation_dI_dV[1])
+                if (extrapolation_dI_dV_0==0):
+                    extrapolation_dI_dV_0 = element.extrapolation_dI_dV[0]
+                else:
+                    extrapolation_dI_dV_0 = 1/(1/extrapolation_dI_dV_0 + 1/element.extrapolation_dI_dV[0])
+                if (element.has_I_domain_limit[1]):
+                    if right_limit is None:
+                        right_limit = element.IV_I[-1]
+                    else:
+                        right_limit = min(element.IV_I[-1],right_limit)
+                    has_I_domain_limit_1 = True
+                if (element.has_I_domain_limit[0]):
+                    if left_limit is None:
+                        left_limit = element.IV_I[0]
+                    else:
+                        left_limit = min(element.IV_I[0],left_limit)
+                    has_I_domain_limit_0 = True
+
                 Is.extend(list(element.IV_I))
             if iteration==1:
                 Is.extend(extra_Is)
             Is = np.sort(np.array(Is))
+
+            if (left_limit is not None and right_limit is not None and left_limit >= right_limit): # guard against no overlapping current domain
+                component.IV_V = []
+                component.IV_I = []
+                return
+
+            if left_limit is not None:
+                find_ = np.where(Is >= left_limit)[0]
+                Is = Is[find_]
+            if right_limit is not None:
+                find_ = np.where(Is <= right_limit)[0]
+                Is = Is[find_]
+
             eps = I_range/1e8
 
-            I_diff = np.abs(Is[1:] - Is[:-1])
-            indices = np.where(I_diff > eps)[0]
-            indices = np.concatenate(([0], indices + 1))
-            Is = Is[indices]
-            # Is = np.unique(Is)
+            # I_diff = np.abs(Is[1:] - Is[:-1])
+            # indices = np.where(I_diff > eps)[0]
+            # indices = np.concatenate(([0], indices + 1))
+            # Is = Is[indices]
+            Is = np.unique(Is)
             Vs = np.zeros_like(Is)
             # do reverse order to allow for photon coupling
             pc_IVs = []
@@ -160,7 +185,7 @@ def build_component_IV_python(component,refine_mode=False):
                     V = interp_(Is-added_I,element.IV_I,element.IV_V)
                     extra_Is.extend(Is+added_I)
                 else:
-                    V = interp_(Is,element.IV_I,element.IV_V)
+                    V = interp_(Is,element.IV_I,element.IV_V,1/element.extrapolation_dI_dV[0],1/element.extrapolation_dI_dV[1])
                 Vs += V
                 pc_IVs = []
                 prev_IV = []
@@ -177,18 +202,25 @@ def build_component_IV_python(component,refine_mode=False):
         left_limit = None
         right_limit = None
         for element in component.subgroups:
-            Vs.extend(list(element.IV_table[0,:]))
-            if isinstance(element,Diode):
-                if isinstance(element,ForwardDiode): # ForwardDiode
-                    if right_limit is None:
-                        right_limit = element.IV_V[-1]
-                    else:
-                        right_limit = min(element.IV_V[-1],right_limit)
-                else: # ReverseDiode
-                    if left_limit is None:
-                        left_limit = element.IV_V[0]
-                    else:
-                        left_limit = max(element.IV_V[0],left_limit)
+            Vs.extend(list(element.IV_V))
+            if not element.extrapolation_allowed[1]:
+                if right_limit is None:
+                    right_limit = element.IV_V[-1]
+                else:
+                    right_limit = min(element.IV_V[-1],right_limit)
+                extrapolation_allowed_1 = False
+            if not element.extrapolation_allowed[0]:
+                if left_limit is None:
+                    left_limit = element.IV_V[0]
+                else:
+                    left_limit = max(element.IV_V[0],left_limit)
+                extrapolation_allowed_0 = False
+            extrapolation_dI_dV_0 += element.extrapolation_dI_dV[0]
+            extrapolation_dI_dV_1 += element.extrapolation_dI_dV[1]
+            if not element.has_I_domain_limit[0]: 
+                has_I_domain_limit_0 = False # relief
+            if not element.has_I_domain_limit[1]: 
+                has_I_domain_limit_1 = False # relief
         Vs = np.sort(np.array(Vs))
         if left_limit is not None:
             find_ = np.where(Vs >= left_limit)[0]
@@ -203,7 +235,7 @@ def build_component_IV_python(component,refine_mode=False):
                 added_Vs = np.arange(left_V_refine,right_V_refine,step)
                 Vs = np.concatenate((Vs, added_Vs))
             
-        eps = 1e-6
+        eps = 1e-9 # nano volt
         V_diff = np.abs(Vs[1:] - Vs[:-1])
         indices = np.where(V_diff > eps)[0]
         indices = np.concatenate(([0], indices + 1))
@@ -211,27 +243,10 @@ def build_component_IV_python(component,refine_mode=False):
 
         Is = np.zeros_like(Vs)
         for element in component.subgroups:
-            if isinstance(element,CircuitElement):
-                if isinstance(element,CurrentSource):
-                    IL = element.IL
-                    Is -= IL*np.ones_like(Vs) 
-                elif isinstance(element,Resistor):
-                    cond = element.cond
-                    Is += cond*Vs
-                else:
-                    VT = element.VT
-                    V_shift = element.V_shift
-                    if isinstance(element,Intrinsic_Si_diode):
-                        Is += element.calc_intrinsic_Si_I(Vs)
-                    else:
-                        I0 = element.I0
-                        n = element.n
-                        if isinstance(element,ForwardDiode):
-                            Is += I0*(np.exp((Vs-V_shift)/(n*VT))-1)
-                        else: 
-                            Is += -I0*np.exp((-Vs-V_shift)/(n*VT))
+            if element._type_number < 5: #circuit element
+                Is += element.calc_I(Vs)
             else:
-                Is += interp_(Vs,element.IV_V,element.IV_I)
+                Is += interp_(Vs,element.IV_V,element.IV_I,element.extrapolation_dI_dV[0],element.extrapolation_dI_dV[1])
 
     find_ = np.where(Vs[1:]<Vs[:-1])[0]
     if len(find_)>0:
@@ -240,8 +255,12 @@ def build_component_IV_python(component,refine_mode=False):
     component.IV_V = Vs
     component.IV_I = Is
 
-    if isinstance(component,Cell):
+    if component._type_number==6: # cell
         component.IV_I *= component.area
+
+    component.extrapolation_allowed = [extrapolation_allowed_0,extrapolation_allowed_1]
+    component.has_I_domain_limit = [has_I_domain_limit_0,has_I_domain_limit_1]
+    component.extrapolation_dI_dV = [extrapolation_dI_dV_0,extrapolation_dI_dV_1]
 
     #remesh
     max_num_points = getattr(component,"max_num_points",None)
@@ -371,65 +390,6 @@ class IV_Job_Heap:
             self.job_done_index = len(self.components)
         else:
             self.job_done_index = 0
-    def set_operating_point(self,V=None,I=None):
-        start_time = time.time()
-        self.reset(forward=False)
-        pbar = None
-        if V is not None:
-            self.components[0].operating_point = [V,None]
-        else:
-            self.components[0].operating_point = [None,I]
-        if len(self.components) > 100000:
-            pbar = tqdm(total=len(self.components), desc="Processing the circuit hierarchy: ")
-        while self.job_done_index < len(self.components):
-            job_done_index_before = self.job_done_index
-            components_ = self.get_runnable_iv_jobs(forward=False)
-            if len(components_) > 0:
-                for component in components_:
-                    V = component.operating_point[0]
-                    I = component.operating_point[1]
-                    if V is not None:
-                        if isinstance(component,CircuitElement):
-                            if isinstance(component,CurrentSource):
-                                IL = component.IL
-                                component.operating_point[1] = -IL
-                            elif isinstance(component,Resistor):
-                                cond = component.cond
-                                component.operating_point[1] = cond*V
-                            else:
-                                VT = component.VT
-                                V_shift = component.V_shift
-                                if isinstance(component,Intrinsic_Si_diode):
-                                    I0 = component.I0
-                                    n = component.n
-                                    component.operating_point[1] = component.calc_intrinsic_Si_I(V)
-                                else:
-                                    if isinstance(component,ForwardDiode):
-                                        component.operating_point[1] = I0*(np.exp((V-V_shift)/(n*VT))-1)
-                                    else:
-                                        component.operating_point[1] = -I0*np.exp((-V-V_shift)/(n*VT))
-                        else:
-                            component.operating_point[1] = interp_(V,component.IV_V,component.IV_I)
-                    elif I is not None:
-                        component.operating_point[0] = interp_(I,component.IV_I,component.IV_V)
-                    if isinstance(component,CircuitGroup):
-                        is_series = False
-                        if component.connection=="series":
-                            is_series = True
-                        current_ = component.operating_point[1]
-                        if isinstance(component,Cell):
-                            current_ /= component.area
-                        for child in component.subgroups:
-                            if is_series:
-                                child.operating_point = [None, current_]
-                            else:
-                                child.operating_point = [component.operating_point[0], None]
-            if pbar is not None:
-                pbar.update(self.job_done_index-job_done_index_before)
-        if pbar is not None:
-            pbar.close()
-        duration = time.time() - start_time
-        self.timers["refine"] = duration
     def run_IV(self, refine_mode=False):
         start_time = time.time()
         self.reset()
@@ -442,6 +402,8 @@ class IV_Job_Heap:
             if len(components_) > 0:
                 for component in components_:
                     build_component_IV_python(component,refine_mode=refine_mode)
+                    if component.IV_V.size==0:
+                        return False # some mesh have no overlaps, fail! 
             if pbar is not None:
                 pbar.update(job_done_index_before-self.job_done_index)
         if pbar is not None:
@@ -463,10 +425,10 @@ class IV_Job_Heap:
         worst_V_error = 0
         if self.components[0].refined_IV:
             for component in self.components:
-                if isinstance(component,CircuitGroup):
+                if component._type_number>=5: # circuitgroup
                     has_started = False
                     for element in component.subgroups:
-                        if isinstance(element,CircuitGroup):
+                        if element._type_number>=5: # circuitgroup
                             if not has_started:
                                 largest_V = element.bottom_up_operating_point[0]
                                 smallest_V = element.bottom_up_operating_point[0]
