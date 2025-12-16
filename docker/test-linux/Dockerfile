@@ -2,9 +2,12 @@
 
 FROM python:3.12-slim
 
-# Runtime deps (OpenMP runtime) + any tools you like
+# Build + runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     libgomp1 \
+    tk \
+    tcl \
  && rm -rf /var/lib/apt/lists/*
 
 # Python tooling

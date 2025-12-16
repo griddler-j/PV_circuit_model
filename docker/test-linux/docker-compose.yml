@@ -4,14 +4,11 @@ services:
     image: pv-test-linux
     working_dir: /work
     volumes:
-      - ../../PV_Circuit_Model:/work/PV_Circuit_Model
-      # If you want to mount the whole repo root instead, do:
-      # - ../..:/work
+      - ../..:/work
     command: >
       bash -lc "
-      pip install --no-cache-dir -r /work/PV_Circuit_Model/requirements.txt &&
-      pip install --no-cache-dir -e /work/PV_Circuit_Model &&
-      python /work/PV_Circuit_Model/your_test_script.py
+      pip install --no-cache-dir -e /work &&
+      python /work/tests/main.py
       "
     stdin_open: true
     tty: true

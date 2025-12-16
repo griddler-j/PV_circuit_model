@@ -6,8 +6,13 @@ from PV_Circuit_Model.multi_junction_cell import *
 import matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
-import tkinter as tk
-from tkinter.scrolledtext import ScrolledText
+try:
+    import tkinter as tk
+    from tkinter.scrolledtext import ScrolledText
+except Exception:
+    tk = None  # headless / no-tk environment
+    ScrolledText = None
+
 from PV_Circuit_Model import __version__, __git_hash__, __git_date__, __dirty__
 from datetime import datetime, timezone
 
@@ -20,7 +25,7 @@ def _in_notebook() -> bool:
         return False
 
 IN_NOTEBOOK = _in_notebook()
-if not IN_NOTEBOOK:
+if not IN_NOTEBOOK and tk is not None:
     matplotlib.use("TkAgg")
 
 BASE_UNITS = {
