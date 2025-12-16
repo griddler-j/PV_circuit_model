@@ -3,7 +3,7 @@ from PV_Circuit_Model.module import *
 from PV_Circuit_Model.cell_analysis import *
 from utilities import *
 
-def main(display=True):
+def make_device(display=False):
     # desired cell parameters
     width = 18.2 # cm
     Jsc = 0.042 # A/cm2
@@ -31,8 +31,11 @@ def main(display=True):
 
     return cell
 
+def run_test(display=False,pytest_mode=False):
+    device = make_device(display=display)
+    device = record_or_compare_artifact(device, this_file_prefix="a01",pytest_mode=pytest_mode)
+    run_record_or_test(device, this_file_prefix="a01",pytest_mode=pytest_mode)
+
 if __name__ == "__main__": 
-    device = main(display=False)
-    device = record_or_compare_artifact(device, this_file_prefix="a01")
-    run_record_or_test(device, this_file_prefix="a01")
+    run_test(display=True)
 

@@ -4,8 +4,8 @@ from PV_Circuit_Model.cell_analysis import *
 import a01_make_solar_cell as example1
 from utilities import *
 
-def main(display=True):
-    cell = example1.main(display=False)
+def make_device(display=False):
+    cell = example1.make_device()
 
     # butterfly module layout
     n_cells = [22,6]
@@ -24,10 +24,14 @@ def main(display=True):
         module.show()
         # write out its constituent parts and values
         print(module)
-        
+
     return module
 
+def run_test(display=False,pytest_mode=False):
+    device = make_device(display=display)
+    device = record_or_compare_artifact(device, this_file_prefix="a02",pytest_mode=pytest_mode)
+    run_record_or_test(device, this_file_prefix="a02",pytest_mode=pytest_mode)
+
 if __name__ == "__main__": 
-    device = main(display=False)
-    device = record_or_compare_artifact(device, this_file_prefix="a02")
-    run_record_or_test(device, this_file_prefix="a02")
+    run_test(display=True)
+

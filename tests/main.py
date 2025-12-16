@@ -1,35 +1,21 @@
-import a01_make_solar_cell as example1
-import a02_make_PV_module as example2
-import a03_make_tandem_cell as example3
-import a04_make_PV_string as example4
+import importlib
+
+modules = [
+    "a01_make_solar_cell",
+    "a02_make_PV_module",
+    "a03_make_tandem_cell",
+    "a04_make_PV_string",
+    "a05_simple_cell_compared_to_LT_spice",
+    "a06_simple_module_compared_to_LT_spice",
+    "a07_simple_uniform_module_compared_to_LT_spice",
+    "a08_simple_string_compared_to_LT_spice",
+    "a09_simple_uniform_string_compared_to_LT_spice",
+    "a10_simple_parallel_strings_compared_to_LT_spice",
+]
 from utilities import *
 
-def test_1(pytest_mode=True):
-    device = example1.main(display=False)
-    print("test 1")
-    record_or_compare_artifact(device, this_file_prefix="a01",pytest_mode=pytest_mode)
-    run_record_or_test(device, this_file_prefix="a01",pytest_mode=pytest_mode)
-
-def test_2(pytest_mode=True):
-    device = example2.main(display=False)
-    print("test 2")
-    record_or_compare_artifact(device, this_file_prefix="a02",pytest_mode=pytest_mode)
-    run_record_or_test(device, this_file_prefix="a02",pytest_mode=pytest_mode)
-
-def test_3(pytest_mode=True):
-    device = example3.main(display=False)
-    print("test 3")
-    record_or_compare_artifact(device, this_file_prefix="a03",pytest_mode=pytest_mode)
-    run_record_or_test(device, this_file_prefix="a03",pytest_mode=pytest_mode)
-
-def test_4(pytest_mode=True):
-    device = example4.main(display=False)
-    print("test 4")
-    record_or_compare_artifact(device, this_file_prefix="a04",pytest_mode=pytest_mode)
-    run_record_or_test(device, this_file_prefix="a04",pytest_mode=pytest_mode)
-
 if __name__ == "__main__":
-    test_1(pytest_mode=False)
-    test_2(pytest_mode=False)
-    test_3(pytest_mode=False)
-    test_4(pytest_mode=False)
+    for i, name in enumerate(modules):
+        print(f"\n--------------------------------\nRunning Test {i+1}: {name}\n--------------------------------\n")
+        mod = importlib.import_module(name)
+        mod.run_test()

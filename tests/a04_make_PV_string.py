@@ -4,7 +4,7 @@ from PV_Circuit_Model.cell_analysis import *
 from utilities import *
 from tqdm import tqdm
 
-def main(display=True):
+def make_device(display=False):
     np.random.seed(0)
     N = 26
     ref_module = quick_butterfly_module()
@@ -26,7 +26,11 @@ def main(display=True):
 
     return string
 
+def run_test(display=False,pytest_mode=False):
+    device = make_device(display=display)
+    device = record_or_compare_artifact(device, this_file_prefix="a04",pytest_mode=pytest_mode)
+    run_record_or_test(device, this_file_prefix="a04",pytest_mode=pytest_mode)
+
 if __name__ == "__main__": 
-    device = main(display=False)
-    device = record_or_compare_artifact(device, this_file_prefix="a04")
-    run_record_or_test(device, this_file_prefix="a04")
+    run_test(display=True)
+

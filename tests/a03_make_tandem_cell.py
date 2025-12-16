@@ -4,8 +4,8 @@ from PV_Circuit_Model.multi_junction_cell import *
 import a01_make_solar_cell as example1
 from utilities import *
 
-def main(display=True):
-    bottom_cell = example1.main(display=False)
+def make_device(display=False):
+    bottom_cell = example1.make_device()
     bottom_cell.set_JL(19.0e-3)
 
     Jsc_top_cell = 20.5e-3
@@ -26,7 +26,10 @@ def main(display=True):
 
     return tandem_cell
 
+def run_test(display=False,pytest_mode=False):
+    device = make_device(display=display)
+    device = record_or_compare_artifact(device, this_file_prefix="a03",pytest_mode=pytest_mode)
+    run_record_or_test(device, this_file_prefix="a03",pytest_mode=pytest_mode)
+
 if __name__ == "__main__": 
-    device = main(display=False)
-    device = record_or_compare_artifact(device, this_file_prefix="a03")
-    run_record_or_test(device, this_file_prefix="a03")
+    run_test(display=True)

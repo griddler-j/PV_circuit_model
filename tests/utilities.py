@@ -7,6 +7,7 @@ import numpy as np
 import time
 from PV_Circuit_Model.utilities import ParamSerializable, ParameterSet
 from PV_Circuit_Model.circuit_model import CircuitComponent
+from PV_Circuit_Model.cell_analysis import get_Pmax
 
 def get_mode():
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +23,7 @@ def get_fields(device, prefix=None):
         test_attributes = config.get("test_attributes")
         keys = ["common", prefix]
         device.null_all_IV()
-        t1 = time.time()
+        t1 = time.perf_counter()
         device.build_IV()
         for key in keys:
             if key is not None and key in test_attributes:
@@ -39,7 +40,7 @@ def get_fields(device, prefix=None):
                             dict[attribute_name]["value"] = attr()
                         else:
                             dict[attribute_name]["value"] = attr
-        print(f"Finished in {time.time()-t1} seconds")
+        print(f"Finished in {time.perf_counter()-t1} seconds")
     return dict
 
 def make_timestamp():
@@ -206,3 +207,45 @@ def record_or_compare_artifact(device, this_file_prefix=None,pytest_mode=False):
                 compare_devices(device,device2,pytest_mode=pytest_mode)
                 print("\nLoaded the saved device for subsequent testing")
             return device2
+        
+def get_LT_spice_IV(folder, device_name):
+    LT_spice_IV = np.empty((0,2))
+    for i in range(1,5):
+        filename = f"{folder}/{device_name}_scan{i}.txt"
+        if os.path.exists(filename):
+            LT_spice_IV = np.concatenate((LT_spice_IV,np.loadtxt(filename,skiprows=1)))
+    LT_spice_IV[:,1] *= -1
+    LT_spice_IV = LT_spice_IV.T
+    return LT_spice_IV
+
+def compare_artifact_against_LT_spice(device, LT_spice_IV, pytest_mode=False):
+    mode = get_mode()
+    if mode != "test":
+        return None, None, None
+    Pmax1 = get_Pmax(device.IV_table)
+    Pmax2 = get_Pmax(LT_spice_IV)
+    all_pass = True
+    rtol = 1e-4
+    atol = 1e-4
+    if not np.isclose(Pmax1, Pmax2, rtol=rtol, atol=atol):
+        print(f"Difference at Pmax: {Pmax2} (LT spice) != {Pmax1} (PV Circuit Model)")
+        all_pass = False
+        if pytest_mode:
+            assert(np.isclose(Pmax1, Pmax2, rtol=rtol, atol=atol))
+
+    for i in range(LT_spice_IV.shape[1]):
+        V = LT_spice_IV[0,i]
+        I = LT_spice_IV[1,i]
+        I_interp = np.interp(V,device.IV_V,device.IV_I)
+        V_interp = np.interp(I,device.IV_I,device.IV_V)
+        if not np.isclose(V_interp, V, rtol=rtol, atol=atol) and not np.isclose(I_interp, I, rtol=rtol, atol=atol):
+            print(f"Difference in IV curves at V = {V}:  I={I} (LT spice) != {I_interp} (PV Circuit Model)")
+            all_pass = False
+            if pytest_mode:
+                assert(np.isclose(V_interp, V, rtol=rtol, atol=atol) or np.isclose(I_interp, I, rtol=rtol, atol=atol))
+    
+    return all_pass, Pmax1, Pmax2
+
+
+
+                                
