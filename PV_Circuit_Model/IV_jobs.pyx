@@ -90,7 +90,11 @@ cdef class IV_Job_Heap:
                 self.job_done_index = i
                 # if refine_mode, then don't bother with CircuitElements, but run even if there is IV
                 if (refine_mode and child_min>=0) or comps[i].IV_V is None:
-                    runnable.append(comps[i])
+                    if comps[i]._type_number==-1: # a user defined circuitelement, run in python immediately
+                        comps[i].IV_V = comps[i].get_V_range()
+                        comps[i].IV_I = comps[i].calc_I(comps[i].IV_V)
+                    else:
+                        runnable.append(comps[i])
                 i -= 1
         else:
             n = self.n_components
@@ -103,7 +107,17 @@ cdef class IV_Job_Heap:
                 if child_min != -1 and child_min < min_id:
                     min_id = child_min
                 self.job_done_index = i + 1
-                runnable.append(comps[i])
+                if comps[i]._type_number==-1: # a user defined circuitelement, run in python immediately
+                    if comps[i].parent is not None:
+                        if comps[i].parent.connection=="series":
+                            target_I = comps[i].operating_point[1]
+                            if comps[i].parent._type_number==6: # cell
+                                target_I /= comps[i].parent.area
+                            comps[i].set_operating_point(I = target_I)
+                        else:
+                            comps[i].set_operating_point(V = comps[i].parent.operating_point[0])
+                else:
+                    runnable.append(comps[i])
                 i += 1
 
         return runnable
