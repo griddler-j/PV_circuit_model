@@ -1,7 +1,6 @@
 # cython: language_level=3
 # cython: boundscheck=False, wraparound=False, nonecheck=False, initializedcheck=False
 # distutils: language = c++
-# distutils: sources = ivkernel.cpp
 
 import numpy as np
 cimport numpy as np

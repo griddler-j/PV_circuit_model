@@ -34,9 +34,6 @@ During installation, select "Desktop development with C++".
 Without MSVC, PV Circuit Model will fail to build the ivkernel from source and fall back to a python implementation (which will be deprecated)
 
 # 🛠️ Getting Started
-1. Install dependencies - 
-Navigate to the package directory and run: `pip install -r requirements.txt`
-
 1. Install the package in development mode: `pip install -e .`
 
 1. Run example code

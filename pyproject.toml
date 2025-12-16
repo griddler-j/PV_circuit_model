@@ -1,0 +1,41 @@
+[build-system]
+requires = [
+  "setuptools>=68",
+  "wheel",
+  "numpy>=1.23",
+  # Keep Cython as a build requirement for editable installs from a git checkout.
+  # If you later ship sdists that include generated *.cpp, you can drop Cython.
+  "Cython>=0.29.36",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PV_Circuit_Model"
+dynamic = ["version"]
+description = "PV Circuit model for cells, modules and components with additional tools for simulations and model fits to measurement data"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Johnson Wong" }]
+
+# If you have runtime deps, list them here (recommended).
+dependencies = [
+  "numpy>=2.0",
+  "matplotlib>=3.8.2",
+  "Shapely>=2.1.1",
+  "tqdm>=4.66.1",
+  "joblib>=1.3.2",
+  "bson>=0.5.10",
+]
+
+[tool.setuptools]
+packages = { find = {} }
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "PV_Circuit_Model.__version__" }
+
+# If you publish sdists, make sure the sdist contains the .pyx/.pxd and/or generated C++ sources.
+# Wheels will contain the compiled extension (.pyd/.so) so end users won't need a compiler.
+[tool.setuptools.package-data]
+PV_Circuit_Model = ["*.pyx", "*.pxd", "*.pxi", "*.h", "*.hpp", "*.c", "*.cpp", "parameters/*"]

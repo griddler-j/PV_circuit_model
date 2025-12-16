@@ -4,7 +4,19 @@ from matplotlib import cm
 from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.utilities_silicon import *
 from tqdm import tqdm
-from PV_Circuit_Model.IV_jobs import *
+try:
+    from PV_Circuit_Model.IV_jobs import *
+except Exception as e:
+    raise ImportError(
+        "Failed to import the compiled extension 'PV_Circuit_Model.IV_jobs'.\n"
+        "This usually means the C++/Cython extension was not built correctly.\n\n"
+        "Try:\n"
+        "  pip install -e .\n"
+        "or (if installing from source):\n"
+        "  pip install PV_Circuit_Model\n\n"
+        "If you are on Windows, ensure Visual Studio Build Tools are installed.\n"
+    ) from e
+
 import gc
 
 solver_env_variables = ParameterSet.get_set("solver_env_variables")

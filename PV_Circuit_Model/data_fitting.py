@@ -10,7 +10,18 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from types import SimpleNamespace
 from joblib import Parallel, delayed
 from pathlib import Path
-from PV_Circuit_Model.ivkernel import set_parallel_mode, get_parallel_mode
+try:
+    from PV_Circuit_Model.ivkernel import set_parallel_mode, get_parallel_mode
+except Exception as e:
+    raise ImportError(
+        "Failed to import the compiled extension 'PV_Circuit_Model.ivkernel'.\n"
+        "This usually means the C++/Cython extension was not built correctly.\n\n"
+        "Try:\n"
+        "  pip install -e .\n"
+        "or (if installing from source):\n"
+        "  pip install PV_Circuit_Model\n\n"
+        "If you are on Windows, ensure Visual Studio Build Tools are installed.\n"
+    ) from e
 
 def _in_notebook() -> bool:
     try:
