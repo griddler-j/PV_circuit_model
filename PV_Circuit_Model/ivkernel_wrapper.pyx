@@ -12,6 +12,7 @@ from PV_Circuit_Model.utilities_silicon import bandgap_narrowing_RT
 from pathlib import Path
 from libcpp cimport bool as cbool
 from libc.math cimport isfinite  # C-level, fast
+import os
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PARAM_DIR = PACKAGE_ROOT / "parameters"
@@ -54,6 +55,9 @@ def set_parallel_mode(enabled: bool):
 def get_parallel_mode():
     global solver_env_variables
     return solver_env_variables["_PARALLEL_MODE"]
+
+if os.environ.get("PV_CIRCUIT_NO_OPENMP", "").strip()=="1":
+    set_parallel_mode(False)
 
 def set_super_dense(num_points):
     global _SUPER_DENSE
