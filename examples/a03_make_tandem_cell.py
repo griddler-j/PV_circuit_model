@@ -3,9 +3,8 @@
 # This notebook shows how to build and run a perovskite-silicon tandem cell circuit model.
 
 #%%
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.cell_analysis import *
-from PV_Circuit_Model.multi_junction_cell import *
+from PV_Circuit_Model.device import *
+from PV_Circuit_Model.device_analysis import *
 from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 

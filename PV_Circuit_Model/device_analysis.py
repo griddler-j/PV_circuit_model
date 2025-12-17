@@ -1,10 +1,9 @@
 import numpy as np
 from PV_Circuit_Model.circuit_model import *
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.module import *
-from PV_Circuit_Model.multi_junction_cell import *
+from PV_Circuit_Model.device import *
 import matplotlib
 from matplotlib import pyplot as plt
+from contextlib import nullcontext
 import matplotlib.ticker as mticker
 try:
     import tkinter as tk
@@ -416,109 +415,86 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
     return words, parameters
 
 def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve", show_solver_summary=False):
-    if self.IV_V is None:
-        self.build_IV()
-    if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
-        _, Vmp, Imp = self.get_Pmax(return_op_point=True)
-        Voc = self.get_Voc()
-        Isc = self.get_Isc()
-        FF = self.get_FF()
-    bottom_up_operating_point = getattr(self,"bottom_up_operating_point",None)
-    normalized_operating_point = getattr(self,"bottom_up_operating_point",None)
-    find_near_op = None
+    ctx = plt.ioff() if not show_solver_summary else nullcontext()
+    with ctx:
+        if self.IV_V is None:
+            self.build_IV()
+        if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
+            _, Vmp, Imp = self.get_Pmax(return_op_point=True)
+            Voc = self.get_Voc()
+            Isc = self.get_Isc()
+            FF = self.get_FF()
 
-    IV_V = self.IV_V
-    IV_I = self.IV_I
+        find_near_op = None
 
-    if bottom_up_operating_point:
-        operating_point_V = self.operating_point[0]
-        bottom_up_operating_point_V = bottom_up_operating_point[0]
-        normalized_op_pt_V = normalized_operating_point[0]
-        left_V = min(operating_point_V,bottom_up_operating_point_V)
-        right_V = max(operating_point_V,bottom_up_operating_point_V)
-        left_V -= normalized_op_pt_V*REFINE_V_HALF_WIDTH
-        right_V += normalized_op_pt_V*REFINE_V_HALF_WIDTH
-        find_near_op = np.where((IV_V >= left_V) & (IV_V <= right_V))[0]
-    
-    if fourth_quadrant and isinstance(self,CircuitGroup):
-        fig, ax1 = plt.subplots()
-
-        # Left Y-axis
-        # if bottom_up_operating_point:
-        #     ax1.plot(self.IV_V_lower,-self.IV_I_lower,color="green")
-        #     ax1.plot(self.IV_V_upper,-self.IV_I_upper,color="gray")
-        ax1.plot(IV_V,-IV_I)
-        if find_near_op is not None:
-            ax1.plot(IV_V[find_near_op],-IV_I[find_near_op],color="red")
-        if self.operating_point is not None:
-            ax1.plot(self.operating_point[0],-self.operating_point[1],marker='o',color="blue")
-        ax1.set_xlim((0,Voc*1.1))
-        ax1.set_ylim((0,Isc*1.1))
-        ax1.set_xlabel("Voltage (V)")
-        ax1.set_ylabel("Current (A)")
-        ax2 = ax1.twinx()
-
-        P = -IV_V*IV_I
-        # Right Y-axis (shares same X)
-        ax2.plot(IV_V,P,color="orange")
-        if find_near_op is not None:
-            ax2.plot(IV_V[find_near_op],P[find_near_op],color="red")
-        if self.operating_point is not None:
-            ax2.plot(self.operating_point[0],-self.operating_point[0]*self.operating_point[1],marker='o',color="orange")
-        ax2.set_ylim((0,np.max(P)*1.1))
-        ax2.yaxis.set_major_formatter(
-            mticker.FuncFormatter(lambda x, pos: f"{x:.0e}")
-        )
-        ax2.set_ylabel("Power (W)")
-        if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
-            cell_or_module=1
-            params = ["Isc","Voc","FF","Pmax"]
-            if isinstance(self,Cell) or isinstance(self,MultiJunctionCell): # cell or MJ cell
-                cell_or_module=0
-                params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
-            words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
+        IV_V = self.IV_V
+        IV_I = self.IV_I
         
-            y_space = 0.07
-            ax1.plot(Voc,0,marker='o',color="blue")
-            ax1.plot(0,Isc,marker='o',color="blue")
-            if fourth_quadrant:
-                Imp *= -1
-            ax1.plot(Vmp,Imp,marker='o',color="blue")
-            ax2.plot(Vmp,Imp*Vmp,marker='o',color="orange")
-            for i, param in enumerate(params):
-                ax1.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
-        plt.tight_layout()
+        fig = plt.figure("IV")
+        if fourth_quadrant and isinstance(self,CircuitGroup):
+            if len(fig.axes) < 2:
+                fig.clf()
+                ax1 = fig.add_subplot(111)
+                ax2 = ax1.twinx()
+            else:
+                ax1, ax2 = fig.axes[0], fig.axes[1]
 
-        if show_solver_summary:
-            self.show_solver_summary(fig=fig)
+            # Left Y-axis
+            ax1.plot(IV_V,-IV_I)
+            if find_near_op is not None:
+                ax1.plot(IV_V[find_near_op],-IV_I[find_near_op],color="red")
+            if self.operating_point is not None:
+                ax1.plot(self.operating_point[0],-self.operating_point[1],marker='o',color="blue")
+            ax1.set_xlim((0,Voc*1.1))
+            ax1.set_ylim((0,Isc*1.1))
+            ax1.set_xlabel("Voltage (V)")
+            ax1.set_ylabel("Current (A)")
 
-    else:
-        plt.plot(IV_V,IV_I)
-        if find_near_op is not None:
-            plt.plot(IV_V[find_near_op],IV_I[find_near_op],color="red")
-        if self.operating_point is not None:
-            plt.plot(self.operating_point[0],self.operating_point[1],marker='o')
-        plt.xlabel("Voltage (V)")
-        plt.ylabel("Current (A)")
-        if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
-            cell_or_module=1
-            params = ["Isc","Voc","FF","Pmax"]
-            if isinstance(self,Cell) or isinstance(self,MultiJunctionCell): 
-                cell_or_module=0
-                params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
-            words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
-        
-            y_space = 0.07
-            plt.plot(Voc,0,marker='o',color="blue")
-            plt.plot(0,Isc,marker='o',color="blue")
-            if fourth_quadrant:
-                Imp *= -1
-            plt.plot(Vmp,Imp,marker='o',color="blue")
-            for i, param in enumerate(params):
-                plt.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
-        
-    
-    plt.gcf().canvas.manager.set_window_title(title)
+            P = -IV_V*IV_I
+            # Right Y-axis (shares same X)
+            ax2.plot(IV_V,P,color="orange")
+            if find_near_op is not None:
+                ax2.plot(IV_V[find_near_op],P[find_near_op],color="red")
+            if self.operating_point is not None:
+                ax2.plot(self.operating_point[0],-self.operating_point[0]*self.operating_point[1],marker='o',color="orange")
+            ax2.set_ylim((0,np.max(P)*1.1))
+            ax2.yaxis.set_major_formatter(
+                mticker.FuncFormatter(lambda x, pos: f"{x:.0e}")
+            )
+            ax2.set_ylabel("Power (W)")
+            if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
+                cell_or_module=1
+                params = ["Isc","Voc","FF","Pmax"]
+                if isinstance(self,Cell) or isinstance(self,MultiJunctionCell): # cell or MJ cell
+                    cell_or_module=0
+                    params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
+                words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
+            
+                y_space = 0.07
+                ax1.plot(Voc,0,marker='o',color="blue")
+                ax1.plot(0,Isc,marker='o',color="blue")
+                if fourth_quadrant:
+                    Imp *= -1
+                ax1.plot(Vmp,Imp,marker='o',color="blue")
+                ax2.plot(Vmp,Imp*Vmp,marker='o',color="orange")
+                for i, param in enumerate(params):
+                    ax1.text(Voc*0.05, Isc*(0.8-i*y_space), words[param])
+            fig.tight_layout()
+
+            if show_solver_summary:
+                self.show_solver_summary(fig=fig)
+
+        else:
+            ax1 = fig.axes[0] if fig.axes else fig.add_subplot(111)
+            ax1.plot(IV_V,IV_I)
+            if find_near_op is not None:
+                ax1.plot(IV_V[find_near_op],IV_I[find_near_op],color="red")
+            if self.operating_point is not None:
+                ax1.plot(self.operating_point[0],self.operating_point[1],marker='o')
+            ax1.set_xlabel("Voltage (V)")
+            ax1.set_ylabel("Current (A)")
+            
+        fig.canvas.manager.set_window_title(title)
 CircuitComponent.plot = plot
 
 def show(self):
@@ -527,6 +503,7 @@ def show(self):
         plt.show(block=False)   # or even just `return`
     else:
         plt.show()
+    plt.close("IV")
 CircuitComponent.show = show
 
 def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True, **kwargs):

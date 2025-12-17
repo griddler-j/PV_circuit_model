@@ -59,6 +59,9 @@ def get_parallel_mode():
 if os.environ.get("PV_CIRCUIT_NO_OPENMP", "").strip()=="1":
     set_parallel_mode(False)
 
+if ivkernel_has_openmp() == 0:
+    set_parallel_mode(False)
+
 def set_super_dense(num_points):
     global _SUPER_DENSE
     _SUPER_DENSE = int(num_points)
@@ -68,6 +71,8 @@ constants = ParameterSet.get_set("constants")
 _q = constants["q"]
 
 cdef extern from "ivkernel.h":
+
+    int ivkernel_has_openmp()
 
     cdef struct IVView:
         const double* V      # pointer to V array
@@ -124,6 +129,7 @@ cdef extern from "ivkernel.h":
     void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
 
     void ivkernel_set_q(double q_value)
+    
 
 # Keep arrays alive so C++ can safely hold pointers into them
 cdef object _bgn_x_store = None
@@ -180,6 +186,9 @@ cdef inline bint _setp(double[:] p, int k, double v) nogil:
     return 1
 
 def run_multiple_jobs(components,refine_mode=False,parallel=False,interp_method=0,super_dense=10000,use_existing_grid=False):
+
+    if parallel and ivkernel_has_openmp() == 0:
+        parallel = False
 
     cdef int parallel_ = 1 if parallel else 0
     cdef int has_any_photon_coupling = 0

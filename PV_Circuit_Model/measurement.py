@@ -1,8 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from PV_Circuit_Model.cell_analysis import *
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.multi_junction_cell import *
+from PV_Circuit_Model.device_analysis import *
 from PV_Circuit_Model.utilities import *
 import numbers
 import os

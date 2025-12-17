@@ -11,7 +11,14 @@
 #include <cstring>
 #include <iostream>
 #include <cstdio>
-#include <omp.h> 
+// ---- Optional OpenMP support ----
+#ifdef _OPENMP
+  #include <omp.h>
+#else
+  // Build without OpenMP: provide minimal stubs so the code links.
+  static inline int omp_get_max_threads() { return 1; }
+  static inline int omp_get_thread_num()  { return 0; }
+#endif
 #include <chrono>
 #include "ivkernel.h"
 #include <numeric>
@@ -25,6 +32,14 @@ static std::vector<double> g_bgn_y;
 static double q;
 static bool g_bgn_loaded = false;
 static bool constants_loaded = false;
+
+int ivkernel_has_openmp() {
+#ifdef _OPENMP
+    return 1;
+#else
+    return 0;
+#endif
+}
 
 void ivkernel_set_bandgap_table(const double* x, const double* y, int n)
 {

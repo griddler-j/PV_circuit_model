@@ -1,7 +1,7 @@
 import numpy as np
 from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.circuit_model import *
-from PV_Circuit_Model.cell import *
+from PV_Circuit_Model.device import *
 import tqdm
 import time
 

@@ -1,6 +1,5 @@
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.module import *
-from PV_Circuit_Model.cell_analysis import *
+from PV_Circuit_Model.device import *
+from PV_Circuit_Model.device_analysis import *
 from utilities import *
 
 def make_device(display=False):

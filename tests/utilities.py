@@ -7,7 +7,7 @@ import numpy as np
 import time
 from PV_Circuit_Model.utilities import Artifact, ParameterSet
 from PV_Circuit_Model.circuit_model import CircuitComponent
-from PV_Circuit_Model.cell_analysis import get_Pmax
+from PV_Circuit_Model.device_analysis import get_Pmax
 
 def get_mode():
     directory = os.path.dirname(os.path.abspath(__file__))

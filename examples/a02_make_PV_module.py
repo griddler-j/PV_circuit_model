@@ -3,9 +3,8 @@
 # This notebook shows how to build and run a circuit model of a PV module.
 
 #%%
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.module import *
-from PV_Circuit_Model.cell_analysis import *
+from PV_Circuit_Model.device import *
+from PV_Circuit_Model.device_analysis import *
 from PV_Circuit_Model.utilities import Artifact
 from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
@@ -19,11 +18,11 @@ cell = Artifact.load(THIS_DIR / "cell.bson")
 
 # A*24 = A + A .... + A = connect 24 copies of A's together in series
 # tile_subgroups is optional to arrange the cells spatially, for ease of visualization
-half_string = (cell*24 + Resistor(cond=20)).tile_subgroups(cols=2,x_gap=0.1,y_gap=0.1,turn=True)
+half_string = (cell*24 + R(0.05)).tile_subgroups(cols=2,x_gap=0.1,y_gap=0.1,turn=True)
 
 # B**2 = B | B = connect 2 copies of B's together in parallel
 # again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization
-section = (half_string**2 | ReverseDiode()).tile_subgroups(cols = 1, y_gap = 1, yflip=True)
+section = (half_string**2 | Drev()).tile_subgroups(cols = 1, y_gap = 1, yflip=True)
 
 # C*3 = C + C + C = connect 3 copies of C's together in series
 # again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization

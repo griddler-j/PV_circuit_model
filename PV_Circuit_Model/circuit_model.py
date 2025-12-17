@@ -4,6 +4,7 @@ from matplotlib import cm
 from PV_Circuit_Model.utilities import *
 from PV_Circuit_Model.utilities_silicon import *
 from tqdm import tqdm
+from functools import partial
 try:
     from PV_Circuit_Model.IV_jobs import *
 except Exception as e:
@@ -190,8 +191,8 @@ class CircuitComponent(Artifact):
 def flatten_connection(parts_list,connection):
     flat_list = []
     for part in parts_list:
-        # do not flatten if it's subclass of CircuitGroup, like cell or module or mj cell
-        if type(part) is CircuitGroup and part.connection==connection and not getattr(part,"_is_atomic",False):
+        # do not flatten if it's Device
+        if isinstance(part,CircuitGroup) and part.connection==connection and not getattr(part,"_is_atomic",False):
             flat_list.extend(part.subgroups)
         else:
             flat_list.append(part)
@@ -209,7 +210,8 @@ def connect(*args,connection="series",flatten_connection_=False,**kwargs):
     all_items_have_extent = True
     for item in flat_list:
         if hasattr(item,"_is_atomic"):
-            del item._is_atomic
+            try: del item._is_atomic 
+            except: pass
         if not hasattr(item,"extent"):
             all_items_have_extent = False
     if all_items_have_extent:
@@ -289,6 +291,9 @@ class CurrentSource(CircuitElement,_type_number=0):
         return f"{self.IL:.4f} A"
     def get_draw_func(self):
         return draw_CC_symbol
+    
+# simplified initializer
+IL = partial(CurrentSource)
 
 class Resistor(CircuitElement,_type_number=1):
     _critical_fields = CircuitComponent._critical_fields + ("cond",)
@@ -321,6 +326,10 @@ class Resistor(CircuitElement,_type_number=1):
         return word
     def get_draw_func(self):
         return draw_resistor_symbol
+    
+# simplified initializer
+def R(R,tag=None):
+    return Resistor(cond=1/R, tag=tag)
 
 class Diode(CircuitElement,_type_number=2):
     _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT","refI0","refT")
@@ -376,11 +385,19 @@ class ForwardDiode(Diode):
     def get_draw_func(self):
         return draw_forward_diode_symbol
     
+# simplified initializer
+D = partial(ForwardDiode)
+D1 = partial(ForwardDiode,n=1)
+D2 = partial(ForwardDiode,n=2)
+    
 class PhotonCouplingDiode(ForwardDiode):
     def get_draw_func(self):
         return draw_LED_diode_symbol
     def __str__(self):
         return "Photon Coupling Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
+    
+# simplified initializer
+Dpc = partial(PhotonCouplingDiode)
 
 class ReverseDiode(Diode,_type_number=3):
     def __init__(self,I0=1e-15,n=1, V_shift=0,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
@@ -396,6 +413,9 @@ class ReverseDiode(Diode,_type_number=3):
         return -V_range[::-1]
     def get_draw_func(self):
         return draw_reverse_diode_symbol
+    
+# simplified initializer
+Drev = partial(ReverseDiode)
     
 class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
     _critical_fields = CircuitComponent._critical_fields + ("base_thickness","base_type","base_doping","temperature","VT","ni","area")
@@ -453,6 +473,8 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         self.VT = get_VT(self.temperature)
         self.ni = get_ni(self.temperature)
         self.null_IV()
+
+Dintrinsic_Si = partial(Intrinsic_Si_diode)
 
 class CircuitGroup(CircuitComponent,_type_number=5):
     _critical_fields = CircuitComponent._critical_fields + ("connection","subgroups")

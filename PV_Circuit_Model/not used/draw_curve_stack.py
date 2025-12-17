@@ -1,6 +1,6 @@
 
 from PV_Circuit_Model.circuit_model import *
-from PV_Circuit_Model.cell import Cell
+from PV_Circuit_Model.device import Cell
 
 # This is only an approx way to visualize the curve stacking, by no means rigorous!  
 # Idea is to just draw the 4th quadrant of the curve stretched within the bounds 

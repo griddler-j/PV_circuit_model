@@ -1,6 +1,5 @@
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.cell_analysis import *
-from PV_Circuit_Model.multi_junction_cell import *
+from PV_Circuit_Model.device import *
+from PV_Circuit_Model.device_analysis import *
 import a01_make_solar_cell as example1
 from utilities import *
 

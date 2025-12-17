@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+int ivkernel_has_openmp(void);
+
 struct IVView {
     const double* V;   // pointer to V array
     const double* I;   // pointer to I array

@@ -97,6 +97,20 @@ def maybe_cythonize(exts):
         },
     )
 
+def strip_openmp_flags(ext: Extension) -> None:
+    def keep(arg: str) -> bool:
+        s = arg.lower()
+        # remove common OpenMP flags
+        if "openmp" in s:
+            return False
+        # remove common omp link libs
+        if s in {"-lomp", "-lgomp", "-liomp5"}:
+            return False
+        return True
+
+    ext.extra_compile_args = [a for a in (ext.extra_compile_args or []) if keep(a)]
+    ext.extra_link_args = [a for a in (ext.extra_link_args or []) if keep(a)]
+
 
 class build_ext(_build_ext):
     def finalize_options(self):
@@ -118,7 +132,20 @@ class build_ext(_build_ext):
             if inc not in ext.include_dirs:
                 ext.include_dirs.append(inc)
 
-
+    def build_extensions(self):
+        try:
+            super().build_extensions()
+        except Exception as e:
+            # Only fall back if we were attempting OpenMP
+            msg = str(e).lower()
+            ompish = any(k in msg for k in ["openmp", "omp", "libomp", "libgomp", "vcomp", "-fopenmp", "/openmp"])
+            if want_openmp() and ompish:
+                print("\n[PV_Circuit_Model] OpenMP build failed; retrying without OpenMP...\n")
+                for ext in self.extensions:
+                    strip_openmp_flags(ext)
+                super().build_extensions()
+            else:
+                raise
 
 # ----------------------------------------------------------------------------
 # Extensions

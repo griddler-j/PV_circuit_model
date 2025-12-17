@@ -3,9 +3,8 @@
 # This notebook shows how to build and run a silicon wafer solar cell circuit model.
 
 #%%
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.module import *
-from PV_Circuit_Model.cell_analysis import *
+from PV_Circuit_Model.device import *
+from PV_Circuit_Model.device_analysis import *
 from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 
@@ -14,8 +13,18 @@ THIS_DIR = Path(__file__).resolve().parent
 
 #%%
 
-# Note that A | B means "connect A, B in parallel", and A + B means "connect A, B in series"
-circuit_group = (CurrentSource(41e-3) | ForwardDiode(I0=10e-15,n=1) | ForwardDiode(I0=5e-9,n=2) | Intrinsic_Si_diode(base_thickness=180e-4) | ReverseDiode(V_shift=10) | Resistor(cond=1/1e5)) + Resistor(3)
+# Notation: A | B means "connect A, B in parallel", and A + B means "connect A, B in series"
+# IL(41e-3) = CurrentSource with IL = 41e-3A
+# D1(10e-15) = ForwardDiode with I0 = 10e-15A, n=1
+# D2(5e-9) = ForwardDiode with I0 = 5e-9A, n=2
+# Dintrinsic_Si(180e-4) = Intrinsic_Si_diode in silicon with base thickness 180e-4 (doping, doping type set to default values)
+# Drev(V_shift=10) = ReverseDiode with breakdown voltage 10V
+# R(1e5), R(1/3) = Resistor(s) of 1e5ohm, 1/3ohm
+circuit_group = ( 
+    (IL(41e-3) | D1(10e-15) | D2(5e-9) | Dintrinsic_Si(180e-4) | Drev(V_shift=10) | R(1e5)) 
+    + R(1/3)
+)
+
 circuit_group.draw(display_value=True)
 circuit_group.plot(title="Cell Parts I-V Curve")
 circuit_group.show()

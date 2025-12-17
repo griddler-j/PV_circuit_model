@@ -7,8 +7,16 @@ import matplotlib.colors as mcolors
 from shapely.geometry import Polygon, Point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import ScalarFormatter
+import numbers
 
-class Cell(CircuitGroup,_type_number=6):
+# Device is a logical wrapper around CircuitGroup that preserves internal structure.
+# When Devices are connected in series or parallel via + or |, their internal subgroups are NOT flattened.
+# This allows complex components (cells, modules, strings, etc.) to behave as atomic units.
+# Subclasses of Device typically add device-specific parameters, behavior, and analysis methods.
+class Device(CircuitGroup):
+    _is_atomic = True
+
+class Cell(Device,_type_number=6):
     photon_coupling_diodes = None
     _critical_fields = CircuitGroup._critical_fields + ("area",)
     def __init__(self,subgroups,connection="series",area=1,location=None,
@@ -211,16 +219,132 @@ class Cell(CircuitGroup,_type_number=6):
     @classmethod
     def from_circuitgroup(cls, comp, **kwargs):
         return cls(comp.subgroups,comp.connection, **kwargs)
+    
 
+class Module(Device):
+    def __init__(self,subgroups,connection="series",location=None,
+                 rotation=0,name=None,temperature=25,Suns=1.0):
+        super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
+        cells = self.findElementType(Cell)
+        self.cells = cells
+        self.temperature = temperature
+        self.set_temperature(temperature)
+        self.Suns = Suns
+        self.set_Suns(Suns)     
+    def set_Suns(self,Suns):
+        for cell in self.cells:
+            cell.set_Suns(Suns=Suns)
+    def set_temperature(self,temperature):
+        super().set_temperature(temperature)
+        self.temperature = temperature
 
-# colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
-def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False,colour_what="Vint",min_value=None,max_value=None,title="Cells Layout",colormap=cm.plasma):
+    @classmethod
+    def from_circuitgroup(cls, comp, **kwargs):
+        return cls(comp.subgroups,comp.connection, **kwargs)
+    
+
+class MultiJunctionCell(Device):
+    def __init__(self,subcells=None,subgroups=None,Rs=0.1,location=None,
+                 rotation=0,name=None,temperature=25,Suns=1.0):
+        if subgroups is not None:
+            components = subgroups
+        else:
+            components = subcells
+            components.append(Resistor(cond=subcells[0].area/Rs))
+        super().__init__(components, connection="series",location=location,rotation=rotation,
+                         name=name,extent=components[0].extent)
+        self.cells = []
+        self.series_resistor = None
+        for item in self.subgroups:
+            if isinstance(item,Cell):
+                self.cells.append(item)
+            elif isinstance(item,Resistor):
+                self.series_resistor = item
+        self.area = self.cells[0].area
+        if self.series_resistor is not None:
+            self.series_resistor.aux["area"] = self.area
+        self.temperature = temperature
+        self.set_temperature(temperature)
+        self.Suns = Suns
+        self.set_Suns(Suns)     
+    def set_Suns(self,Suns):
+        if isinstance(Suns,numbers.Number):
+            Suns = [Suns]*len(self.cells)
+        for i, cell in enumerate(self.cells):
+            cell.set_Suns(Suns=Suns[i])
+    def set_JL(self,JL,Suns=1.0,temperature=25):
+        if isinstance(JL,numbers.Number):
+            JL = [JL]*len(self.cells)
+        for i, cell in enumerate(self.cells):
+            cell.set_JL(JL[i], Suns=Suns, temperature=temperature)
+    def set_IL(self,IL,Suns=1.0,temperature=25):
+        if isinstance(IL,numbers.Number):
+            IL = [IL]*len(self.cells)
+        for i, cell in enumerate(self.cells):
+            cell.set_IL(IL[i], Suns=Suns, temperature=temperature)
+    def set_temperature(self,temperature):
+        super().set_temperature(temperature)
+        self.temperature = temperature
+    def specific_Rs_cond(self):
+        if self.series_resistor is None:
+            return np.inf
+        return self.series_resistor.cond/self.area
+    def Rs_cond(self):
+        return self.specific_Rs_cond()*self.area
+    def specific_Rs(self):
+        return 1/self.specific_Rs_cond()
+    def Rs(self):
+        return 1/self.Rs_cond()
+    def set_specific_Rs_cond(self,cond):
+        if self.series_resistor is not None:
+            self.series_resistor.set_cond(cond*self.area)
+    def set_Rs_cond(self,cond):
+        self.set_specific_Rs_cond(cond)
+    def set_specific_Rs(self,Rs):
+        self.set_specific_Rs_cond(1/Rs)
+    def set_Rs(self,Rs):
+        self.set_Rs_cond(1/Rs)
+
+    @classmethod
+    def from_circuitgroup(cls, comp, **kwargs):
+        total_Rs = 0
+        cell_area = -1
+        subcells = []
+        if comp.connection != "series":
+            raise NotImplementedError
+        for item in comp.subgroups:
+            if isinstance(item,Cell):
+                if cell_area < 0:
+                        cell_area = item.area
+                subcells.append(item)
+            elif isinstance(item,Resistor):
+                total_Rs += 1/item.cond
+            else:
+                raise NotImplementedError
+        total_Rs *= cell_area # actually input a specific Rs
+        if "Rs" not in kwargs and total_Rs > 0:
+            kwargs["Rs"] = total_Rs
+        return cls(subcells=subcells,**kwargs)
+
+    # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
+def draw_cells(self,display=True,show_names=False,colour_bar=False,colour_what="Vint",show_module_names=False,fontsize=9,min_value=None,max_value=None,title="Cells Layout",colormap=cm.plasma):
     shapes = []
     names = []
     Vints = []
     EL_Vints = []
     Is = []
-    if hasattr(self,"shape"): # a solar cell
+    if isinstance(self,list):
+        for element in self:
+            if hasattr(element,"extent") and element.extent is not None:
+                shapes_, names_, Vints_, EL_Vints_, Is_ = element.draw_cells(display=False)
+                shapes.extend(shapes_)
+                names.extend(names_)
+                Vints.extend(Vints_)
+                EL_Vints.extend(EL_Vints_)
+                Is.extend(Is_)
+                if show_module_names and element.name is not None:
+                    ax.text(element.location[0], element.location[1]+element.extent[1]/2*1.05, element.name, fontsize=fontsize, color='black', ha="center", va="center")
+    elif hasattr(self,"shape"): # a solar cell
         shapes.append(self.shape.copy())
         names.append(self.name)
         if self.operating_point is not None:
@@ -237,7 +361,6 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
                 Vints.extend(Vints_)
                 EL_Vints.extend(EL_Vints_)
                 Is.extend(Is_)
-
     has_Vint = False
     has_EL_Vint = False
     has_power = False
@@ -277,19 +400,28 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
     if vmin is not None:
         norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
     cmap = colormap
-            
+    
+    rotation_ = 0
+    x_mirror_ = 1
+    y_mirror_ = 1
+    location_ = [0,0]
+    if not isinstance(self,list):
+        rotation_ = self.rotation
+        x_mirror_ = self.x_mirror
+        y_mirror_ = self.y_mirror
+        location_ = self.location
     for i, shape in enumerate(shapes):
-        cos = np.cos(np.pi/180*self.rotation)
-        sin = np.sin(np.pi/180*self.rotation)
+        cos = np.cos(np.pi/180*rotation_)
+        sin = np.sin(np.pi/180*rotation_)
         new_shape = shape.copy()
         new_shape[:,0] = shape[:,0]*cos + shape[:,1]*sin
         new_shape[:,1] = shape[:,1]*cos - shape[:,0]*sin
-        if self.x_mirror == -1:
+        if x_mirror_ == -1:
             new_shape[:,0] *= -1
-        if self.y_mirror == -1:
+        if y_mirror_ == -1:
             new_shape[:,1] *= -1
-        new_shape[:,0] += self.location[0]
-        new_shape[:,1] += self.location[1]
+        new_shape[:,0] += location_[0]
+        new_shape[:,1] += location_[1]
 
         shapes[i] = new_shape
     if display:
@@ -308,7 +440,7 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
             x = 0.5*(np.max(shape[:,0])+np.min(shape[:,0]))
             y = 0.5*(np.max(shape[:,1])+np.min(shape[:,1]))
             if show_names:
-                ax.text(x, y, names[i], fontsize=8, color='black')
+                ax.text(x, y, names[i], fontsize=fontsize, color='black')
             ax.add_patch(polygon)
 
         # ---- Tight axes from the actual polygons (fixes big blank space) ----
@@ -324,12 +456,10 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
         ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         for spine in ax.spines.values():
             spine.set_visible(False)
-        fig.tight_layout()
         ax.set_aspect('equal')
         plt.gcf().canvas.manager.set_window_title(title)
 
         # 4) Inset colorbar (doesn't shrink the main axes)
-
 
         if colour_bar and norm is not None:
             sm = cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -346,10 +476,14 @@ def draw_cells(self: CircuitGroup,display=True,show_names=False,colour_bar=False
             fmt.set_powerlimits((-2, 3))
             cbar.ax.yaxis.set_major_formatter(fmt)
             cbar.set_label(colour_what)
+        else:
+            fig.tight_layout()
 
         plt.show()
     return shapes, names, Vints, EL_Vints, Is
 CircuitGroup.draw_cells = draw_cells
+
+draw_modules = draw_cells
 
 def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, half_cut=True):
     if format is not None and format in wafer_formats:
@@ -411,5 +545,92 @@ def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.
         cell = Cell([group,Resistor(cond=1/Rs)],"series",area=area,location=np.array([0.0,0.0]).astype(float),shape=shape,name="cell")
     return cell
 
+# colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray        
+draw_modules = draw_cells
+    
+def make_module(cells, num_strings=3, num_cells_per_halfstring=24, 
+                         halfstring_resistor = 0.02, I0_rev = 1000e-15, butterfly=False):
+    count = 0
+    cell_strings = []
+    num_half_strings = 1
+    if butterfly:
+        num_half_strings = 2
+    else:
+        halfstring_resistor /= 2
+    for _ in range(num_strings):
+        cell_halfstrings = []
+        for _ in range(num_half_strings):
+            cells_ = cells[count:count+num_cells_per_halfstring]
+            count += num_cells_per_halfstring
+            tile_elements(cells_,cols=2, x_gap = 0.1, y_gap = 0.1, turn=True)
+            components = cells_
+            if halfstring_resistor > 0:
+                components += [Resistor(cond=1/halfstring_resistor)]
+            halfstring = CircuitGroup(components,
+                                        "series",name="cell_halfstring")
+            cell_halfstrings.append(halfstring)
+        if butterfly:
+            tile_elements(cell_halfstrings, cols = 1, y_gap = 1, yflip=True)
 
+        bypass_diode = ReverseDiode(I0=I0_rev, n=1, V_shift = 0)
+        bypass_diode.max_I = 0.2*cells[0].area
+        cell_strings.append(CircuitGroup(cell_halfstrings+[bypass_diode],
+                                "parallel",name="cell_string"))
 
+    tile_elements(cell_strings, rows=1, x_gap = 1, y_gap = 0.0)
+    module = Module(cell_strings,"series")
+    module.aux["halfstring_resistor"] = halfstring_resistor
+    return module
+
+def make_butterfly_module(cells, num_strings=3, num_cells_per_halfstring=24, 
+                         halfstring_resistor = 0.02, I0_rev = 1000e-15):
+    return make_module(cells, num_strings, num_cells_per_halfstring, 
+                         halfstring_resistor, I0_rev, butterfly=True)
+
+def reset_half_string_resistors(self:CircuitGroup, halfstring_resistor=None):
+    if halfstring_resistor is None:
+        if self.aux is not None and "halfstring_resistor" in self.aux:
+            halfstring_resistor = self.aux["halfstring_resistor"]
+    for element in self.subgroups:
+        if isinstance(element,Cell):
+            pass
+        elif isinstance(element,CircuitGroup):
+            element.reset_half_string_resistors(halfstring_resistor=halfstring_resistor)
+        elif isinstance(element,Resistor):
+            element.set_cond(1/halfstring_resistor)
+CircuitGroup.reset_half_string_resistors = reset_half_string_resistors
+
+def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
+    shapes, _, _, _, _ = self.draw_cells(display=False)
+    xs = []
+    ys = []
+    indices = []
+    for i, shape in enumerate(shapes):
+        xs.append(int(np.round(0.5*(np.max(shape[:,0])+np.min(shape[:,0]))/fuzz_distance)))
+        ys.append(int(np.round(0.5*(np.max(shape[:,1])+np.min(shape[:,1]))/fuzz_distance)))
+        indices.append(i)
+    xs = np.array(xs)
+    ys = np.array(ys)
+    indices = np.array(indices)
+    unique_xs = np.unique(xs)
+    unique_ys = np.unique(ys)
+    unique_ys = unique_ys[::-1] # reverse y such that y increases downwards
+    cell_col_row = np.zeros((len(indices),2),dtype=int)
+    map = np.zeros((len(indices)),dtype=int)
+    inverse_map = np.zeros((len(indices)),dtype=int)
+    count = 0
+    for i, x in enumerate(unique_xs):
+        for j, y in enumerate(unique_ys):
+            find_ = np.where((xs==x) & (ys==y))[0]
+            cell_col_row[indices[find_],0] = i
+            cell_col_row[indices[find_],1] = j
+            map[indices[find_]] = count
+            inverse_map[count] = indices[find_]
+            count += 1
+    return cell_col_row, map, inverse_map
+CircuitGroup.get_cell_col_row = get_cell_col_row
+
+def set_Suns(circuit_group, suns):
+    currentSources = circuit_group.findElementType(CurrentSource)
+    for currentSource in currentSources:
+        currentSource.changeTemperatureAndSuns(Suns=suns)

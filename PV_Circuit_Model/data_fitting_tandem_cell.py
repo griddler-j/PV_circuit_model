@@ -1,8 +1,7 @@
 from PV_Circuit_Model.circuit_model import *
 import numpy as np
 from PV_Circuit_Model.measurement import *
-from PV_Circuit_Model.cell import *
-from PV_Circuit_Model.multi_junction_cell import *
+from PV_Circuit_Model.device import *
 from PV_Circuit_Model.data_fitting import *
 
 class Tandem_Cell_Fit_Parameters(Fit_Parameters):
