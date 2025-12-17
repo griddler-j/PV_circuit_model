@@ -16,9 +16,8 @@ def make_device(display=False):
     thickness = 150e-4 #um
 
     # make the solar cell 
-    shape, area = wafer_shape(width/2, width)
     J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,thickness=thickness)
-    cell = make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, breakdown_V, J0_rev, thickness=thickness)
+    cell = make_solar_cell(Jsc, J01, J02, Rshunt, Rs, **wafer_shape(width/2, width), breakdown_V=breakdown_V, J0_rev=J0_rev, thickness=thickness)
 
     if display:
         # draw its circuit model representation

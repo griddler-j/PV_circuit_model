@@ -11,7 +11,7 @@ THIS_DIR = Path(__file__).resolve().parent
 
 def run_test_for_a05_10(this_file_prefix, this_device_name, display=False,pytest_mode=False):
     filepath = find_latest_file(this_file_prefix+"_result","bson")
-    device = ParamSerializable.restore_from_bson(filepath)
+    device = Artifact.load(filepath)
     t1 = time.perf_counter()
     device.get_Pmax()
     print(f"Finished in {time.perf_counter()-t1} seconds")

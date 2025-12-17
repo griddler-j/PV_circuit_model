@@ -11,8 +11,10 @@
 #%%
 
 from PV_Circuit_Model.data_fitting_tandem_cell import *
+from pathlib import Path
+THIS_DIR = Path(__file__).resolve().parent
 
-json_directory = r"examples/topcon measurement json files/"
+json_directory = f"{THIS_DIR}/topcon measurement json files/"
 sample_info = {"area":165.34,"bottom_cell_thickness":180e-4}
 
 measurements = get_measurements(json_directory)

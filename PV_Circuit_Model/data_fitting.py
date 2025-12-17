@@ -98,7 +98,7 @@ class Fit_Parameter():
         self.value = max(self.value,self.abs_min)    
         self.value = min(self.value,self.abs_max)  
 
-class Fit_Parameters(ParamSerializable):
+class Fit_Parameters(Artifact):
     def __init__(self,fit_parameters=None,names=None):
         if fit_parameters is not None:
             self.fit_parameters = fit_parameters

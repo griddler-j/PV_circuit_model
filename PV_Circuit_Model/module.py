@@ -10,7 +10,7 @@ class Module(CircuitGroup):
     def __init__(self,subgroups,connection="series",location=None,
                  rotation=0,name=None,temperature=25,Suns=1.0):
         super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
-        cells = self.findElementType(Cell,serialize=True)
+        cells = self.findElementType(Cell)
         self.cells = cells
         self.temperature = temperature
         self.set_temperature(temperature)
@@ -161,9 +161,7 @@ def make_module(cells, num_strings=3, num_cells_per_halfstring=24,
         for _ in range(num_half_strings):
             cells_ = cells[count:count+num_cells_per_halfstring]
             count += num_cells_per_halfstring
-            tile_elements(cells_, 
-                        rows=num_cells_per_halfstring // 2, cols=2, 
-                        x_gap = 0.1, y_gap = 0.1, turn=True)
+            tile_elements(cells_,cols=2, x_gap = 0.1, y_gap = 0.1, turn=True)
             components = cells_
             if halfstring_resistor > 0:
                 components += [Resistor(cond=1/halfstring_resistor)]
@@ -171,15 +169,14 @@ def make_module(cells, num_strings=3, num_cells_per_halfstring=24,
                                         "series",name="cell_halfstring")
             cell_halfstrings.append(halfstring)
         if butterfly:
-            cell_halfstrings[1].y_mirror = -1
-            cell_halfstrings[1].location[1] -= cell_halfstrings[1].extent[1] + 1
+            tile_elements(cell_halfstrings, cols = 1, y_gap = 1, yflip=True)
 
         bypass_diode = ReverseDiode(I0=I0_rev, n=1, V_shift = 0)
         bypass_diode.max_I = 0.2*cells[0].area
         cell_strings.append(CircuitGroup(cell_halfstrings+[bypass_diode],
                                 "parallel",name="cell_string"))
 
-    tile_elements(cell_strings, rows=1, x_gap = 1, y_gap = 0.0, turn=False)
+    tile_elements(cell_strings, rows=1, x_gap = 1, y_gap = 0.0)
     module = Module(cell_strings,"series")
     module.aux["halfstring_resistor"] = halfstring_resistor
     return module
@@ -203,14 +200,14 @@ def reset_half_string_resistors(self:CircuitGroup, halfstring_resistor=None):
 CircuitGroup.reset_half_string_resistors = reset_half_string_resistors
 
 def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
-    shapes, names, _, _, _ = self.draw_cells(display=False)
+    shapes, _, _, _, _ = self.draw_cells(display=False)
     xs = []
     ys = []
     indices = []
     for i, shape in enumerate(shapes):
         xs.append(int(np.round(0.5*(np.max(shape[:,0])+np.min(shape[:,0]))/fuzz_distance)))
         ys.append(int(np.round(0.5*(np.max(shape[:,1])+np.min(shape[:,1]))/fuzz_distance)))
-        indices.append(int(names[i]))
+        indices.append(i)
     xs = np.array(xs)
     ys = np.array(ys)
     indices = np.array(indices)

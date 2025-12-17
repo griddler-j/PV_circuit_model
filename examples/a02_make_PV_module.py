@@ -6,33 +6,47 @@
 from PV_Circuit_Model.cell import *
 from PV_Circuit_Model.module import *
 from PV_Circuit_Model.cell_analysis import *
+from PV_Circuit_Model.utilities import Artifact
+from pathlib import Path
+THIS_DIR = Path(__file__).resolve().parent
 
 np.random.seed(0)
 
 # %% [markdown]
-# ## Create a butterfly PV module
+# ## Let's put 24 x 2 x 3 = 144 cells together to make a module
 
-#%%
-module = quick_butterfly_module()
+cell = Artifact.load(THIS_DIR / "cell.bson")
+
+# A*24 = A + A .... + A = connect 24 copies of A's together in series
+# tile_subgroups is optional to arrange the cells spatially, for ease of visualization
+half_string = (cell*24 + Resistor(cond=20)).tile_subgroups(cols=2,x_gap=0.1,y_gap=0.1,turn=True)
+
+# B**2 = B | B = connect 2 copies of B's together in parallel
+# again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization
+section = (half_string**2 | ReverseDiode()).tile_subgroups(cols = 1, y_gap = 1, yflip=True)
+
+# C*3 = C + C + C = connect 3 copies of C's together in series
+# again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization
+circuit_group = (section*3).tile_subgroups(rows=1, x_gap = 1)
+
+# type cast to Module just for encapsulation
+module_ = circuit_group.as_type(Module) 
+module_.draw_cells()
+
+module_.plot(title="Module I-V Curve")
+module_.show()
 
 # %% [markdown]
-# ## Visualize module cell layout
+# ## Because modules are frequently defined, if we want to be lazy, here's a short cut
 
-#%%
-_ = module.draw_cells(show_names=True,colour_what=None)
-
-# %% [markdown]
-# ## Circuit model representation
-
-#%%
-module.draw(title="Module model")
-
-# %% [markdown]
-# ## Plot IV curve
-
-#%%
+module = quick_module(Isc=14, Voc=0.72*72, FF=0.8, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, half_cut=True, butterfly=True)
 module.plot(title="Module I-V Curve")
 module.show()
+
+#%% 
+# Verify that the modules defined these two ways have the same structure
+
+print("Does module_ and module have the same structure? ", "Yes" if module_.structure()==module.structure() else "No")
 
 # %% [markdown]
 # ## Introduce some cells JL and J01 inhomogenity
@@ -42,11 +56,6 @@ for cell in module.cells:
     cell.set_JL(cell.JL() * min(1.0,np.random.normal(loc=1.0, scale=0.01)))
     cell.set_J01(cell.J01() * max(1.0,np.random.normal(loc=1.0, scale=0.2)))
 module.build_IV()
-
-# %% [markdown]
-# ## Replot I-V Curve with the inhomogenity
-
-#%%
 module.plot(title="Module I-V Curve with inhomogenity")
 module.show()
 
@@ -64,11 +73,6 @@ module.draw_cells(title="Cells Vint with inhomogenity",colour_bar=True)
 
 #%%
 module.cells[0].set_specific_Rs(40.0)
-
-# %% [markdown]
-# ## Replot I-V Curve with the cell with high series resistance
-
-#%%
 module.set_Suns(1.0) 
 module.plot(title="Module I-V Curve with additional high Rs cell")
 module.show()

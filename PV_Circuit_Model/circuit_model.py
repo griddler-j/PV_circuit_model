@@ -23,7 +23,7 @@ solver_env_variables = ParameterSet.get_set("solver_env_variables")
 REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
 REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
       
-class CircuitComponent(ParamSerializable):
+class CircuitComponent(Artifact):
     _critical_fields = ("max_I","max_num_points")
     _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
@@ -220,10 +220,14 @@ def connect(*args,connection="series",flatten_connection_=False,**kwargs):
 
 def series(*args,flatten_connection_=False,**kwargs):
     kwargs.pop("connection", None)
+    if "rows" not in kwargs:
+        kwargs["rows"] = 1
     return connect(*args,connection="series",flatten_connection_=flatten_connection_,**kwargs)
 
 def parallel(*args,flatten_connection_=False,**kwargs):
     kwargs.pop("connection", None)
+    if "cols" not in kwargs:
+        kwargs["cols"] = 1
     return connect(*args,connection="parallel",flatten_connection_=flatten_connection_,**kwargs)
 
 class CircuitElement(CircuitComponent):
@@ -547,16 +551,13 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         for currentSource in currentSources:
             currentSource.changeTemperatureAndSuns(temperature=temperature)
 
-    def findElementType(self,type_,serialize=False):
+    def findElementType(self,type_):
         list_ = []
-        for i, element in enumerate(self.subgroups):
+        for element in self.subgroups:
             if (not isinstance(type_,str) and isinstance(element,type_))  or (isinstance(type_,str) and type(element).__name__==type_):
                 list_.append(element)
             elif isinstance(element,CircuitGroup):
-                list_.extend(element.findElementType(type_,serialize=serialize))
-        if serialize:
-            for i, element in enumerate(list_):
-                element.name = str(i)
+                list_.extend(element.findElementType(type_))
         return list_
     
     def __getitem__(self,type_):
@@ -638,6 +639,11 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         if hasattr(cls, "from_circuitgroup"):
             return cls.from_circuitgroup(self, **kwargs)
         raise TypeError(f"{cls.__name__} does not support conversion")
+    
+    def tile_subgroups(self, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=False, xflip=False, yflip=False, col_wise_ordering=True):
+        tile_elements(self.subgroups, rows=rows, cols=cols, x_gap = x_gap, y_gap = y_gap, turn=turn, xflip=xflip, yflip=yflip, col_wise_ordering=col_wise_ordering)
+        self.extent = get_extent(self.subgroups)
+        return self
 
 def get_extent(elements, center=True):
     x_bounds = [None,None]
@@ -691,60 +697,66 @@ def get_circuit_diagram_extent(elements,connection):
         total_extent[1] += 0.2 # the connectors
     return total_extent
 
-def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=True, col_wise_ordering=True):
+def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=False, xflip=False, yflip=False, col_wise_ordering=True):
+    tile_objects = []
+    for element in elements:
+        if hasattr(element,"extent"):
+            tile_objects.append(element)
     if rows is None and cols is None:
         rows = 1
     if rows is None:
-        rows = int(np.ceil(float(len(elements))/float(cols)))
+        rows = int(np.ceil(float(len(tile_objects)) /float(cols)))
     if cols is None:
-        cols = int(np.ceil(float(len(elements))/float(rows)))
+        cols = int(np.ceil(float(len(tile_objects)) /float(rows)))
     row = 0
     col = 0
     rotation = 0
     pos = np.array([0,0]).astype(float)
     max_x_extent = 0.0
     max_y_extent = 0.0
-    for element in elements:
-        if hasattr(element,"extent"):
-            x_extent = element.extent[0]
-            max_x_extent = max(max_x_extent,x_extent)
-            y_extent = element.extent[1]
-            max_y_extent = max(max_y_extent,y_extent)
-            element.location = pos.copy()
-            element.rotation = rotation
-            if col_wise_ordering:
-                row += 1
-                if row < rows:
-                    if rotation==0:
-                        pos[1] += y_extent + y_gap
-                    else:
-                        pos[1] -= (y_extent + y_gap)
+    for element in tile_objects:
+        x_extent = element.extent[0]
+        max_x_extent = max(max_x_extent,x_extent)
+        y_extent = element.extent[1]
+        max_y_extent = max(max_y_extent,y_extent)
+        element.location = pos.copy()
+        element.rotation = rotation
+        if col_wise_ordering:
+            row += 1
+            if row < rows:
+                if rotation==0:
+                    pos[1] += y_extent + y_gap
                 else:
-                    row = 0
-                    col += 1
-                    pos[0] += max_x_extent + x_gap
-                    max_x_extent = 0.0
-                    if turn:
-                        rotation = 180 - rotation
-                    else:
-                        pos[1] = 0
+                    pos[1] -= (y_extent + y_gap)
             else:
+                row = 0
                 col += 1
-                if col < cols:
-                    if rotation==0:
-                        pos[0] += x_extent + x_gap
-                    else:
-                        pos[0] -= (x_extent + x_gap)
+                pos[0] += max_x_extent + x_gap
+                max_x_extent = 0.0
+                if turn:
+                    rotation = 180 - rotation
                 else:
-                    col = 0
-                    row += 1
-                    pos[1] += max_y_extent + y_gap
-                    max_y_extent = 0.0
-                    if turn:
-                        rotation = 180 - rotation
-                    else:
-                        pos[0] = 0
-            
+                    pos[1] = 0
+        else:
+            col += 1
+            if col < cols:
+                if rotation==0:
+                    pos[0] += x_extent + x_gap
+                else:
+                    pos[0] -= (x_extent + x_gap)
+            else:
+                col = 0
+                row += 1
+                pos[1] += max_y_extent + y_gap
+                max_y_extent = 0.0
+                if turn:
+                    rotation = 180 - rotation
+                else:
+                    pos[0] = 0  
+    if xflip and cols==2 and len(tile_objects)==2:
+        tile_objects[1].x_mirror = -1
+    if yflip and rows==2 and len(tile_objects)==2:
+        tile_objects[1].y_mirror = -1
 
 def circuit_deepcopy(circuit_component):
     return circuit_component.clone()

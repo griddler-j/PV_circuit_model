@@ -530,16 +530,15 @@ def show(self):
 CircuitComponent.show = show
 
 def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True, **kwargs):
-    shape, area = wafer_shape(format=wafer_format,half_cut=half_cut)
     J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,**kwargs)
-    return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, area, shape, **kwargs)
+    return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, **wafer_shape(format=wafer_format,half_cut=half_cut), **kwargs)
 
 def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=False, butterfly=False,**kwargs):
     force_n1 = False
     if special_conditions is not None:
         if "force_n1" in special_conditions:
             force_n1 = special_conditions["force_n1"]
-    shape, area = wafer_shape(format=wafer_format, half_cut=half_cut)
+    area = wafer_shape(format=wafer_format, half_cut=half_cut)["area"]
     Jsc = 0.042
     cell_num_factor = 1
     if butterfly:
@@ -608,14 +607,13 @@ def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format=
     return quick_module(Isc, Voc, FF, Pmax, wafer_format, num_strings, num_cells_per_halfstring, special_conditions, half_cut, butterfly=True,**kwargs)
 
 def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=[0.3333,0.5], Rshunts=[1e6,5e4], thicknesses=[160e-4,1e-6], wafer_format="M10",half_cut=True):
-    shape, area = wafer_shape(format=wafer_format)
     cells = []
     for i in range(len(Jscs)):
         Si_intrinsic_limit = True
         if i > 0:
             Si_intrinsic_limit = False
         J01, J02 = estimate_cell_J01_J02(Jscs[i],Vocs[i],FF=FFs[i],Rs=Rss[i],Rshunt=Rshunts[i],Si_intrinsic_limit=Si_intrinsic_limit,thickness=thicknesses[i])
-        cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], area, shape, thickness=thicknesses[i]))
+        cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], **wafer_shape(format=wafer_format, half_cut=half_cut), thickness=thicknesses[i]))
     return MultiJunctionCell(cells)
 
 def solver_summary_heap(job_heap, display_or_latex=0): 

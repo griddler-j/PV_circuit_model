@@ -68,18 +68,20 @@ class MultiJunctionCell(CircuitGroup):
     @classmethod
     def from_circuitgroup(cls, comp, **kwargs):
         total_Rs = 0
+        cell_area = -1
         subcells = []
+        if comp.connection != "series":
+            raise NotImplementedError
         for item in comp.subgroups:
             if isinstance(item,Cell):
-                if item.series_resistor is not None:
-                    total_Rs += 1/(item.series_resistor.cond*item.area)
-                    subcells.append(item.diode_branch.as_cell(area=item.area,
-                        location=item.location,rotation=item.rotation,shape=item.shape,name=item.name,
-                        temperature=item.temperature,Suns=item.Suns))
-                else:
-                    subcells.append(item.clone())
+                if cell_area < 0:
+                        cell_area = item.area
+                subcells.append(item)
             elif isinstance(item,Resistor):
                 total_Rs += 1/item.cond
             else:
                 raise NotImplementedError
-        return cls(subcells=subcells,Rs=total_Rs, **kwargs)
+        total_Rs *= cell_area # actually input a specific Rs
+        if "Rs" not in kwargs and total_Rs > 0:
+            kwargs["Rs"] = total_Rs
+        return cls(subcells=subcells,**kwargs)

@@ -280,7 +280,7 @@ def convert_ndarrays_to_lists(obj):
     else:
         return obj
 
-class ParamSerializable:
+class Artifact:
     _critical_fields = ()
     _artifacts = ()
     _dont_serialize = ()
@@ -299,11 +299,11 @@ class ParamSerializable:
                 continue 
             if k=="parent": # already done, skip
                 continue 
-            if isinstance(v,ParamSerializable):
+            if isinstance(v,Artifact):
                 if k in self._critical_fields:
                     d[k] = v.clone()
             elif isinstance(v, list):
-                if len(v)>0 and isinstance(v[0],ParamSerializable):
+                if len(v)>0 and isinstance(v[0],Artifact):
                     pass
                 else:
                     d[k] = v[:]  # shallow list copy
@@ -365,62 +365,57 @@ class ParamSerializable:
                 data[name] = output
         return data
 
-    def save_to_json(self, path, *, indent=2,critical_fields_only=False):
+    def dump(self, path, *, indent=2,critical_fields_only=False):
+        path = str(path)
         params = self.save_toParams(critical_fields_only=critical_fields_only)
-        with open(path, "w") as f:
-            json.dump(params, f, indent=indent)
+        if path.endswith(".json"):
+            with open(path, "w") as f:
+                json.dump(params, f, indent=indent)
+        else: # bson
+            pos = path.find(".")
+            if pos == -1:
+                path += ".bson"
+            if not path.endswith(".bson"):
+                raise NotImplementedError("Artifact.dump only suppoers .json or .bson output")
+            data = bson.dumps(params)
+            with open(path, "wb") as f:
+                f.write(data)
         return path
 
     @staticmethod
-    def restore_from_json(path):
-        with open(path, "r") as f:
-            params = json.load(f)
-        return ParamSerializable.Restore_fromParams(params)
-    
-    def save_to_bson(self, path, critical_fields_only=False):
-        params = self.save_toParams(critical_fields_only=critical_fields_only)
-        data = bson.dumps(params)
-        with open(path, "wb") as f:
-            f.write(data)
-        return path
-
-    @staticmethod
-    def restore_from_bson(path):
-        with open(path, "rb") as f:
-            params = bson.loads(f.read())
-        return ParamSerializable.Restore_fromParams(params)
-
-    def save_to_pickle(self, path):
-        with open(path, "wb") as f:
-            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
-        return path
-
-    @staticmethod
-    def restore_from_pickle(path):
-        with open(path, "rb") as f:
-            return pickle.load(f)
+    def load(path):
+        path = str(path)
+        if path.endswith(".json"):
+            with open(path, "r") as f:
+                params = json.load(f)
+        elif path.endswith(".bson"):
+            with open(path, "rb") as f:
+                params = bson.loads(f.read())
+        else:
+            raise NotImplementedError("Artifact.load only suppoers .json or .bson input")
+        return Artifact.Restore_fromParams(params)
 
     @staticmethod
     def Restore_fromParams(params):
-        return ParamSerializable._restore_value(params)
+        return Artifact._restore_value(params)
 
     @staticmethod
     def _save_value(field_name,value,critical_fields_only=False,critical_fields=None):
-        if isinstance(value, ParamSerializable): # we don't store any references to other ParamSerializables, except those found in subgroups
+        if isinstance(value, Artifact): # we don't store any references to other Artifacts, except those found in subgroups
             if field_name != "subgroups" and (critical_fields is None or field_name not in critical_fields):
                 return None
             return value.save_toParams(critical_fields_only=critical_fields_only)
 
-        if isinstance(value, (list, tuple)): # we don't store any references to other ParamSerializables, except those found in subgroups
+        if isinstance(value, (list, tuple)): # we don't store any references to other Artifacts, except those found in subgroups
             if field_name == "subgroups":
-                return [ParamSerializable._save_value(field_name, v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for v in value]
-            elif len(value)>0 and isinstance(value[0],ParamSerializable):
+                return [Artifact._save_value(field_name, v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for v in value]
+            elif len(value)>0 and isinstance(value[0],Artifact):
                 return None
             else:
                 return value[:]
 
         if isinstance(value, dict):
-            return {k: ParamSerializable._save_value("generic",v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for k, v in value.items()}
+            return {k: Artifact._save_value("generic",v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for k, v in value.items()}
 
         if isinstance(value, np.ndarray):
             return {
@@ -438,7 +433,7 @@ class ParamSerializable:
             arr = np.array(value["__ndarray__"], dtype=value["dtype"])
             return arr.reshape(value["shape"])
 
-        # nested ParamSerializable subclass (or any class we serialized)
+        # nested Artifact subclass (or any class we serialized)
         if isinstance(value, dict) and "__class__" in value:
             cls_path = value["__class__"]
             module_name, class_name = cls_path.rsplit(".", 1)
@@ -449,7 +444,7 @@ class ParamSerializable:
 
             # recursively restore all fields except __class__
             raw_kwargs = {
-                k: ParamSerializable._restore_value(v)
+                k: Artifact._restore_value(v)
                 for k, v in value.items()
                 if k != "__class__"
             }
@@ -491,11 +486,11 @@ class ParamSerializable:
 
         # list
         if isinstance(value, list):
-            return [ParamSerializable._restore_value(v) for v in value]
+            return [Artifact._restore_value(v) for v in value]
 
         # regular dict
         if isinstance(value, dict):
-            return {k: ParamSerializable._restore_value(v) for k, v in value.items()}
+            return {k: Artifact._restore_value(v) for k, v in value.items()}
 
         # primitives
         return value

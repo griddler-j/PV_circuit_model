@@ -205,7 +205,8 @@ class Cell(CircuitGroup,_type_number=6):
     def set_shunt_res(self,Rsh):
         self.set_specific_shunt_res(Rsh*self.area)
     def set_shape(self,wafer_format="M10",half_cut=True):
-        self.shape, self.area = wafer_shape(format=wafer_format,half_cut=half_cut)
+        shape_area = wafer_shape(format=wafer_format,half_cut=half_cut)
+        self.shape, self.area = shape_area["shape"], shape_area["area"]
 
     @classmethod
     def from_circuitgroup(cls, comp, **kwargs):
@@ -381,7 +382,7 @@ def wafer_shape(L=1, W=1, ingot_center=None, ingot_diameter=None, format=None, h
     x = intersection[:,0]
     y = intersection[:,1]
     area = 0.5 * np.abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-    return intersection, area
+    return {"shape": intersection, "area": area}
 
 # note: always made at 25C 1 Sun
 def make_solar_cell(Jsc=0.042, J01=10e-15, J02=2e-9, Rshunt=1e6, Rs=0.0, area=1.0, 

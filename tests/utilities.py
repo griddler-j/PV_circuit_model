@@ -5,7 +5,7 @@ import pickle
 import json
 import numpy as np
 import time
-from PV_Circuit_Model.utilities import ParamSerializable, ParameterSet
+from PV_Circuit_Model.utilities import Artifact, ParameterSet
 from PV_Circuit_Model.circuit_model import CircuitComponent
 from PV_Circuit_Model.cell_analysis import get_Pmax
 
@@ -196,11 +196,11 @@ def record_or_compare_artifact(device, this_file_prefix=None,pytest_mode=False):
     mode = get_mode()
     match mode:
         case "record":
-            device.save_to_bson(make_file_path_with_timestamp(this_file_prefix+"_result", "bson"))
+            device.dump(make_file_path_with_timestamp(this_file_prefix+"_result", "bson"))
             return device
         case "test":
             filepath = find_latest_file(this_file_prefix+"_result","bson")
-            device2 = ParamSerializable.restore_from_bson(filepath)
+            device2 = Artifact.load(filepath)
             if device==device2:
                 print(this_file_prefix + " artifact matches!")
             else:
