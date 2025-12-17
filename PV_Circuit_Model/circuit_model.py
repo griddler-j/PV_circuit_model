@@ -491,6 +491,14 @@ class CircuitGroup(CircuitComponent,_type_number=5):
     def parts(self, value):
         self.subgroups = value
 
+    @property
+    def children(self):
+        return self.subgroups
+
+    @children.setter
+    def children(self, value):
+        self.subgroups = value
+
     def set_operating_point(self,V=None,I=None,refine_IV=False,shallow=False):
         if not hasattr(self,"job_heap"):
             self.build_IV()

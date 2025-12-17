@@ -230,6 +230,8 @@ def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
 CircuitGroup.get_cell_col_row = get_cell_col_row
 
 def set_Suns(circuit_group, suns):
-    modules = circuit_group.findElementType(Module)
-    for module in modules:
-        module.set_Suns(suns)
+    currentSources = circuit_group.findElementType(CurrentSource)
+    for currentSource in currentSources:
+        currentSource.changeTemperatureAndSuns(Suns=suns)
+
+
