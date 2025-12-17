@@ -225,14 +225,16 @@ def compare_artifact_against_LT_spice(device, LT_spice_IV, pytest_mode=False):
     Pmax1 = get_Pmax(device.IV_table)
     Pmax2 = get_Pmax(LT_spice_IV)
     all_pass = True
-    rtol = 1e-4
-    atol = 1e-4
+    rtol = 1e-5
+    atol = 1e-5
     if not np.isclose(Pmax1, Pmax2, rtol=rtol, atol=atol):
         print(f"Difference at Pmax: {Pmax2} (LT spice) != {Pmax1} (PV Circuit Model)")
         all_pass = False
         if pytest_mode:
             assert(np.isclose(Pmax1, Pmax2, rtol=rtol, atol=atol))
 
+    rtol = 1e-4
+    atol = 1e-4
     for i in range(LT_spice_IV.shape[1]):
         V = LT_spice_IV[0,i]
         I = LT_spice_IV[1,i]
