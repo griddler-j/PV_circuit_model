@@ -8,6 +8,7 @@ from shapely.geometry import Polygon, Point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import ScalarFormatter
 import numbers
+from functools import partial
 
 # Device is a logical wrapper around CircuitGroup that preserves internal structure.
 # When Devices are connected in series or parallel via + or |, their internal subgroups are NOT flattened.
@@ -15,6 +16,15 @@ import numbers
 # Subclasses of Device typically add device-specific parameters, behavior, and analysis methods.
 class Device(CircuitGroup):
     _is_atomic = True
+    @classmethod
+    def from_circuitgroup(cls, comp, **kwargs):
+        return cls(comp.subgroups, comp.connection, **kwargs)
+
+def set_Suns(circuit_group, suns):
+    currentSources = circuit_group.findElementType(CurrentSource)
+    for currentSource in currentSources:
+        currentSource.changeTemperatureAndSuns(Suns=suns)
+CircuitGroup.set_Suns = set_Suns
 
 class Cell(Device,_type_number=6):
     photon_coupling_diodes = None
@@ -229,8 +239,7 @@ class Module(Device):
         self.cells = cells
         self.temperature = temperature
         self.set_temperature(temperature)
-        self.Suns = Suns
-        self.set_Suns(Suns)     
+        self.Suns = Suns 
     def set_Suns(self,Suns):
         for cell in self.cells:
             cell.set_Suns(Suns=Suns)
@@ -241,7 +250,10 @@ class Module(Device):
     @classmethod
     def from_circuitgroup(cls, comp, **kwargs):
         return cls(comp.subgroups,comp.connection, **kwargs)
-    
+
+# just an alias
+ByPassDiode = ReverseDiode
+Dbypass = partial(ByPassDiode)
 
 class MultiJunctionCell(Device):
     def __init__(self,subcells=None,subgroups=None,Rs=0.1,location=None,
@@ -572,7 +584,7 @@ def make_module(cells, num_strings=3, num_cells_per_halfstring=24,
         if butterfly:
             tile_elements(cell_halfstrings, cols = 1, y_gap = 1, yflip=True)
 
-        bypass_diode = ReverseDiode(I0=I0_rev, n=1, V_shift = 0)
+        bypass_diode = ByPassDiode(I0=I0_rev, n=1, V_shift = 0)
         bypass_diode.max_I = 0.2*cells[0].area
         cell_strings.append(CircuitGroup(cell_halfstrings+[bypass_diode],
                                 "parallel",name="cell_string"))
@@ -630,7 +642,3 @@ def get_cell_col_row(self: CircuitGroup, fuzz_distance=0.2):
     return cell_col_row, map, inverse_map
 CircuitGroup.get_cell_col_row = get_cell_col_row
 
-def set_Suns(circuit_group, suns):
-    currentSources = circuit_group.findElementType(CurrentSource)
-    for currentSource in currentSources:
-        currentSource.changeTemperatureAndSuns(Suns=suns)

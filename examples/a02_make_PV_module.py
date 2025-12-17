@@ -84,3 +84,11 @@ module.show()
 module.set_Suns(0.0) 
 module.set_operating_point(I=10)
 _ = module.draw_cells(title="Cell Vint with additional high Rs cell",colour_bar=True)
+
+string = module*26
+print(type(string))
+string = string.as_type(Device,name="string")
+block = string + string.clone() + string.clone()
+
+print(len(block.parts))
+print(len(string.parts))
