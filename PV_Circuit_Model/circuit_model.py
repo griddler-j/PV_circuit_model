@@ -483,6 +483,14 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
         self.is_circuit_group = True
 
+    @property
+    def parts(self):
+        return self.subgroups
+
+    @parts.setter
+    def parts(self, value):
+        self.subgroups = value
+
     def set_operating_point(self,V=None,I=None,refine_IV=False,shallow=False):
         if not hasattr(self,"job_heap"):
             self.build_IV()
