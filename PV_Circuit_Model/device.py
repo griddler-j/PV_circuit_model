@@ -340,6 +340,8 @@ class MultiJunctionCell(Device):
 
     # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
 def draw_cells(self,display=True,show_names=False,colour_bar=False,colour_what="Vint",show_module_names=False,fontsize=9,min_value=None,max_value=None,title="Cells Layout",colormap=cm.plasma):
+    if display:
+        fig, ax = plt.subplots()
     shapes = []
     names = []
     Vints = []
@@ -354,7 +356,7 @@ def draw_cells(self,display=True,show_names=False,colour_bar=False,colour_what="
                 Vints.extend(Vints_)
                 EL_Vints.extend(EL_Vints_)
                 Is.extend(Is_)
-                if show_module_names and element.name is not None:
+                if show_module_names and element.name is not None and display:
                     ax.text(element.location[0], element.location[1]+element.extent[1]/2*1.05, element.name, fontsize=fontsize, color='black', ha="center", va="center")
     elif hasattr(self,"shape"): # a solar cell
         shapes.append(self.shape.copy())
@@ -437,7 +439,6 @@ def draw_cells(self,display=True,show_names=False,colour_bar=False,colour_what="
 
         shapes[i] = new_shape
     if display:
-        fig, ax = plt.subplots()
         for i, shape in enumerate(shapes):
             color = 'gray'
             if has_EL_Vint:
