@@ -3,7 +3,7 @@ from pathlib import Path
 import sys, types
 import importlib
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 def _get_git_info():
     try:
