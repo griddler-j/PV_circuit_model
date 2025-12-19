@@ -44,7 +44,7 @@ cell_.show()
 
 #%%
 # quick_solar_cell has the advantage that you can specify target I-V parameters for the diode parameters to tune to
-cell = quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True)
+cell = Cell_(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True)
 cell.plot(title="Cell I-V Curve")
 cell.show()
 # save cell2 for next example

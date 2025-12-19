@@ -38,7 +38,7 @@ module_.show()
 # %% [markdown]
 # ## Because modules are frequently defined, if we want to be lazy, here's a short cut
 
-module = quick_module(Isc=14, Voc=0.72*72, FF=0.8, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, half_cut=True, butterfly=True)
+module = Module_(Isc=14, Voc=0.72*72, FF=0.8, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, half_cut=True, butterfly=True)
 module.plot(title="Module I-V Curve")
 module.show()
 
