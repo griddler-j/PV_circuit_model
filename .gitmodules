@@ -1,0 +1,3 @@
+[submodule "tests"]
+	path = tests
+	url = https://github.com/arsonwong/PV_circuit_model_tests
