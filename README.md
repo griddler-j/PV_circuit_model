@@ -28,11 +28,11 @@ You can test the package functionality by executing the example script inside th
 
 ## Current Support Status
 
-✅ **Windows**: Supported (tested)
-✅ **Linux**: Tested via Docker (Debian GNU/Linux 13)
-⚠️ **macOS**: Not yet tested
+✅ **Windows**: Supported (CI-tested on GitHub Actions)  
+✅ **Linux**: Supported (CI-tested on GitHub Actions)  
+⚠️ **macOS**: Experimental (local use possible; CI support pending) 
 
-**Python versions**: Tested on Python 3.11 and 3.12
+**Python versions**: Tested on Python 3.11, 3.12, 3.13
 
 ### Build Requirements (Mandatory)
 
