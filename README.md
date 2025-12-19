@@ -30,7 +30,7 @@ You can test the package functionality by executing the example script inside th
 
 ✅ **Windows**: Supported (CI-tested on GitHub Actions)  
 ✅ **Linux**: Supported (CI-tested on GitHub Actions)  
-⚠️ **macOS**: Experimental (local use possible; CI support pending) 
+✅ **macOS (Apple Silicon)**: Supported (CI-tested on GitHub Actions; OpenMP disabled by default)
 
 **Python versions**: Tested on Python 3.11, 3.12, 3.13
 
