@@ -23,12 +23,16 @@ def rel(p: Path) -> str:
 def is_windows() -> bool:
     return sys.platform.startswith("win")
 
+def is_macos() -> bool:
+    return sys.platform == "darwin"
 
 def want_openmp() -> bool:
     """
     Allow disabling OpenMP if needed (e.g., some macOS/clang setups).
     Set env PV_CIRCUIT_NO_OPENMP=1 to disable.
     """
+    if is_macos():
+        return False
     return os.environ.get("PV_CIRCUIT_NO_OPENMP", "").strip() not in {"1", "true", "True", "YES", "yes"}
 
 
