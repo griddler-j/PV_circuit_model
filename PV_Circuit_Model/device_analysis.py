@@ -5,6 +5,15 @@ import matplotlib
 from matplotlib import pyplot as plt
 from contextlib import nullcontext
 import matplotlib.ticker as mticker
+import os
+
+# Treat CI or forced Agg as headless
+HEADLESS = (
+    os.environ.get("CI")  # GitHub Actions / other CI
+    or os.environ.get("MPLBACKEND", "").lower() == "agg"
+)
+
+
 try:
     import tkinter as tk
     from tkinter.scrolledtext import ScrolledText
@@ -24,8 +33,12 @@ def _in_notebook() -> bool:
         return False
 
 IN_NOTEBOOK = _in_notebook()
-if not IN_NOTEBOOK and tk is not None:
-    matplotlib.use("TkAgg")
+if not IN_NOTEBOOK and tk is not None and not HEADLESS:
+    try:
+        matplotlib.use("TkAgg")
+    except Exception:
+        # Fall back silently if TkAgg isn't available
+        pass
 
 BASE_UNITS = {
     "Pmax": ("W",  "W"),
@@ -510,6 +523,8 @@ def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer
     J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,**kwargs)
     return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, **wafer_shape(format=wafer_format,half_cut=half_cut), **kwargs)
 
+Cell_ = quick_solar_cell
+
 def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=False, butterfly=False,**kwargs):
     force_n1 = False
     if special_conditions is not None:
@@ -579,6 +594,8 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
             else:
                 try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
     return module
+
+Module_ = quick_module
 
 def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=True,**kwargs):
     return quick_module(Isc, Voc, FF, Pmax, wafer_format, num_strings, num_cells_per_halfstring, special_conditions, half_cut, butterfly=True,**kwargs)

@@ -4,15 +4,16 @@ from PV_Circuit_Model.measurement import *
 from matplotlib import pyplot as plt
 import inspect
 import numbers
+
 try:
     import tkinter as tk
     from tkinter import ttk
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 except Exception:
-    tk = None  # headless / no-tk environment
+    tk = None          # headless / no-tk environment
     ttk = None
-import tkinter as tk
-from tkinter import ttk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    FigureCanvasTkAgg = None
+
 from types import SimpleNamespace
 from joblib import Parallel, delayed
 from pathlib import Path
