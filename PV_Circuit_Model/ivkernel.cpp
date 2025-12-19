@@ -126,7 +126,7 @@ void build_current_source_iv(
     int n = 1;
     for (int i=0; i < n; ++i) {
         out_V[i] = 0;
-        out_I[i] = -IL;
+        out_I[i] = -IL*1.1;
     }
     *out_len = n;
 }
