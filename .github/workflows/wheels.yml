@@ -1,0 +1,130 @@
+name: Wheels
+
+on:
+  push:
+    tags: ["v*"]
+  release:
+    types: [published]
+
+jobs:
+  build_wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest,macos-14]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cibuildwheel
+        run: python -m pip install -U pip cibuildwheel
+
+      - name: Build wheels
+        env:
+          CIBW_BUILD: "cp311-* cp312-* cp313-*"
+          CIBW_SKIP: "pp*"
+          # Disable OpenMP at BUILD time (your build scripts must honor this)
+          CIBW_ENVIRONMENT: "PV_CIRCUIT_NO_OPENMP=1"
+          # (Optional) also disable runtime OpenMP just in case
+          CIBW_TEST_ENVIRONMENT: "PV_CIRCUIT_NO_OPENMP=1"
+          # Smoke-test installed wheel
+          CIBW_TEST_COMMAND: "python -c \"import PV_Circuit_Model; print('wheel import ok')\""
+        run: python -m cibuildwheel --output-dir wheelhouse
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  test_wheels:
+    name: Test wheels (${{ matrix.os }}, py${{ matrix.python }})
+    needs: [build_wheels]
+    runs-on: ${{ matrix.os }}
+    env:
+      MPLBACKEND: Agg
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+        python: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout PV_Circuit_Model (with test submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Download wheels for this OS
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install wheel for this Python
+        shell: bash
+        run: |
+          python -m pip install -U pip
+          python - <<'PY'
+          import glob, os, sys, subprocess
+
+          py = f"cp{sys.version_info.major}{sys.version_info.minor}"
+          wheels = sorted(glob.glob(os.path.join("wheelhouse", "*.whl")))
+
+          if not wheels:
+              raise SystemExit("No wheels found in wheelhouse/. Did build_wheels upload artifacts?")
+
+          # Prefer the wheel matching this CPython tag (cp311/cp312/cp313)
+          candidates = [w for w in wheels if f"-{py}-" in os.path.basename(w)]
+          if not candidates:
+              print("Available wheels:")
+              for w in wheels:
+                  print(" ", os.path.basename(w))
+              raise SystemExit(f"No wheel found matching {py}. Check CIBW_BUILD and artifact contents.")
+
+          wheel = candidates[0]
+          print("Installing wheel:", wheel)
+          subprocess.check_call([sys.executable, "-m", "pip", "install", wheel])
+          PY
+
+      - name: Smoke import (installed wheel)
+        run: python -c "import PV_Circuit_Model; print('import ok (wheel)')"
+
+      - name: Run external tests (against installed wheel)
+        working-directory: tests
+        shell: bash
+        run: |
+          python -m pip install -U pytest
+          pytest -q main.py
+
+  publish_pypi:
+    if: github.event_name == 'release'
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # for PyPI Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Gather wheels
+        run: |
+          mkdir -p upload
+          find dist -name "*.whl" -exec cp {} upload/ \;
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload
