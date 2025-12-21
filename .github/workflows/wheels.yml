@@ -110,7 +110,7 @@ jobs:
 
   publish_pypi:
     if: github.event_name == 'release'
-    needs: [build_wheels]
+    needs: [build_wheels, test_wheels]
     runs-on: ubuntu-latest
     permissions:
       id-token: write  # for PyPI Trusted Publishing
