@@ -27,6 +27,7 @@ jobs:
       - name: Build wheels
         env:
           CIBW_BUILD: "cp311-* cp312-* cp313-*"
+          CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_SKIP: "pp*"
           # Disable OpenMP at BUILD time (your build scripts must honor this)
           CIBW_ENVIRONMENT: "PV_CIRCUIT_NO_OPENMP=1"
