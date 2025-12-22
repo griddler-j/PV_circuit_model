@@ -39,6 +39,8 @@ class Cell(Device,_type_number=6):
         super().__init__(subgroups, connection,location=location,rotation=rotation,
                          name=name,extent=np.array([x_extent,y_extent]).astype(float))
         self.area = area
+        if self.max_I is not None:
+            self.max_I *= area
         self.is_cell = True
         self.shape = shape
         self.temperature = temperature
@@ -251,8 +253,10 @@ class Module(Device):
     def from_circuitgroup(cls, comp, **kwargs):
         return cls(comp.subgroups,comp.connection, **kwargs)
 
-# just an alias
-ByPassDiode = ReverseDiode
+
+class ByPassDiode(ReverseDiode):
+    max_I = None
+
 Dbypass = partial(ByPassDiode)
 
 class MultiJunctionCell(Device):

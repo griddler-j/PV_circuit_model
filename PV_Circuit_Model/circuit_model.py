@@ -20,10 +20,13 @@ except Exception as e:
 
 import gc
 
+# Solver tuning pulled from ParameterSet to control IV remeshing thresholds.
 solver_env_variables = ParameterSet.get_set("solver_env_variables")
 REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
 REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
+DEFAULT_MAX_DIODE_CURRENT_DENSITY = solver_env_variables["DEFAULT_MAX_DIODE_CURRENT_DENSITY"]
       
+# Base class for any circuit component; manages IV artifacts and serialization hooks.
 class CircuitComponent(Artifact):
     _critical_fields = ("max_I","max_num_points")
     _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
@@ -107,6 +110,7 @@ class CircuitComponent(Artifact):
 
     def build_IV(self):
         gc.disable()
+        # Run IV solver; if needed, expand diode current range and retry.
         self.job_heap = IV_Job_Heap(self)
         success = self.job_heap.run_IV()
         if not success:
@@ -125,6 +129,7 @@ class CircuitComponent(Artifact):
     def refine_IV(self):
         if hasattr(self,"job_heap") and getattr(self,"operating_point",None) is not None:
             gc.disable()
+            # Refine around the current operating point if available.
             self.job_heap.refine_IV()
             self.refined_IV = True
             gc.enable()
@@ -135,6 +140,7 @@ class CircuitComponent(Artifact):
                 self.job_heap.calc_uncertainty()
 
     def __call__(self, *, atomic=True):
+        # Clone while optionally marking as atomic to avoid flattening.
         clone = self.clone()
         clone._is_atomic = atomic
         return clone
@@ -176,6 +182,7 @@ class CircuitComponent(Artifact):
         return self.__pow__(other)
     
     def structure(self):
+        # Tuple structure used for comparing circuit topology.
         children = getattr(self, "subgroups", None)
         return (
             type(self),
@@ -188,6 +195,7 @@ class CircuitComponent(Artifact):
             if hasattr(self,field) and hasattr(other,field):
                 setattr(self,field,getattr(other,field))
 
+# Helper to collapse nested CircuitGroups with the same connection type.
 def flatten_connection(parts_list,connection):
     flat_list = []
     for part in parts_list:
@@ -198,6 +206,7 @@ def flatten_connection(parts_list,connection):
             flat_list.append(part)
     return flat_list
 
+# Normalize args and build a CircuitGroup with optional tiling and flattening.
 def connect(*args,connection="series",flatten_connection_=False,**kwargs):
     flat_list = []
     for arg in args:
@@ -220,6 +229,7 @@ def connect(*args,connection="series",flatten_connection_=False,**kwargs):
     safe_kwargs = filter_kwargs(CircuitGroup.__init__, kwargs)
     return CircuitGroup(subgroups=flat_list,connection=connection,**safe_kwargs)
 
+# Convenience constructors for series/parallel connections.
 def series(*args,flatten_connection_=False,**kwargs):
     kwargs.pop("connection", None)
     if "rows" not in kwargs:
@@ -232,6 +242,7 @@ def parallel(*args,flatten_connection_=False,**kwargs):
         kwargs["cols"] = 1
     return connect(*args,connection="parallel",flatten_connection_=flatten_connection_,**kwargs)
 
+# Leaf element interface: must implement IV behavior and drawing hooks.
 class CircuitElement(CircuitComponent):
     def set_operating_point(self,V=None,I=None):
         if V is not None:
@@ -255,6 +266,7 @@ class CircuitElement(CircuitComponent):
     def get_V_range(self):
         raise NotImplementedError("Every child class of CircuitElement must have its own get_V_range function")
 
+# Ideal current source with optional temperature and irradiance scaling.
 class CurrentSource(CircuitElement,_type_number=0):
     _critical_fields = CircuitComponent._critical_fields + ("IL","refSuns","Suns","refIL","refT","T","temp_coeff")
     def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
@@ -295,6 +307,7 @@ class CurrentSource(CircuitElement,_type_number=0):
 # simplified initializer
 IL = partial(CurrentSource)
 
+# Ohmic resistor represented by conductance (1/R).
 class Resistor(CircuitElement,_type_number=1):
     _critical_fields = CircuitComponent._critical_fields + ("cond",)
     def __init__(self, cond=1.0, tag=None):
@@ -331,10 +344,11 @@ class Resistor(CircuitElement,_type_number=1):
 def R(R,tag=None):
     return Resistor(cond=1/R, tag=tag)
 
+# Generic diode with temperature-dependent thermal voltage and shift.
 class Diode(CircuitElement,_type_number=2):
     _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT","refI0","refT")
-    max_I = 0.2
-    def __init__(self,I0=1e-15,n=1,V_shift=0,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
+    max_I = DEFAULT_MAX_DIODE_CURRENT_DENSITY
+    def __init__(self,I0=1e-15,n=1,V_shift=0,max_I=None,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
         super().__init__(tag=tag)
         self.I0 = I0
         self.n = n
@@ -342,6 +356,8 @@ class Diode(CircuitElement,_type_number=2):
         self.VT = get_VT(temperature)
         self.refI0 = I0
         self.refT = temperature
+        if max_I is not None:
+            self.max_I = max_I
     def set_I0(self,I0):
         self.I0 = I0
         self.null_IV()
@@ -369,9 +385,8 @@ class Diode(CircuitElement,_type_number=2):
         scale_factor = (new_ni/old_ni)**(2/self.n)
         self.set_I0(self.refI0*scale_factor)
     
+# Standard Shockley diode (forward direction).
 class ForwardDiode(Diode):
-    def __init__(self,I0=1e-15,n=1,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
-        super().__init__(I0, n, V_shift=0,tag=tag)
     def __str__(self):
         return "Forward Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
     def get_value_text(self):
@@ -390,6 +405,7 @@ D = partial(ForwardDiode)
 D1 = partial(ForwardDiode,n=1)
 D2 = partial(ForwardDiode,n=2)
     
+# LED-like diode used for photon coupling in tandem models.
 class PhotonCouplingDiode(ForwardDiode):
     def get_draw_func(self):
         return draw_LED_diode_symbol
@@ -399,9 +415,8 @@ class PhotonCouplingDiode(ForwardDiode):
 # simplified initializer
 Dpc = partial(PhotonCouplingDiode)
 
+# Reverse (breakdown) diode; shifts voltage and flips IV direction.
 class ReverseDiode(Diode,_type_number=3):
-    def __init__(self,I0=1e-15,n=1, V_shift=0,tag=None): #V_shift is to shift the starting voltage, e.g. to define breakdown
-        super().__init__(I0, n, V_shift, tag=tag)
     def __str__(self):
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
     def get_value_text(self):
@@ -417,11 +432,12 @@ class ReverseDiode(Diode,_type_number=3):
 # simplified initializer
 Drev = partial(ReverseDiode)
     
+# Intrinsic Si diode with recombination physics for base region.
 class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
     _critical_fields = CircuitComponent._critical_fields + ("base_thickness","base_type","base_doping","temperature","VT","ni","area")
     bandgap_narrowing_RT = np.array(bandgap_narrowing_RT)
     # area is 1 is OK because the cell subgroup has normalized area of 1
-    def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,tag=None):
+    def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,max_I=None,tag=None):
         CircuitElement.__init__(self, tag)
         self.base_thickness = base_thickness
         self.base_type = base_type
@@ -431,6 +447,8 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         self.V_shift = 0
         self.VT = get_VT(self.temperature)
         self.ni = get_ni(self.temperature)
+        if max_I is not None:
+            self.max_I = max_I
     def __str__(self):
         return "Si Intrinsic Diode"
     def calc_I(self, V):
@@ -476,6 +494,7 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
 
 Dintrinsic_Si = partial(Intrinsic_Si_diode)
 
+# Composite circuit node that holds subgroups in series or parallel.
 class CircuitGroup(CircuitComponent,_type_number=5):
     _critical_fields = CircuitComponent._critical_fields + ("connection","subgroups")
     def __init__(self,subgroups,connection="series",name=None,location=None,
@@ -484,10 +503,25 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         self.connection = connection
         self.subgroups = subgroups
         self.num_circuit_elements = 0
+        max_I = 0
+        max_max_I = 0
         for element in self.subgroups:
             element.parent = self
             self.num_circuit_elements += element.num_circuit_elements
             self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
+            if element.max_I is not None:
+                max_max_I = max(max_max_I, element.max_I)
+                if connection=="series":
+                    max_I = max(max_I, element.max_I)
+                else:
+                    max_I += element.max_I
+        if max_I > 0:
+            self.max_I = max_I
+        if max_max_I > 0:
+            for element in self.subgroups:
+                if isinstance(element,Diode) and element.max_I is None:
+                    element.max_I = max_max_I
+
         if self.num_circuit_elements > REMESH_NUM_ELEMENTS_THRESHOLD:
             self.max_num_points = int(REMESH_POINTS_DENSITY*np.sqrt(self.num_circuit_elements))
         self.name = name
@@ -527,7 +561,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         elif self.IV_V is None:
             self.job_heap.run_IV()
 
-        # autorange
+        # Auto-range IV curve if requested point falls outside current bounds.
         if V is not None:
             if (not self.extrapolation_allowed[1] and V > self.IV_V[-1]) or (not self.extrapolation_allowed[0] and V < self.IV_V[0]): # out of reach of IV curve
                 diodes = self.findElementType(Diode)
@@ -546,6 +580,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                     self.build_IV()
 
         if shallow or self.num_circuit_elements < 10000 or not hasattr(IV_Job_Heap,"set_operating_point"): # no need to go c++ overkill
+            # Use python interpolation for shallow/small circuits.
             V_ = V
             I_ = I
             if V is not None:
@@ -620,6 +655,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         global pbar
         draw_immediately = False
         if ax is None:
+            # Create a fresh figure and progress bar for interactive drawing.
             num_of_elements = self.num_circuit_elements
             pbar = tqdm(total=num_of_elements)
             fig, ax = plt.subplots()
@@ -657,6 +693,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 current_x += element.circuit_diagram_extent[0]+x_spacing
         if draw_immediately:
             pbar.close()
+            # Add terminals and clean up axes for diagram output.
             line = plt.Line2D([x,x], [y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2-0.2], color="black", linewidth=linewidth)
             ax.add_line(line)
             line = plt.Line2D([x,x], [y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2+0.2], color="black", linewidth=linewidth)
@@ -717,6 +754,7 @@ def get_extent(elements, center=True):
     else:
         return None
 
+# Compute drawing extent based on series/parallel layout.
 def get_circuit_diagram_extent(elements,connection):
     total_extent = [0.0,0.0]
     for i, element in enumerate(elements):
@@ -735,6 +773,7 @@ def get_circuit_diagram_extent(elements,connection):
         total_extent[1] += 0.2 # the connectors
     return total_extent
 
+# Tile elements into a grid for layout and diagram placement.
 def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=False, xflip=False, yflip=False, col_wise_ordering=True):
     tile_objects = []
     for element in elements:
@@ -796,9 +835,11 @@ def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn
     if yflip and rows==2 and len(tile_objects)==2:
         tile_objects[1].y_mirror = -1
 
+# Shallow copy helper for circuit components.
 def circuit_deepcopy(circuit_component):
     return circuit_component.clone()
 
+# Search helpers for nested CircuitGroup structures.
 def find_subgroups_by_name(circuit_group, target_name):
     result = []
     for element in circuit_group.subgroups:
@@ -808,6 +849,7 @@ def find_subgroups_by_name(circuit_group, target_name):
             result.extend(find_subgroups_by_name(element, target_name))
     return result
 
+# Search helpers for tags in nested CircuitGroup structures.
 def find_subgroups_by_tag(circuit_group, tag):
     result = []
     for element in circuit_group.subgroups:
