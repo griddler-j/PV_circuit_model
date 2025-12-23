@@ -1390,31 +1390,32 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         if type(self).__name__=="Cell":
             area_multiplier *= self.area
         cumulative_I = 0
-        for i_, element in enumerate(reversed(self.subgroups)):
-            i = len(self.subgroups)-i_-1
-            if type(element).__name__=="Cell":
-                pc_diodes = element.photon_coupling_diodes
-                if len(pc_diodes) > 0:
-                    if i > 0:
-                        current_offset = -pc_diodes[0].operating_point[1]*element.area
-                        cell_below = self.subgroups[i-1]
-                        if type(cell_below).__name__=="Cell":
-                            cell_below.aux["current_offset"] = current_offset
-                            current_source = cell_below.findElementType(CurrentSource)
-                            if len(current_source)>0:
-                                current_source[0].aux["pc_partner"] = pc_diodes[0]
-                                pc_diodes[0].aux["pc_partner"] = current_source[0]
+        if animate and self.operating_point is not None:
+            for i_, element in enumerate(reversed(self.subgroups)):
+                i = len(self.subgroups)-i_-1
+                if type(element).__name__=="Cell":
+                    pc_diodes = element.photon_coupling_diodes
+                    if len(pc_diodes) > 0:
+                        if i > 0:
+                            current_offset = -pc_diodes[0].operating_point[1]*element.area
+                            cell_below = self.subgroups[i-1]
+                            if type(cell_below).__name__=="Cell":
+                                cell_below.aux["current_offset"] = current_offset
+                                current_source = cell_below.findElementType(CurrentSource)
+                                if len(current_source)>0:
+                                    current_source[0].aux["pc_partner"] = pc_diodes[0]
+                                    pc_diodes[0].aux["pc_partner"] = current_source[0]
 
-        if "current_offset" in self.aux:
-            current_offset = self.aux["current_offset"]
-            if type(self).__name__=="Cell":
-                current_offset /= self.area
-            if self.connection=="series":
-                for element in self.subgroups:
-                    element.aux["current_offset"] = current_offset
-            else:
-                current_source = self.findElementType(CurrentSource)
-                current_source[0].aux["current_offset"] = current_offset
+            if "current_offset" in self.aux:
+                current_offset = self.aux["current_offset"]
+                if type(self).__name__=="Cell":
+                    current_offset /= self.area
+                if self.connection=="series":
+                    for element in self.subgroups:
+                        element.aux["current_offset"] = current_offset
+                else:
+                    current_source = self.findElementType(CurrentSource)
+                    current_source[0].aux["current_offset"] = current_offset
 
         for i, element in enumerate(self.subgroups):
             if isinstance(element,CircuitElement):
