@@ -21,6 +21,18 @@ except Exception as e:
 
 import gc
 
+def in_notebook() -> Tuple[bool, Optional[Any], Optional[Any]]:
+    try:
+        from IPython import get_ipython
+        ip = get_ipython()
+        if ip is None or not hasattr(ip, "kernel"):
+            return False, None, None
+        from IPython.display import HTML, display
+        return True, HTML, display
+    except Exception:
+        return False, None, None
+IN_NOTEBOOK, HTML, display = in_notebook()
+
 # Solver tuning pulled from ParameterSet to control IV remeshing thresholds.
 solver_env_variables = utilities.ParameterSet.get_set("solver_env_variables")
 if solver_env_variables is None:
@@ -1336,7 +1348,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         linewidth: float = 1.5,
         animate: bool = False,
         area_multiplier: float = 1,
-    ) -> list:
+        is_root: bool = True
+    ) -> list[Any] | None:
         """Draw the circuit group with matplotlib.
 
         Args:
@@ -1415,7 +1428,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if isinstance(element,CircuitElement):
                 element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value)
             else:
-                branch_currents.extend(element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_multiplier))
+                branch_currents.extend(element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_multiplier,is_root=False))
             I_ = None
             if animate and element.operating_point is not None:
                 I_ = element.operating_point[1]*area_multiplier
@@ -1475,8 +1488,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         if draw_immediately:
             if animate and self.operating_point is not None:
                 I_ = self.operating_point[1]*area_multiplier
-                if "current_offset" in element.aux:
-                    I_ += element.aux["current_offset"]*area_multiplier
+                if "current_offset" in self.aux:
+                    I_ += self.aux["current_offset"]*area_multiplier
                 branch_currents.append([x,x,y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2-0.2,-I_])
                 branch_currents.append([x,x,y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2+0.2,I_])
             pbar.close()
@@ -1558,20 +1571,25 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                             circle.set_visible(True)
                     return [ci[0] for ci in circles]  # needed for blit=True
 
-                _ = animation.FuncAnimation(
+                ani = animation.FuncAnimation(
                     fig,
                     update,
-                    frames=100,
+                    frames=20,
                     interval=50,
-                    blit=True
+                    blit=True,
+                    cache_frame_data=False
                 )
+                if IN_NOTEBOOK:
+                    display(HTML(ani.to_jshtml()))
                                
             plt.show()
         if "current_offset" in self.aux:
             del self.aux["current_offset"]
         if "pc_partner" in self.aux:
             del self.aux["pc_partner"]
-        return branch_currents
+
+        if not is_root:
+            return branch_currents
     
     def as_type(self, cls: Type[T_CircuitComponent], **kwargs: Any) -> T_CircuitComponent:
         """Convert this group to another circuit component type.

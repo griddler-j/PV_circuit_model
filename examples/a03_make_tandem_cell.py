@@ -45,7 +45,8 @@ tandem_cell = MultiJunctionCell([bottom_cell,top_cell])
 # ## Circuit model representation
 
 #%%
-tandem_cell.draw(display_value=True,title="Tandem Cell Model")
+tandem_cell.get_Pmax() # this sets the operating point to MPP, so that the animation will proceed in the next draw step
+tandem_cell.draw(display_value=True,title="Tandem Cell Model",animate=True)
 
 # %% [markdown]
 # ## Plot IV curve

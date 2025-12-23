@@ -26,7 +26,8 @@ circuit_group = (
     + R(1/3)
 )
 
-circuit_group.draw(display_value=True)
+circuit_group.get_Pmax() # this sets the operating point to MPP, so that the animation will proceed in the next draw step
+circuit_group.draw(display_value=True,animate=True)
 circuit_group.plot(title="Cell Parts I-V Curve")
 circuit_group.show()
 
