@@ -20,8 +20,7 @@ pip install PV-Circuit-Model
 
 ```python
 
-from PV_Circuit_Model.device import *
-from PV_Circuit_Model.device_analysis import *
+from PV_Circuit_Model.circuit_model import IL, D1, D2, Dintrinsic_Si, Drev, R, CircuitGroup
 
 # Notation: A | B means "connect A, B in parallel", and A + B means "connect A, B in series"
 # IL(41e-3) = CurrentSource with IL = 41e-3A
