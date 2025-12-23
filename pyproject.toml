@@ -39,3 +39,9 @@ version = { attr = "PV_Circuit_Model.__version__" }
 # Wheels will contain the compiled extension (.pyd/.so) so end users won't need a compiler.
 [tool.setuptools.package-data]
 PV_Circuit_Model = ["*.pyx", "*.pxd", "*.pxi", "*.h", "*.hpp", "*.c", "*.cpp", "parameters/*"]
+
+[project.urls]
+Homepage = "https://github.com/griddler-j/PV_circuit_model"
+Documentation = "https://griddler-j.github.io/PV_circuit_model/"
+Source = "https://github.com/griddler-j/PV_circuit_model"
+Issues = "https://github.com/griddler-j/PV_circuit_model/issues"
