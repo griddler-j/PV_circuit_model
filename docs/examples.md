@@ -7,8 +7,8 @@ This page highlights common modeling patterns.
 ## Make a solar cell structure
 
 ```python
-from PV_Circuit_Model.device import *
-from PV_Circuit_Model.device_analysis import *
+from PV_Circuit_Model.circuit_model import IL, D1, D2, Dintrinsic_Si, Drev, R
+from PV_Circuit_Model.device import Cell, wafer_shape
 
 # A solar cell can be made of these circuit elements.  
 # # Notation: A | B means "connect A, B in parallel", and A + B means "connect A, B in series"
@@ -52,6 +52,7 @@ cell_.show()
 ## Short Cut for making a solar cell
 
 ```python
+from PV_Circuit_Model.device_analysis import Cell_
 # Because cells are frequently defined, we offer a short cut definition
 # Cell_ has the advantage that you can specify target I-V parameters for the diode parameters to tune to
 cell = Cell_(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True)
@@ -65,6 +66,7 @@ cell.show()
 ## Organizing parts in series and parallel connections to build a module
 
 ```python
+from PV_Circuit_Model.device import Dbypass, Module
 # Let's put 24 x 2 x 3 = 144 cells together to make a module.  Note these notations below:
 # A*24 = A + A .... + A = connect 24 copies of A's together in series
 # tile_subgroups is optional to arrange the cells spatially, just for visualization
@@ -92,6 +94,7 @@ module_.show()
 ## Short Cut to making a module
 
 ```python
+from PV_Circuit_Model.device_analysis import Module_
 # Because modules are frequently defined, we offer a short cut definition
 module = Module_(Isc=14, Voc=0.72*72, FF=0.8, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, half_cut=True, butterfly=True)
 
@@ -104,6 +107,7 @@ module.show()
 ## Introduce cell to cell variations inside the module
 
 ```python
+import numpy as np
 # Manipulate the cell properties
 np.random.seed(0)
 for cell in module.cells:
@@ -133,6 +137,7 @@ _ = module.draw_cells(title="Cell Vint with additional high Rs cell",colour_bar=
 
 # By the way, one can always use the attribute .subgroups or .children or .parts (they're all the same)
 # to access the child components of a CircuitGroup.  For example:
+from PV_Circuit_Model.circuit_model import CircuitGroup
 count = 0
 for section in module.parts:
     for part in section.parts:
@@ -143,6 +148,7 @@ for section in module.parts:
 # causes a high current in the substring that's parallel to it
 
 # We can even access the I-V characteristics of each substring if we like
+from PV_Circuit_Model.device import set_Suns
 count = 0
 for section in module.parts:
     for part in section.parts:
@@ -165,6 +171,7 @@ for section in module.parts:
 PV-Circuit-Model scales to thousands of cells by exploiting hierarchical IV merging.
 
 ```python
+from PV_Circuit_Model.device import Device
 # we series connect 10 modules together
 # again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization
 module = quick_module(Isc=14, Voc=0.72*72, FF=0.8, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, half_cut=True, butterfly=True)
