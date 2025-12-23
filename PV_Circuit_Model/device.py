@@ -187,7 +187,7 @@ class Cell(Device,_type_number=6):
         if self.series_resistor is not None:
             self.series_resistor.copy_values(cell2.series_resistor)
         for i, element in enumerate(self.diode_branch.subgroups):
-            if i < len(cell2.diode_branch.subgroups) and type(element) is type(cell2.diode_branch.subgroups[i]):
+            if i < len(cell2.diode_branch.subgroups) and type(element) is type(cell2.diode_branch.subgroups[i]): # noqa: E721
                 element.copy_values(cell2.diode_branch.subgroups[i])
 
     def set_Suns(self, Suns: float) -> None:
