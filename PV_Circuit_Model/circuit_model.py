@@ -1,5 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.animation as animation
+from matplotlib.patches import Circle
 import PV_Circuit_Model.utilities as utilities
 import PV_Circuit_Model.utilities_silicon as silicon
 from tqdm import tqdm
@@ -325,9 +327,9 @@ class CircuitComponent(utilities.Artifact):
             a.cond == b.cond # True
             ```
         """
-        for field in self._critical_fields:
-            if hasattr(self,field) and hasattr(other,field):
-                setattr(self,field,getattr(other,field))
+        for field_ in self._critical_fields:
+            if hasattr(self,field_) and hasattr(other,field_):
+                setattr(self,field_,getattr(other,field_))
     
     def plot(self,
         fourth_quadrant: bool = True,
@@ -1138,7 +1140,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         I: Optional[float] = None, # noqa: E741
         refine_IV: bool = False,
         shallow: bool = False,
-    ) -> None:
+        use_python: bool = False,
+    ) -> None: 
         """Set the operating point for the circuit group.
 
         Args:
@@ -1182,7 +1185,13 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                     self.null_all_IV()
                     self.build_IV()
 
-        if shallow or self.num_circuit_elements < 10000: # no need to go c++ overkill
+        use_python_ = use_python
+        pc_diodes = []
+        if not use_python:
+            pc_diodes = self.findElementType(PhotonCouplingDiode)
+            if len(pc_diodes)>0:
+                use_python_ = True
+        if use_python_ or shallow or self.num_circuit_elements < 10000: # no need to go c++ overkill
             # Use python interpolation for shallow/small circuits.
             V_ = V
             I_ = I
@@ -1195,11 +1204,23 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 I_ /= self.area
             if shallow:   
                 return
-            for item in self.subgroups:
-                if self.connection=="series":
-                    item.set_operating_point(I=I_)
+            I_offset_ = 0
+            for item in reversed(self.subgroups):
+                if isinstance(item,CircuitElement):
+                    if self.connection=="series":
+                        item.set_operating_point(I=I_)
+                    else:
+                        item.set_operating_point(V=V_)
                 else:
-                    item.set_operating_point(V=V_)
+                    if self.connection=="series":
+                        item.set_operating_point(I=I_-I_offset_,use_python=True)
+                        I_offset_ = 0
+                        if len(pc_diodes)>0 and type(item).__name__=="Cell":
+                            photon_coupling_diodes = item.photon_coupling_diodes
+                            if photon_coupling_diodes and len(photon_coupling_diodes)>0:
+                                I_offset_ = -photon_coupling_diodes[0].operating_point[1]*item.area
+                    else:
+                        item.set_operating_point(V=V_,use_python=True)
         else:
             self.job_heap.set_operating_point(V,I)
 
@@ -1303,7 +1324,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if isinstance(element,CircuitGroup):
                 word += "Subgroup " + str(i) + ":\n"
             word += str(element) + "\n"
-        return word    
+        return word  
     
     def draw(
         self,
@@ -1313,7 +1334,9 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         display_value: bool = False,
         title: str = "Model",
         linewidth: float = 1.5,
-    ) -> None:
+        animate: bool = False,
+        area_multiplier: float = 1,
+    ) -> list:
         """Draw the circuit group with matplotlib.
 
         Args:
@@ -1339,6 +1362,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         
         global pbar
         draw_immediately = False
+        branch_currents = []
         if ax is None:
             # Create a fresh figure and progress bar for interactive drawing.
             num_of_elements = self.num_circuit_elements
@@ -1350,6 +1374,35 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         current_y = y - self.circuit_diagram_extent[1]/2
         if self.connection != "series":
             current_y += 0.1
+        if type(self).__name__=="Cell":
+            area_multiplier *= self.area
+        cumulative_I = 0
+        for i_, element in enumerate(reversed(self.subgroups)):
+            i = len(self.subgroups)-i_-1
+            if type(element).__name__=="Cell":
+                pc_diodes = element.photon_coupling_diodes
+                if len(pc_diodes) > 0:
+                    if i > 0:
+                        current_offset = -pc_diodes[0].operating_point[1]*element.area
+                        cell_below = self.subgroups[i-1]
+                        if type(cell_below).__name__=="Cell":
+                            cell_below.aux["current_offset"] = current_offset
+                            current_source = cell_below.findElementType(CurrentSource)
+                            if len(current_source)>0:
+                                current_source[0].aux["pc_partner"] = pc_diodes[0]
+                                pc_diodes[0].aux["pc_partner"] = current_source[0]
+
+        if "current_offset" in self.aux:
+            current_offset = self.aux["current_offset"]
+            if type(self).__name__=="Cell":
+                current_offset /= self.area
+            if self.connection=="series":
+                for element in self.subgroups:
+                    element.aux["current_offset"] = current_offset
+            else:
+                current_source = self.findElementType(CurrentSource)
+                current_source[0].aux["current_offset"] = current_offset
+
         for i, element in enumerate(self.subgroups):
             if isinstance(element,CircuitElement):
                 pbar.update(1)
@@ -1359,13 +1412,56 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 center_x = x
             else:
                 center_y = y
-            element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value)
+            if isinstance(element,CircuitElement):
+                element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value)
+            else:
+                branch_currents.extend(element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_multiplier))
+            I_ = None
+            if animate and element.operating_point is not None:
+                I_ = element.operating_point[1]*area_multiplier
+                if "current_offset" in element.aux:
+                    I_ += element.aux["current_offset"]*area_multiplier
+                if "pc_partner" in element.aux:
+                    branch_currents.append([element,element.aux["pc_partner"],center_x,center_y,I_])
             if self.connection=="series":
                 if i > 0:
+                    if I_ is not None:
+                        if isinstance(element,CircuitElement):
+                            branch_currents.append([x,x,current_y-utilities.y_spacing, current_y+element.circuit_diagram_extent[1],I_])
+                        else:
+                            branch_currents.append([x,x,current_y-utilities.y_spacing, current_y,I_])
                     line = plt.Line2D([x,x],[current_y-utilities.y_spacing, current_y], color="black", linewidth=linewidth)
                     ax.add_line(line)
                 current_y += element.circuit_diagram_extent[1]+utilities.y_spacing
             else:
+                if I_ is not None:
+                    if isinstance(element,CircuitElement):
+                        branch_currents.append([center_x,center_x,y-self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2,I_])
+                    else:
+                        branch_currents.append([center_x,center_x,center_y+element.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2,I_])
+                        branch_currents.append([center_x,center_x,center_y-element.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2,I_])
+                    if i < len(self.subgroups)-1:
+                        next_center_x = current_x+element.circuit_diagram_extent[0]+utilities.x_spacing
+                        cumulative_I += I_ 
+                        if center_x <= x:
+                            branch_currents.append([center_x,min(next_center_x,x),
+                                                y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2,cumulative_I])
+                            branch_currents.append([center_x,min(next_center_x,x),
+                                                    y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2,-cumulative_I])
+                        else:    
+                            branch_currents.append([center_x,next_center_x,
+                                                y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2,cumulative_I])
+                            branch_currents.append([center_x,next_center_x,
+                                                    y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2,-cumulative_I])
+                        if center_x <= x and next_center_x > x:
+                            cumulative_I = 0
+                            for j in range(i+1,len(self.subgroups)):
+                                cumulative_I -= self.subgroups[j].operating_point[1]*area_multiplier
+                            branch_currents.append([x,next_center_x,
+                                                y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2,cumulative_I])
+                            branch_currents.append([x,next_center_x,
+                                                    y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2,-cumulative_I])
+
                 line = plt.Line2D([center_x,center_x], [center_y+element.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
                 ax.add_line(line)
                 line = plt.Line2D([center_x,center_x], [center_y-element.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
@@ -1377,6 +1473,12 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                     ax.add_line(line)
                 current_x += element.circuit_diagram_extent[0]+utilities.x_spacing
         if draw_immediately:
+            if animate and self.operating_point is not None:
+                I_ = self.operating_point[1]*area_multiplier
+                if "current_offset" in element.aux:
+                    I_ += element.aux["current_offset"]*area_multiplier
+                branch_currents.append([x,x,y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2-0.2,-I_])
+                branch_currents.append([x,x,y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2+0.2,I_])
             pbar.close()
             # Add terminals and clean up axes for diagram output.
             line = plt.Line2D([x,x], [y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2-0.2], color="black", linewidth=linewidth)
@@ -1391,7 +1493,85 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 spine.set_visible(False)
             fig.tight_layout()
             fig.canvas.manager.set_window_title(title)
+            if animate and self.operating_point is not None:
+                ball_spacing = 0.12
+                max_ball_size = 0.05
+                max_I_ = 0
+                for branch_current in branch_currents:
+                    max_I_ = max(max_I_,abs(branch_current[4]))
+                circles = []
+                for branch_current in branch_currents:
+                    color = "blue"
+                    if isinstance(branch_current[0],CircuitComponent): # a pc connection
+                        if isinstance(branch_current[0],PhotonCouplingDiode):
+                            I_ = branch_current[4]
+                            start_pt = np.array([branch_current[2],branch_current[3]])
+                            for branch_current_ in branch_currents:
+                                if branch_current_[1] is branch_current[0]: 
+                                    end_pt = np.array([branch_current_[2],branch_current_[3]])
+                            color = "orange"
+                        else:
+                            continue
+                    else:
+                        I_ = branch_current[4]
+                        if I_ < 0:
+                            start_pt = np.array([branch_current[0],branch_current[2]])
+                            end_pt = np.array([branch_current[1],branch_current[3]])
+                        else:
+                            end_pt = np.array([branch_current[0],branch_current[2]])
+                            start_pt = np.array([branch_current[1],branch_current[3]])
+                    ratio = abs(I_)/max_I_
+                    if ratio >= 1e-3:
+                        log_ratio = np.log10(ratio)
+                        ball_size = max_ball_size*(8+log_ratio)/8
+                        displacement = end_pt-start_pt
+                        distance = np.sqrt(displacement[0]**2+displacement[1]**2)
+                        unit_vector = displacement / distance
+                        range_ = np.arange(0,distance,ball_spacing)
+                        num_balls = len(range_)
+                        balls_end_to_end_distance = num_balls*ball_spacing
+                        for pos in range_:
+                            x_ = start_pt[0] + unit_vector[0]*pos + 0.02
+                            y_ = start_pt[1] + unit_vector[1]*pos + 0.02
+                            circles.append([Circle((x_,y_), radius=ball_size, fc=color), pos, distance, ball_spacing/4, start_pt, unit_vector, balls_end_to_end_distance])
+                            ax.add_patch(circles[-1][0])
+            
+                def update(frame):
+                    for circle_info in circles:
+                        circle = circle_info[0]
+                        pos = circle_info[1]
+                        distance = circle_info[2]
+                        speed = circle_info[3]
+                        start_pt = circle_info[4]
+                        unit_vector = circle_info[5]
+                        balls_end_to_end_distance = circle_info[6]
+                        new_pos = speed + pos
+                        if new_pos > distance:
+                            new_pos -= balls_end_to_end_distance
+                        x_ = start_pt[0] + unit_vector[0]*new_pos + 0.02
+                        y_ = start_pt[1] + unit_vector[1]*new_pos + 0.02
+                        circle_info[1] = new_pos
+                        circle.center = (x_,y_)
+                        if new_pos < 0:
+                            circle.set_visible(False)
+                        else:
+                            circle.set_visible(True)
+                    return [ci[0] for ci in circles]  # needed for blit=True
+
+                _ = animation.FuncAnimation(
+                    fig,
+                    update,
+                    frames=100,
+                    interval=50,
+                    blit=True
+                )
+                               
             plt.show()
+        if "current_offset" in self.aux:
+            del self.aux["current_offset"]
+        if "pc_partner" in self.aux:
+            del self.aux["pc_partner"]
+        return branch_currents
     
     def as_type(self, cls: Type[T_CircuitComponent], **kwargs: Any) -> T_CircuitComponent:
         """Convert this group to another circuit component type.
