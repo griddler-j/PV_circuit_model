@@ -1,18 +1,16 @@
 import numpy as np
-from PV_Circuit_Model.circuit_model import *
-from PV_Circuit_Model.device import *
+import PV_Circuit_Model.circuit_model as circuit
+import PV_Circuit_Model.device as device_module
+import PV_Circuit_Model.utilities as utilities
 import matplotlib
 from matplotlib import pyplot as plt
 from contextlib import nullcontext
 import matplotlib.ticker as mticker
 import os
-
-# Treat CI or forced Agg as headless
-HEADLESS = (
-    os.environ.get("CI")  # GitHub Actions / other CI
-    or os.environ.get("MPLBACKEND", "").lower() == "agg"
-)
-
+from tqdm import tqdm
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from PV_Circuit_Model import __version__, __git_hash__, __git_date__, __dirty__
+from datetime import datetime
 
 try:
     import tkinter as tk
@@ -21,13 +19,15 @@ except Exception:
     tk = None  # headless / no-tk environment
     ScrolledText = None
 
-from PV_Circuit_Model import __version__, __git_hash__, __git_date__, __dirty__
-from datetime import datetime, timezone
+# Treat CI or forced Agg as headless
+HEADLESS = (
+    os.environ.get("CI")  # GitHub Actions / other CI
+    or os.environ.get("MPLBACKEND", "").lower() == "agg"
+)
 
 def _in_notebook() -> bool:
     try:
         from IPython import get_ipython
-        from IPython.display import display
         return get_ipython() is not None and hasattr(get_ipython(), "kernel")
     except Exception:
         return False
@@ -66,17 +66,37 @@ DISPLAY_DECIMALS = {
     "Jmp":  (3,3),
 }
 
-solver_env_variables = ParameterSet.get_set("solver_env_variables")
+solver_env_variables = utilities.ParameterSet.get_set("solver_env_variables")
 REFINE_V_HALF_WIDTH = solver_env_variables["REFINE_V_HALF_WIDTH"]
 
 
-def get_Voc(argument, interpolation_method=0):
-    if isinstance(argument,CircuitGroup):
+def get_Voc(argument: Union[circuit.CircuitGroup, np.ndarray], interpolation_method: int = 0) -> float:
+    """Compute open-circuit voltage (Voc) from an IV curve or CircuitGroup.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (Union[CircuitGroup, np.ndarray]): CircuitGroup or IV curve.
+        interpolation_method (int): 0 linear, 1 upper bound, 2 lower bound.
+
+    Returns:
+        float: Open-circuit voltage.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import get_Voc
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        get_Voc(cell)
+        ```
+    """
+    if isinstance(argument,circuit.CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
         
         if argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
-            diodes = argument.findElementType(Diode)
+            diodes = argument.findElementType(circuit.Diode)
             while argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
                 for diode in diodes:
                     diode.max_I *= 10
@@ -87,87 +107,155 @@ def get_Voc(argument, interpolation_method=0):
     else:
         IV_curve = argument
     
-    Voc = interp_(0,IV_curve[1,:],IV_curve[0,:])  
+    Voc = utilities.interp_(0,IV_curve[1,:],IV_curve[0,:])  
 
     if interpolation_method>0: 
         index = np.searchsorted(IV_curve[1,:], 0, side="right") - 1
         if index>0 and index+1<IV_curve.shape[1]-1:
-            V = np.linspace(IV_curve[0,index],IV_curve[0,index+1],1000)
-            I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+            V_ = np.linspace(IV_curve[0,index],IV_curve[0,index+1],1000)
+            I_ = utilities.interp_(V_,IV_curve[0,:],IV_curve[1,:])
             slopes = (IV_curve[1,index:index+3]-IV_curve[1,index-1:index+2])/(IV_curve[0,index:index+3]-IV_curve[0,index-1:index+2])
             left_slope = slopes[0]
             right_slope = slopes[2]
             this_slope = slopes[1]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index] + (V-IV_curve[0,index])*left_slope
-                I_ref_right = IV_curve[1,index+1] + (V-IV_curve[0,index+1])*right_slope
-                I_ref_mid = interp_(V,IV_curve[0,:],IV_curve[1,:])
+                I_ref_left = IV_curve[1,index] + (V_-IV_curve[0,index])*left_slope
+                I_ref_right = IV_curve[1,index+1] + (V_-IV_curve[0,index+1])*right_slope
+                I_ref_mid = utilities.interp_(V_,IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                    I_ = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
-                    I = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+                    I_ = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
             else:
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I[:] = IV_curve[1,index-1]
+                    I_[:] = IV_curve[1,index-1]
                 else: 
-                    I[:] = IV_curve[1,index]
+                    I_[:] = IV_curve[1,index]
 
-            Voc = interp_(0,I,V)  
+            Voc = utilities.interp_(0,I_,V_)  
 
     return Voc
-CircuitGroup.get_Voc = get_Voc
+circuit.CircuitGroup.get_Voc = get_Voc
 
-def get_Isc(argument, interpolation_method=0):
-    if isinstance(argument,CircuitGroup):
+def get_Isc(argument: Union[circuit.CircuitGroup, np.ndarray], interpolation_method: int = 0) -> float:
+    """Compute short-circuit current (Isc) from an IV curve or CircuitGroup.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (Union[CircuitGroup, np.ndarray]): CircuitGroup or IV curve.
+        interpolation_method (int): 0 linear, 1 upper bound, 2 lower bound.
+
+    Returns:
+        float: Short-circuit current.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import get_Isc
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        get_Isc(cell)
+        ```
+    """
+    if isinstance(argument,circuit.CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
         IV_curve = argument.IV_table
-        Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:],argument.extrapolation_dI_dV[0],argument.extrapolation_dI_dV[1])
+        Isc = -utilities.interp_(0,IV_curve[0,:],IV_curve[1,:],argument.extrapolation_dI_dV[0],argument.extrapolation_dI_dV[1])
     else:
         IV_curve = argument
-        Isc = -interp_(0,IV_curve[0,:],IV_curve[1,:])
+        Isc = -utilities.interp_(0,IV_curve[0,:],IV_curve[1,:])
 
     if interpolation_method>0: 
         index = np.searchsorted(IV_curve[0,:], 0, side="right") - 1
         if index>0 and index+1<IV_curve.shape[1]-1:
-            V = np.linspace(IV_curve[0,index],IV_curve[0,index+1],1000)
-            I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+            V_ = np.linspace(IV_curve[0,index],IV_curve[0,index+1],1000)
+            I_ = utilities.interp_(V_,IV_curve[0,:],IV_curve[1,:])
             slopes = (IV_curve[1,index:index+3]-IV_curve[1,index-1:index+2])/(IV_curve[0,index:index+3]-IV_curve[0,index-1:index+2])
             left_slope = slopes[0]
             right_slope = slopes[2]
             this_slope = slopes[1]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index] + (V-IV_curve[0,index])*left_slope
-                I_ref_right = IV_curve[1,index+1] + (V-IV_curve[0,index+1])*right_slope
-                I_ref_mid = interp_(V,IV_curve[0,:],IV_curve[1,:])
+                I_ref_left = IV_curve[1,index] + (V_-IV_curve[0,index])*left_slope
+                I_ref_right = IV_curve[1,index+1] + (V_-IV_curve[0,index+1])*right_slope
+                I_ref_mid = utilities.interp_(V_,IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                    I_ = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
-                    I = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+                    I_ = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
             else:
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I[:] = IV_curve[1,index-1]
+                    I_[:] = IV_curve[1,index-1]
                 else: 
-                    I[:] = IV_curve[1,index]
-            Isc = -interp_(0,V,I)  
+                    I_[:] = IV_curve[1,index]
+            Isc = -utilities.interp_(0,V_,I_)  
 
     return Isc
-CircuitGroup.get_Isc = get_Isc
+circuit.CircuitGroup.get_Isc = get_Isc
 
-def get_Jsc(argument):
+def get_Jsc(argument: circuit.CircuitGroup) -> float:
+    """Compute short-circuit current density (Jsc).
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (CircuitGroup): CircuitGroup with IV data.
+
+    Returns:
+        float: Short-circuit current density.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import get_Jsc
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        get_Jsc(cell)
+        ```
+    """
     Jsc = argument.get_Isc()
     if hasattr(argument,"area"):
         Jsc /= argument.area
     return Jsc
-CircuitGroup.get_Jsc = get_Jsc
+circuit.CircuitGroup.get_Jsc = get_Jsc
 
 # interpolation_method 0-linear, 1-upper bound, 2-lowerbound
-def get_Pmax(argument, return_op_point=False, refine_IV=True, interpolation_method=0):
-    if isinstance(argument,CircuitGroup):
+def get_Pmax(
+    argument: Union[circuit.CircuitGroup, np.ndarray],
+    return_op_point: bool = False,
+    refine_IV: bool = True,
+    interpolation_method: int = 0,
+) -> Union[float, Tuple[float, float, float]]:
+    """Compute maximum power from an IV curve or group.
+
+    Optionally refines IV around the operating point.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (Union[CircuitGroup, np.ndarray]): CircuitGroup or IV curve.
+        return_op_point (bool): If True, return (Pmax, Vmp, Imp).
+        refine_IV (bool): If True, refine IV around the peak.
+        interpolation_method (int): 0 linear, 1 upper bound, 2 lower bound.
+
+    Returns:
+        Union[float, Tuple[float, float, float]]: Pmax or (Pmax, Vmp, Imp).
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import get_Pmax
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        get_Pmax(cell)
+        ```
+    """
+    if isinstance(argument,circuit.CircuitGroup):
         if argument.IV_V is None:
             argument.build_IV()
         if argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
-            diodes = argument.findElementType(Diode)
+            diodes = argument.findElementType(circuit.Diode)
             while argument.IV_I.size==0 or argument.IV_I[-1] < 0: # can't reach OC
                 for diode in diodes:
                     diode.max_I *= 10
@@ -176,123 +264,183 @@ def get_Pmax(argument, return_op_point=False, refine_IV=True, interpolation_meth
         IV_curve = argument.IV_table
     else:
         IV_curve = argument
-    V = IV_curve[0,:]
-    I = IV_curve[1,:]
-    power = -V*I
+    V_ = IV_curve[0,:]
+    I_ = IV_curve[1,:]
+    power = -V_*I_
     index = np.argmax(power)
     if not (index==0 or index==power.size-1):
-        V = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
-        I = interp_(V,IV_curve[0,:],IV_curve[1,:])
+        V_ = np.linspace(IV_curve[0,index-1],IV_curve[0,index+1],1000)
+        I_ = utilities.interp_(V_,IV_curve[0,:],IV_curve[1,:])
         if interpolation_method>0 and index-1>0 and index+1<IV_curve.shape[1]-1:
             slopes = (IV_curve[1,index-1:index+3]-IV_curve[1,index-2:index+2])/(IV_curve[0,index-1:index+3]-IV_curve[0,index-2:index+2])
-            find_ = np.where(V <= IV_curve[0,index])[0]
+            find_ = np.where(V_ <= IV_curve[0,index])[0]
             left_slope = slopes[0]
             right_slope = slopes[2]
             this_slope = slopes[1]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
-                I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
-                I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                I_ref_left = IV_curve[1,index-1] + (V_[find_]-IV_curve[0,index-1])*left_slope
+                I_ref_right = IV_curve[1,index] + (V_[find_]-IV_curve[0,index])*right_slope
+                I_ref_mid = utilities.interp_(V_[find_],IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                    I_[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
-                    I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+                    I_[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
             else:
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I[find_] = IV_curve[1,index-1]
+                    I_[find_] = IV_curve[1,index-1]
                 else: 
-                    I[find_] = IV_curve[1,index]
+                    I_[find_] = IV_curve[1,index]
 
-            find_ = np.where(V > IV_curve[0,index])[0]
+            find_ = np.where(V_ > IV_curve[0,index])[0]
             left_slope = slopes[1]
             right_slope = slopes[3]
             this_slope = slopes[2]
             if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                I_ref_left = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*left_slope
-                I_ref_right = IV_curve[1,index+1] + (V[find_]-IV_curve[0,index+1])*right_slope
-                I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                I_ref_left = IV_curve[1,index] + (V_[find_]-IV_curve[0,index])*left_slope
+                I_ref_right = IV_curve[1,index+1] + (V_[find_]-IV_curve[0,index+1])*right_slope
+                I_ref_mid = utilities.interp_(V_[find_],IV_curve[0,:],IV_curve[1,:])
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                    I_[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                 else:
-                    I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+                    I_[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
             else:
                 if interpolation_method==1: # get upper bound curve, meaning to go under
-                    I[find_] = IV_curve[1,index]
+                    I_[find_] = IV_curve[1,index]
                 else: 
-                    I[find_] = IV_curve[1,index+1]
+                    I_[find_] = IV_curve[1,index+1]
 
-        power = -V*I
+        power = -V_*I_
         index = np.argmax(power)
-    Vmp = V[index]
+    Vmp = V_[index]
     
-    if isinstance(argument,CircuitGroup) and refine_IV and not argument.refined_IV:
+    if isinstance(argument,circuit.CircuitGroup) and refine_IV and not argument.refined_IV:
         if not hasattr(argument,"job_heap"):
             argument.build_IV()
         argument.set_operating_point(V=Vmp, refine_IV=refine_IV)
-        V = argument.IV_V
-        I = argument.IV_I
-        power = -V*I
+        V_ = argument.IV_V
+        I_ = argument.IV_I
+        power = -V_*I_
         index = np.argmax(power)
         if not (index==0 or index==power.size-1):
-            V = np.linspace(argument.IV_V[index-1],argument.IV_I[index+1],1000)
-            I = interp_(V,argument.IV_V,argument.IV_I)
+            V_ = np.linspace(argument.IV_V[index-1],argument.IV_I[index+1],1000)
+            I_ = utilities.interp_(V_,argument.IV_V,argument.IV_I)
             if interpolation_method>0 and index-1>0 and index+1<IV_curve.shape[1]-1:
                 slopes = (IV_curve[1,index-1:index+3]-IV_curve[1,index-2:index+2])/(IV_curve[0,index-1:index+3]-IV_curve[0,index-2:index+2])
-                find_ = np.where(V <= IV_curve[0,index])[0]
+                find_ = np.where(V_ <= IV_curve[0,index])[0]
                 left_slope = slopes[0]
                 right_slope = slopes[2]
                 this_slope = slopes[1]
                 if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                    I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
-                    I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
-                    I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                    I_ref_left = IV_curve[1,index-1] + (V_[find_]-IV_curve[0,index-1])*left_slope
+                    I_ref_right = IV_curve[1,index] + (V_[find_]-IV_curve[0,index])*right_slope
+                    I_ref_mid = utilities.interp_(V_[find_],IV_curve[0,:],IV_curve[1,:])
                     if interpolation_method==1: # get upper bound curve, meaning to go under
-                        I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                        I_[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                     else:
-                        I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+                        I_[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
 
-                find_ = np.where(V > IV_curve[0,index])[0]
+                find_ = np.where(V_ > IV_curve[0,index])[0]
                 left_slope = slopes[1]
                 right_slope = slopes[3]
                 this_slope = slopes[2]
                 if not (np.isnan(left_slope) or np.isinf(left_slope) or np.isnan(right_slope) or np.isinf(right_slope) or np.isnan(this_slope) or np.isinf(this_slope)):
-                    I_ref_left = IV_curve[1,index-1] + (V[find_]-IV_curve[0,index-1])*left_slope
-                    I_ref_right = IV_curve[1,index] + (V[find_]-IV_curve[0,index])*right_slope
-                    I_ref_mid = interp_(V[find_],IV_curve[0,:],IV_curve[1,:])
+                    I_ref_left = IV_curve[1,index-1] + (V_[find_]-IV_curve[0,index-1])*left_slope
+                    I_ref_right = IV_curve[1,index] + (V_[find_]-IV_curve[0,index])*right_slope
+                    I_ref_mid = utilities.interp_(V_[find_],IV_curve[0,:],IV_curve[1,:])
                     if interpolation_method==1: # get upper bound curve, meaning to go under
-                        I[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
+                        I_[find_] = np.minimum(I_ref_mid, np.maximum(I_ref_left,I_ref_right))
                     else:
-                        I[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
+                        I_[find_] = np.maximum(I_ref_mid, np.minimum(I_ref_left,I_ref_right))
 
-            power = -V*I
+            power = -V_*I_
             index = np.argmax(power)
-    Vmp = V[index]
-    Imp = I[index]
+    Vmp = V_[index]
+    Imp = I_[index]
     Pmax = power[index]
-    if isinstance(argument,CircuitGroup):
+    if isinstance(argument,circuit.CircuitGroup):
         argument.operating_point = [Vmp,Imp]
 
     if return_op_point:
         return Pmax, Vmp, Imp
     return Pmax
-CircuitGroup.get_Pmax = get_Pmax
+circuit.CircuitGroup.get_Pmax = get_Pmax
 
-def get_Eff(argument):
+def get_Eff(argument: circuit.CircuitGroup) -> float:
+    """Compute efficiency from maximum power and area.
+
+    Uses `get_Pmax` and scales by area when available.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (CircuitGroup): CircuitGroup with IV data.
+
+    Returns:
+        float: Efficiency value.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import get_Eff
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        get_Eff(cell)
+        ```
+    """
     Eff = argument.get_Pmax()
     if hasattr(argument,"area"):
         Eff *= 10.0/argument.area
     return Eff
-CircuitGroup.get_Eff = get_Eff
+circuit.CircuitGroup.get_Eff = get_Eff
 
-def get_FF(argument,interpolation_method=0):
+def get_FF(argument: Union[circuit.CircuitGroup, np.ndarray], interpolation_method: int = 0) -> float:
+    """Compute fill factor from IV curve or group.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (Union[CircuitGroup, np.ndarray]): CircuitGroup or IV curve.
+        interpolation_method (int): 0 linear, 1 upper bound, 2 lower bound.
+
+    Returns:
+        float: Fill factor value.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import get_FF
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        get_FF(cell)
+        ```
+    """
     Voc = get_Voc(argument,interpolation_method=interpolation_method)
     Isc = get_Isc(argument,interpolation_method=interpolation_method)
     Pmax = get_Pmax(argument,interpolation_method=interpolation_method)
     FF = Pmax/(Isc*Voc)
     return FF
-CircuitGroup.get_FF = get_FF
+circuit.CircuitGroup.get_FF = get_FF
 
-def Rs_extraction_two_light_IVs(IV_curves):
+def Rs_extraction_two_light_IVs(IV_curves: Sequence[np.ndarray]) -> float:
+    """Estimate series resistance from two light IV curves.
+
+    Uses the shift between full-sun and half-sun operating points.
+
+    Args:
+        IV_curves (Sequence[np.ndarray]): Two IV curves at different irradiance.
+
+    Returns:
+        float: Estimated series resistance.
+
+    Example:
+        ```python
+        import numpy as np
+        from PV_Circuit_Model.device_analysis import Rs_extraction_two_light_IVs
+        IV1 = np.array([....])
+        IV2 = np.array([....])
+        Rs_extraction_two_light_IVs([IV1, IV2])
+        ```
+    """
     Isc0 = -1*get_Isc(IV_curves[0])
     Isc1 = -1*get_Isc(IV_curves[1])
     _, Vmp0, Imp0 = get_Pmax(IV_curves[0],return_op_point=True)
@@ -302,7 +450,26 @@ def Rs_extraction_two_light_IVs(IV_curves):
     Rs = (Vmp0-V_point)/(Isc0-Isc1)
     return Rs
 
-def Rshunt_extraction(IV_curve,base_point=0):
+def Rshunt_extraction(IV_curve: np.ndarray, base_point: float = 0) -> float:
+    """Estimate shunt resistance from the IV curve near a base point.
+
+    Performs a local linear fit around the specified voltage region.
+
+    Args:
+        IV_curve (np.ndarray): IV curve array with shape (2, N).
+        base_point (float): Voltage around which to estimate slope.
+
+    Returns:
+        float: Estimated shunt resistance.
+
+    Example:
+        ```python
+        import numpy as np
+        from PV_Circuit_Model.device_analysis import Rshunt_extraction
+        IV = np.array([....])
+        Rshunt_extraction(IV)
+        ```
+    """
     base_point = max(base_point,np.min(IV_curve[0,:]))
     indices = np.where((IV_curve[0,:]>=base_point) & (IV_curve[0,:]<=base_point+0.1))[0]
     indices = list(indices)
@@ -319,14 +486,49 @@ def Rshunt_extraction(IV_curve,base_point=0):
     Rshunt = min(Rshunt,100000)
     return Rshunt
 
-def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
-                          temperature=25,Sun=1.0,Si_intrinsic_limit=True,**kwargs):
+def estimate_cell_J01_J02(
+    Jsc: float,
+    Voc: float,
+    Pmax: Optional[float] = None,
+    FF: float = 1.0,
+    Rs: float = 0.0,
+    Rshunt: float = 1e6,
+    temperature: float = 25,
+    Sun: float = 1.0,
+    Si_intrinsic_limit: bool = True,
+    **kwargs: Any,
+) -> Tuple[float, float]:
+    """Estimate J01 and J02 for a cell that matches target IV metrics.
+
+    Iteratively adjusts diode saturation currents to match Voc and Pmax.
+
+    Args:
+        Jsc (float): Short-circuit current density.
+        Voc (float): Open-circuit voltage.
+        Pmax (Optional[float]): Target maximum power.
+        FF (float): Target fill factor if Pmax is not provided.
+        Rs (float): Series resistance.
+        Rshunt (float): Shunt resistance.
+        temperature (float): Temperature in Celsius.
+        Sun (float): Irradiance multiplier.
+        Si_intrinsic_limit (bool): If True, include intrinsic Si diode.
+        **kwargs (Any): Extra parameters for intrinsic diode.
+
+    Returns:
+        Tuple[float, float]: Estimated (J01, J02) values.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import estimate_cell_J01_J02
+        estimate_cell_J01_J02(Jsc=0.04, Voc=0.7, FF=0.8)
+        ```
+    """
     if Pmax is None:
         Pmax = Jsc*Voc*FF          
-    VT = get_VT(temperature)
+    VT = utilities.get_VT(temperature)
     max_J01 = Jsc/np.exp(Voc/VT)
     for inner_k in range(100):
-        trial_cell = make_solar_cell(Jsc, max_J01, 0.0, Rshunt, 
+        trial_cell = device_module.make_solar_cell(Jsc, max_J01, 0.0, Rshunt, 
                                      Rs, Si_intrinsic_limit=Si_intrinsic_limit, **kwargs)
         trial_cell.set_temperature(temperature)
         trial_cell.set_Suns(Sun)
@@ -336,7 +538,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
         max_J01 *= np.exp((Voc_-Voc)/VT)
     max_J02 = Jsc/np.exp(Voc/(2*VT))
     for inner_k in range(100):
-        trial_cell = make_solar_cell(Jsc, 0.0, max_J02, Rshunt, Rs, 
+        trial_cell = device_module.make_solar_cell(Jsc, 0.0, max_J02, Rshunt, Rs, 
                                      Si_intrinsic_limit=Si_intrinsic_limit,**kwargs)
         trial_cell.set_temperature(temperature)
         trial_cell.set_Suns(Sun)
@@ -354,7 +556,7 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
             outer_record_ = np.array(outer_record)
             indices = np.argsort(outer_record_[:,0])
             outer_record_ = outer_record_[indices,:]
-            trial_J01 = interp_(Pmax, outer_record_[:,1], outer_record_[:,0])
+            trial_J01 = utilities.interp_(Pmax, outer_record_[:,1], outer_record_[:,0])
             trial_J01 = max(trial_J01, 0.0)
             trial_J01 = min(trial_J01, max_J01)
         inner_record = []
@@ -369,10 +571,10 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
                 inner_record_ = np.array(inner_record)
                 indices = np.argsort(inner_record_[:,1])
                 inner_record_ = inner_record_[indices,:]
-                trial_J02 = interp_(Voc, inner_record_[:,1], inner_record_[:,0])
+                trial_J02 = utilities.interp_(Voc, inner_record_[:,1], inner_record_[:,0])
                 trial_J02 = max(trial_J02, 0.0)
                 trial_J02 = min(trial_J02, max_J02)
-            trial_cell = make_solar_cell(Jsc, trial_J01, trial_J02, Rshunt, Rs,
+            trial_cell = device_module.make_solar_cell(Jsc, trial_J01, trial_J02, Rshunt, Rs,
                                          Si_intrinsic_limit=Si_intrinsic_limit,**kwargs)
             trial_cell.set_temperature(temperature)
             trial_cell.set_Suns(Sun)
@@ -388,7 +590,13 @@ def estimate_cell_J01_J02(Jsc,Voc,Pmax=None,FF=1.0,Rs=0.0,Rshunt=1e6,
             break
     return trial_J01, trial_J02
 
-def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decimals=True, include_bounds=False):
+def get_IV_parameter_words(
+    self: circuit.CircuitGroup,
+    display_or_latex: int = 0,
+    cell_or_module: int = 0,
+    cap_decimals: bool = True,
+    include_bounds: bool = False,
+) -> Tuple[Dict[str, str], Dict[str, float]]:
     words = {}
     curves = {"normal":np.array([self.IV_V,self.IV_I])}
     if hasattr(self,"IV_V_lower"):
@@ -427,16 +635,46 @@ def get_IV_parameter_words(self, display_or_latex=0, cell_or_module=0, cap_decim
             words[key] += f", from upper bound curve: {all_parameters['upper'][key]:.{decimals}f} {BASE_UNITS[key][display_or_latex]})"
     return words, parameters
 
-def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve", show_solver_summary=False):
+def plot(
+    self: circuit.CircuitComponent,
+    fourth_quadrant: bool = True,
+    show_IV_parameters: bool = True,
+    title: str = "I-V Curve",
+    show_solver_summary: bool = False,
+) -> None:
+    """Plot the IV curve and optionally annotate key parameters.
+
+    Produces a matplotlib figure with current and power axes when requested.
+
+    Warning:
+        This function is monkey-patched onto `CircuitComponent` at import time.
+
+    Args:
+        self (CircuitComponent): Component with IV data.
+        fourth_quadrant (bool): If True, plot in power-generating quadrant.
+        show_IV_parameters (bool): If True, annotate IV metrics.
+        title (str): Figure window title.
+        show_solver_summary (bool): If True, open solver summary window.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import plot
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        plot(cell)
+        ```
+    """
     ctx = plt.ioff() if not show_solver_summary else nullcontext()
     with ctx:
         if self.IV_V is None:
             self.build_IV()
-        if (fourth_quadrant or show_IV_parameters) and isinstance(self,CircuitGroup):
+        if (fourth_quadrant or show_IV_parameters) and isinstance(self,circuit.CircuitGroup):
             _, Vmp, Imp = self.get_Pmax(return_op_point=True)
             Voc = self.get_Voc()
             Isc = self.get_Isc()
-            FF = self.get_FF()
 
         find_near_op = None
 
@@ -444,7 +682,7 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
         IV_I = self.IV_I
         
         fig = plt.figure("IV")
-        if fourth_quadrant and isinstance(self,CircuitGroup):
+        if fourth_quadrant and isinstance(self,circuit.CircuitGroup):
             if len(fig.axes) < 2:
                 fig.clf()
                 ax1 = fig.add_subplot(111)
@@ -475,10 +713,10 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
                 mticker.FuncFormatter(lambda x, pos: f"{x:.0e}")
             )
             ax2.set_ylabel("Power (W)")
-            if show_IV_parameters and fourth_quadrant and isinstance(self,CircuitGroup):
+            if show_IV_parameters and fourth_quadrant and isinstance(self,circuit.CircuitGroup):
                 cell_or_module=1
                 params = ["Isc","Voc","FF","Pmax"]
-                if isinstance(self,Cell) or isinstance(self,MultiJunctionCell): # cell or MJ cell
+                if isinstance(self,device_module.Cell) or isinstance(self,device_module.MultiJunctionCell): # cell or MJ cell
                     cell_or_module=0
                     params = ["Isc","Jsc","Voc","FF","Pmax","Eff","Area"]
                 words, _ = get_IV_parameter_words(self, display_or_latex=0, cell_or_module=cell_or_module, cap_decimals=True)
@@ -508,29 +746,125 @@ def plot(self, fourth_quadrant=True, show_IV_parameters=True, title="I-V Curve",
             ax1.set_ylabel("Current (A)")
             
         fig.canvas.manager.set_window_title(title)
-CircuitComponent.plot = plot
+circuit.CircuitComponent.plot = plot
 
-def show(self):
+def show(self: circuit.CircuitComponent) -> None:
+    """Show the IV figure in notebook or GUI environments.
+
+    In notebooks, the figure is non-blocking; otherwise it blocks until closed.
+
+    Warning:
+        This function is monkey-patched onto `CircuitComponent` at import time.
+
+    Args:
+        self (CircuitComponent): Component with plotted IV data.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import show
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        cell.plot()
+        cell.show()
+        ```
+    """
     # In notebooks, figures are auto-shown; don't block
     if IN_NOTEBOOK:
         plt.show(block=False)   # or even just `return`
     else:
         plt.show()
     plt.close("IV")
-CircuitComponent.show = show
+circuit.CircuitComponent.show = show
 
-def quick_solar_cell(Jsc=0.042, Voc=0.735, FF=0.82, Rs=0.3333, Rshunt=1e6, wafer_format="M10",half_cut=True, **kwargs):
+def quick_solar_cell(
+    Jsc: float = 0.042,
+    Voc: float = 0.735,
+    FF: float = 0.82,
+    Rs: float = 0.3333,
+    Rshunt: float = 1e6,
+    wafer_format: str = "M10",
+    half_cut: bool = True,
+    **kwargs: Any,
+) -> device_module.Cell:
+    """Create a quick solar cell model from target IV parameters.
+
+    Uses the estimator to derive J01/J02 and constructs a cell.
+
+    Args:
+        Jsc (float): Target short-circuit current density.
+        Voc (float): Target open-circuit voltage.
+        FF (float): Target fill factor.
+        Rs (float): Series resistance.
+        Rshunt (float): Shunt resistance.
+        wafer_format (str): Wafer format key for geometry.
+        half_cut (bool): If True, use half-cut geometry.
+        **kwargs (Any): Extra parameters forwarded to `make_solar_cell`.
+
+    Returns:
+        Cell: Constructed cell instance.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import quick_solar_cell
+        cell = quick_solar_cell(Jsc = 0.04, Voc = 0.7, FF = 0.81)
+        ```
+    """
     J01, J02 = estimate_cell_J01_J02(Jsc,Voc,FF=FF,Rs=Rs,Rshunt=Rshunt,**kwargs)
-    return make_solar_cell(Jsc, J01, J02, Rshunt, Rs, **wafer_shape(format=wafer_format,half_cut=half_cut), **kwargs)
+    return device_module.make_solar_cell(Jsc, J01, J02, Rshunt, Rs, **device_module.wafer_shape(format=wafer_format,half_cut=half_cut), **kwargs)
 
-Cell_ = quick_solar_cell
+def Cell_(*args, **kwargs):
+    """
+    This is a shorthand for `quick_solar_cell`.
+    """
+    return quick_solar_cell(*args, **kwargs)
 
-def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=False, butterfly=False,**kwargs):
+def quick_module(
+    Isc: Optional[float] = None,
+    Voc: Optional[float] = None,
+    FF: Optional[float] = None,
+    Pmax: Optional[float] = None,
+    wafer_format: str = "M10",
+    num_strings: int = 3,
+    num_cells_per_halfstring: int = 24,
+    special_conditions: Optional[Dict[str, Any]] = None,
+    half_cut: bool = False,
+    butterfly: bool = False,
+    **kwargs: Any,
+) -> device_module.Module:
+    """Create a module from target IV parameters.
+
+    Builds cells and tunes parameters to match target Pmax or FF.
+
+    Args:
+        Isc (Optional[float]): Target short-circuit current.
+        Voc (Optional[float]): Target open-circuit voltage.
+        FF (Optional[float]): Target fill factor.
+        Pmax (Optional[float]): Target maximum power.
+        wafer_format (str): Wafer format key for geometry.
+        num_strings (int): Number of parallel strings.
+        num_cells_per_halfstring (int): Cells per half-string.
+        special_conditions (Optional[Dict[str, Any]]): Special options (e.g., "force_n1").
+        half_cut (bool): If True, use half-cut geometry.
+        butterfly (bool): If True, use butterfly layout.
+        **kwargs (Any): Extra parameters forwarded to cell creation.
+
+    Returns:
+        Module: Constructed module instance.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import quick_module
+        module = quick_module(Isc = 13, Voc = 72*0.7, FF = 0.79)
+        ```
+    """
     force_n1 = False
     if special_conditions is not None:
         if "force_n1" in special_conditions:
             force_n1 = special_conditions["force_n1"]
-    area = wafer_shape(format=wafer_format, half_cut=half_cut)["area"]
+    area = device_module.wafer_shape(format=wafer_format, half_cut=half_cut)["area"]
     Jsc = 0.042
     cell_num_factor = 1
     if butterfly:
@@ -551,11 +885,11 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
         target_Pmax = Voc*Isc*FF
     if force_n1: # vary the module Rs
         cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=1.0, wafer_format=wafer_format,half_cut=half_cut,**kwargs)
-        cells = [circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
+        cells = [circuit.circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
         try_R = 0.02
         record = []
         for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
-            module = make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, halfstring_resistor = try_R, butterfly=butterfly)
+            module = device_module.make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, halfstring_resistor = try_R, butterfly=butterfly)
             module.set_Suns(1.0)
             module.build_IV()
             Pmax = module.get_Pmax()
@@ -565,7 +899,7 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
             record_ = np.array(record)
             record_ = record_[record_[:, 1].argsort()]
             if np.max(record_[:,1])>=target_Pmax and np.min(record_[:,1])<=target_Pmax:
-                try_R = interp_(target_Pmax, record_[:,1], record_[:,0])
+                try_R = utilities.interp_(target_Pmax, record_[:,1], record_[:,0])
             elif np.max(record_[:,1])<target_Pmax:
                 try_R /= 10
             else:
@@ -575,8 +909,8 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
         record = []
         for _ in tqdm(range(20),desc="Tweaking module cell parameters..."):
             cell = quick_solar_cell(Jsc=Jsc, Voc=cell_Voc, FF=try_FF, wafer_format=wafer_format,half_cut=half_cut,**kwargs)
-            cells = [circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
-            module = make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, butterfly=butterfly)
+            cells = [circuit.circuit_deepcopy(cell) for _ in range(cell_num_factor*num_strings*num_cells_per_halfstring)]
+            module = device_module.make_module(cells, num_strings=num_strings, num_cells_per_halfstring=num_cells_per_halfstring, butterfly=butterfly)
             module.set_Suns(1.0)
             module.build_IV()
             Pmax = module.get_Pmax()
@@ -595,22 +929,95 @@ def quick_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num
                 try_FF += 2*(target_Pmax - Pmax)/cell_Voc/Isc
     return module
 
-Module_ = quick_module
+def Module_(*args, **kwargs):
+    """
+    This is a shorthand for `quick_solar_cell`.
+    """
+    return quick_module(*args, **kwargs)
 
-def quick_butterfly_module(Isc=None, Voc=None, FF=None, Pmax=None, wafer_format="M10", num_strings=3, num_cells_per_halfstring=24, special_conditions=None, half_cut=True,**kwargs):
+def quick_butterfly_module(
+    Isc: Optional[float] = None,
+    Voc: Optional[float] = None,
+    FF: Optional[float] = None,
+    Pmax: Optional[float] = None,
+    wafer_format: str = "M10",
+    num_strings: int = 3,
+    num_cells_per_halfstring: int = 24,
+    special_conditions: Optional[Dict[str, Any]] = None,
+    half_cut: bool = True,
+    **kwargs: Any,
+) -> device_module.Module:
+    """Create a butterfly module from target IV parameters.
+
+    This is a convenience wrapper around `quick_module`.
+
+    Args:
+        Isc (Optional[float]): Target short-circuit current.
+        Voc (Optional[float]): Target open-circuit voltage.
+        FF (Optional[float]): Target fill factor.
+        Pmax (Optional[float]): Target maximum power.
+        wafer_format (str): Wafer format key for geometry.
+        num_strings (int): Number of parallel strings.
+        num_cells_per_halfstring (int): Cells per half-string.
+        special_conditions (Optional[Dict[str, Any]]): Special options.
+        half_cut (bool): If True, use half-cut geometry.
+        **kwargs (Any): Extra parameters forwarded to cell creation.
+
+    Returns:
+        Module: Constructed module instance.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import quick_butterfly_module
+        module = quick_butterfly_module(Isc = 13, Voc = 72*0.7, FF = 0.79)
+        module.connection
+        ```
+    """
     return quick_module(Isc, Voc, FF, Pmax, wafer_format, num_strings, num_cells_per_halfstring, special_conditions, half_cut, butterfly=True,**kwargs)
 
-def quick_tandem_cell(Jscs=[0.019,0.020], Vocs=[0.710,1.2], FFs=[0.8,0.78], Rss=[0.3333,0.5], Rshunts=[1e6,5e4], thicknesses=[160e-4,1e-6], wafer_format="M10",half_cut=True):
+def quick_tandem_cell(
+    Jscs: Sequence[float] = (0.019, 0.020),
+    Vocs: Sequence[float] = (0.710, 1.2),
+    FFs: Sequence[float] = (0.8, 0.78),
+    Rss: Sequence[float] = (0.3333, 0.5),
+    Rshunts: Sequence[float] = (1e6, 5e4),
+    thicknesses: Sequence[float] = (160e-4, 1e-6),
+    wafer_format: str = "M10",
+    half_cut: bool = True,
+) -> device_module.MultiJunctionCell:
+    """Create a quick tandem (multi-junction) cell model.
+
+    Builds subcells from target metrics and combines them in series.
+
+    Args:
+        Jscs (Sequence[float]): Target short-circuit current densities.
+        Vocs (Sequence[float]): Target open-circuit voltages.
+        FFs (Sequence[float]): Target fill factors.
+        Rss (Sequence[float]): Series resistances per subcell.
+        Rshunts (Sequence[float]): Shunt resistances per subcell.
+        thicknesses (Sequence[float]): Subcell thicknesses.
+        wafer_format (str): Wafer format key for geometry.
+        half_cut (bool): If True, use half-cut geometry.
+
+    Returns:
+        MultiJunctionCell: Constructed multi-junction cell.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import quick_tandem_cell
+        cell = quick_tandem_cell()
+        ```
+    """
     cells = []
     for i in range(len(Jscs)):
         Si_intrinsic_limit = True
         if i > 0:
             Si_intrinsic_limit = False
         J01, J02 = estimate_cell_J01_J02(Jscs[i],Vocs[i],FF=FFs[i],Rs=Rss[i],Rshunt=Rshunts[i],Si_intrinsic_limit=Si_intrinsic_limit,thickness=thicknesses[i])
-        cells.append(make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], **wafer_shape(format=wafer_format, half_cut=half_cut), thickness=thicknesses[i]))
-    return MultiJunctionCell(cells)
+        cells.append(device_module.make_solar_cell(Jscs[i], J01, J02, Rshunts[i], Rss[i], **device_module.wafer_shape(format=wafer_format, half_cut=half_cut), thickness=thicknesses[i]))
+    return device_module.MultiJunctionCell(cells)
 
-def solver_summary_heap(job_heap, display_or_latex=0): 
+def solver_summary_heap(job_heap: Any, display_or_latex: int = 0) -> str:
     build_time = job_heap.timers["build"]
     IV_time = job_heap.timers["IV"]
     refine_time = job_heap.timers["refine"]
@@ -619,10 +1026,10 @@ def solver_summary_heap(job_heap, display_or_latex=0):
     if component.refined_IV:
         paragraph = "I-V Parameters:\n"
     else:
-        paragraph = "I-V Parameters (coarse - run device.get_Pmax() to get refinement!):\n"
+        paragraph = "I-V Parameters (coarse - run get_Pmax() to get refinement!):\n"
     cell_or_module=1
     params = ["Isc","Imp","Voc","Vmp","FF","Pmax"]
-    if isinstance(component,Cell) or isinstance(component,MultiJunctionCell):
+    if isinstance(component,device_module.Cell) or isinstance(component,device_module.MultiJunctionCell):
         cell_or_module=0
         params = ["Isc","Jsc","Imp","Jmp","Voc","Vmp","FF","Pmax","Eff","Area"]
     words, _ = get_IV_parameter_words(component, display_or_latex=display_or_latex, cell_or_module=cell_or_module, cap_decimals=False, include_bounds=True)
@@ -654,7 +1061,30 @@ def solver_summary_heap(job_heap, display_or_latex=0):
 
     return paragraph
 
-def solver_summary(self,display_or_latex=0):
+def solver_summary(self: circuit.CircuitGroup, display_or_latex: int = 0) -> str:
+    """Generate a solver summary for a circuit group.
+
+    Reports IV metrics, solver timings, and environment settings.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        self (CircuitGroup): CircuitGroup with solver data.
+        display_or_latex (int): 0 for display, 1 for LaTeX units.
+
+    Returns:
+        str: Formatted solver summary text.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import solver_summary
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        cell.build_IV()
+        print(cell.solver_summary())
+        ```
+    """
     __now__ = datetime.now().astimezone().replace(microsecond=0).isoformat()
     paragraph = "----------------------------------------------------------------------------\n"
     paragraph += "I-V Solver Summary for "
@@ -667,12 +1097,12 @@ def solver_summary(self,display_or_latex=0):
     else:
         paragraph += "I-V Curve has not been calculated\n"
     paragraph += "----------------------------------------------------------------------------\n"
-    paragraph += f"CircuitGroup Information:\n"
+    paragraph += "CircuitGroup Information:\n"
     paragraph += f"Circuit Depth: {self.circuit_depth}\n"
     paragraph += f"Number of Circuit Elements: {self.num_circuit_elements}\n"
     paragraph += "----------------------------------------------------------------------------\n"
     paragraph += "Solver Environment Variables:\n"
-    solver_env_variables_dict = ParameterSet.get_set("solver_env_variables")()
+    solver_env_variables_dict = utilities.ParameterSet.get_set("solver_env_variables")()
     for key, value in solver_env_variables_dict.items():
         paragraph += f"{key}: {value}\n"
     paragraph += "----------------------------------------------------------------------------\n"
@@ -684,13 +1114,55 @@ def solver_summary(self,display_or_latex=0):
 
     return paragraph
 
-def save_solver_summary(self,filepath):
+def save_solver_summary(self: circuit.CircuitGroup, filepath: str) -> None:
+    """Save solver summary text to a file.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        self (CircuitGroup): CircuitGroup with solver data.
+        filepath (str): Output file path.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import save_solver_summary
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        cell.build_IV()
+        cell.save_solver_summary("summary.txt")
+        ```
+    """
     text = self.solver_summary(display_or_latex=1)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(text)
 
-def save_IV_curve(argument,filepath):
-    if not isinstance(argument,CircuitComponent):
+def save_IV_curve(argument: Union[circuit.CircuitComponent, np.ndarray], filepath: str) -> None:
+    """Save an IV curve to a tab-delimited text file.
+
+    Warning:
+        This function is monkey-patched onto `CircuitGroup` at import time.
+
+    Args:
+        argument (Union[CircuitComponent, np.ndarray]): Component or IV array.
+        filepath (str): Output file path.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.device_analysis import save_IV_curve
+        from PV_Circuit_Model.device import make_solar_cell
+        cell = make_solar_cell()
+        cell.build_IV()
+        cell.save_IV_curve("iv.txt")
+        ```
+    """
+    if not isinstance(argument,circuit.CircuitComponent):
         V_col = argument[0,:]
         I_col = argument[1,:]
     elif argument.IV_V is not None:
@@ -700,10 +1172,10 @@ def save_IV_curve(argument,filepath):
         return
     with open(filepath, "w") as f:
         f.write("V(V)\tI(A)\n")
-        for V, I in zip(V_col, I_col):
-            f.write(f"{V:.17e}\t{I:.17e}\n")
+        for V_, I_ in zip(V_col, I_col):
+            f.write(f"{V_:.17e}\t{I_:.17e}\n")
 
-def show_solver_summary(self, fig=None):
+def show_solver_summary(self: circuit.CircuitGroup, fig: Optional[Any] = None) -> None:
     text = self.solver_summary()
     if IN_NOTEBOOK:
         print(text)
@@ -784,7 +1256,7 @@ def show_solver_summary(self, fig=None):
 
     root.after(0, bring_fig_to_front)
 
-CircuitGroup.solver_summary = solver_summary
-CircuitGroup.show_solver_summary = show_solver_summary
-CircuitGroup.save_solver_summary = save_solver_summary
-CircuitGroup.save_IV_curve = save_IV_curve
+circuit.CircuitGroup.solver_summary = solver_summary
+circuit.CircuitGroup.show_solver_summary = show_solver_summary
+circuit.CircuitGroup.save_solver_summary = save_solver_summary
+circuit.CircuitGroup.save_IV_curve = save_IV_curve

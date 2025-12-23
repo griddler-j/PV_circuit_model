@@ -10,7 +10,8 @@
 
 #%%
 
-from PV_Circuit_Model.data_fitting_tandem_cell import *
+from PV_Circuit_Model.data_fitting_tandem_cell import analyze_solar_cell_measurements
+from PV_Circuit_Model.measurement import get_measurements
 from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 

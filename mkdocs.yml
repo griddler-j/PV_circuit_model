@@ -1,0 +1,48 @@
+site_name: PV-Circuit-Model
+site_description: Fast hierarchical PV circuit simulation in Python
+repo_url: https://github.com/griddler-j/PV_circuit_model
+repo_name: griddler-j/PV_circuit_model
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+  palette:
+    - scheme: default
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google   # or "numpy" if you use that
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            inherited_members: true
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+
+nav:
+  - Home: index.md
+  - Examples: examples.md
+  - API:
+      - api/index.md
+      - PV_Circuit_Model.circuit_model: api/circuit_model.md
+      - PV_Circuit_Model.device: api/device.md
+      - PV_Circuit_Model.device_analysis: api/device_analysis.md
+      - PV_Circuit_Model.measurement: api/measurement.md
+      - PV_Circuit_Model.data_fitting: api/data_fitting.md
+      - PV_Circuit_Model.data_fitting_tandem_cell: api/data_fitting_tandem_cell.md

@@ -5,16 +5,13 @@ from numbers import Number
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Dict, Callable
 import json
-import numpy as np
-import json
-import pickle
 import importlib
 import math
 import inspect
 try:
     import bson
-except:
-    pass
+except ModuleNotFoundError:
+    bson = None
 from pathlib import Path
 
 @dataclass
@@ -77,7 +74,9 @@ constants = ParameterSet.get_set("constants")()
 VT_at_25C = constants["VT_at_25C"]
 zero_C = constants["zero_C"]
 q = constants["q"]
-get_VT = lambda temperature: VT_at_25C*(temperature + zero_C)/(25 + zero_C)
+
+def get_VT(temperature):
+    return VT_at_25C*(temperature + zero_C)/(25 + zero_C)
 
 pbar = None
 x_spacing = 1.5
@@ -346,12 +345,12 @@ class Artifact:
         return True
     
     def clear_artifacts(self):
-        for field in self._artifacts:
-            if hasattr(self, field):
-                if hasattr(type(self), field):
-                    setattr(self, field, getattr(type(self), field))
-                elif field in self.__dict__:
-                    delattr(self, field)
+        for field_ in self._artifacts:
+            if hasattr(self, field_):
+                if hasattr(type(self), field_):
+                    setattr(self, field_, getattr(type(self), field_))
+                elif field_ in self.__dict__:
+                    delattr(self, field_)
 
     def save_toParams(self, critical_fields_only=False):
         data = {

@@ -1,9 +1,12 @@
+import os
 import numpy as np
 from tqdm import tqdm
-from PV_Circuit_Model.measurement import *
 from matplotlib import pyplot as plt
+import PV_Circuit_Model.utilities as utilities
+import PV_Circuit_Model.measurement as measurement_module
 import inspect
 import numbers
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 try:
     import tkinter as tk
@@ -44,7 +47,39 @@ except Exception:
     _ip_display = None
 
 class Fit_Parameter():
-    def __init__(self,name="variable",value=0.0,nominal_value=None,d_value=None,abs_min=-np.inf,abs_max=np.inf,is_log=False):
+    """Single fit parameter with constraints and scaling.
+
+    Tracks nominal values, bounds, and linear/log scaling for optimization.
+
+    Args:
+        name (str): Parameter name.
+        value (float): Current parameter value.
+        nominal_value (Optional[float]): Nominal value for regularization.
+        d_value (Optional[float]): Differential step for sensitivity.
+        abs_min (float): Absolute minimum bound.
+        abs_max (float): Absolute maximum bound.
+        is_log (bool): If True, parameter is stored in log10 space.
+
+    Returns:
+        Fit_Parameter: The constructed fit parameter.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Fit_Parameter
+        param = Fit_Parameter(name="Rs", value=0.1)
+        param.get_parameter()
+        ```
+    """
+    def __init__(
+        self,
+        name: str = "variable",
+        value: float = 0.0,
+        nominal_value: Optional[float] = None,
+        d_value: Optional[float] = None,
+        abs_min: float = -np.inf,
+        abs_max: float = np.inf,
+        is_log: bool = False,
+    ) -> None:
         self.name = name
         self.value = value
         if nominal_value is None:
@@ -60,9 +95,42 @@ class Fit_Parameter():
         self.enabled = True
         self.is_differential = False
         self.aux = {}
-    def set_nominal(self):
+    def set_nominal(self) -> None:
+        """Set the nominal value to the current value.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.set_nominal()
+            param.nominal_value
+            ```
+        """
         self.nominal_value = self.value
-    def get_parameter(self):
+    def get_parameter(self) -> float:
+        """Return the effective parameter value.
+
+        Applies differential offset and log scaling when configured.
+
+        Args:
+            None
+
+        Returns:
+            float: Effective parameter value.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.get_parameter()
+            ```
+        """
         value_ = self.value
         if self.is_differential:
             value_ += self.d_value
@@ -70,7 +138,23 @@ class Fit_Parameter():
             return 10**(value_)
         else:
             return value_
-    def set_d_value(self,d_value=None):
+    def set_d_value(self, d_value: Optional[float] = None) -> None:
+        """Set or infer the differential step size.
+
+        Args:
+            d_value (Optional[float]): Explicit delta value; if None, infer.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.set_d_value(0.01)
+            param.d_value
+            ```
+        """
         if d_value is not None:
             self.d_value = d_value
         else:
@@ -78,7 +162,23 @@ class Fit_Parameter():
                 self.d_value = np.log10(2)
             else:
                 self.d_value = self.value / 100
-    def limit_order_of_mag(self,order_of_mag=1.0):
+    def limit_order_of_mag(self, order_of_mag: float = 1.0) -> None:
+        """Set bounds based on orders of magnitude.
+
+        Args:
+            order_of_mag (float): Number of decades to allow.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.limit_order_of_mag(1.0)
+            param.get_min() < param.get_max()
+            ```
+        """
         self.aux["limit_order_of_mag"] = order_of_mag
         if self.is_log:
             self.this_min = self.value - order_of_mag
@@ -86,21 +186,105 @@ class Fit_Parameter():
         else:
             self.this_min = self.value/10**(order_of_mag)
             self.this_max = self.value*10**(order_of_mag)
-    def limit_delta(self,delta):
+    def limit_delta(self, delta: float) -> None:
+        """Set bounds based on a fixed delta from current value.
+
+        Args:
+            delta (float): Delta to apply on each side of the value.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.limit_delta(0.1)
+            param.get_min()
+            ```
+        """
         self.this_min = self.value - delta
         self.this_max = self.value + delta
-    def get_min(self):
+    def get_min(self) -> float:
+        """Return the active minimum bound.
+
+        Args:
+            None
+
+        Returns:
+            float: Active minimum value.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.get_min()
+            ```
+        """
         return max(self.this_min,self.abs_min)       
-    def get_max(self):
+    def get_max(self) -> float:
+        """Return the active maximum bound.
+
+        Args:
+            None
+
+        Returns:
+            float: Active maximum value.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0)
+            param.get_max()
+            ```
+        """
         return min(self.this_max,self.abs_max)    
-    def check_max_min(self):
+    def check_max_min(self) -> None:
+        """Clamp nominal and current values to absolute bounds.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameter
+            param = Fit_Parameter(value=1.0, abs_min=0.0, abs_max=2.0)
+            param.check_max_min()
+            param.value
+            ```
+        """
         self.nominal_value = max(self.nominal_value,self.abs_min)    
         self.nominal_value = min(self.nominal_value,self.abs_max)  
         self.value = max(self.value,self.abs_min)    
         self.value = min(self.value,self.abs_max)  
 
-class Fit_Parameters(Artifact):
-    def __init__(self,fit_parameters=None,names=None):
+class Fit_Parameters(utilities.Artifact):
+    """Collection of Fit_Parameter objects with helper utilities.
+
+    Supports enabling/disabling parameters, bounds, and differential mode.
+
+    Args:
+        fit_parameters (Optional[List[Fit_Parameter]]): Predefined parameters.
+        names (Optional[Sequence[str]]): Names to create default parameters.
+
+    Returns:
+        Fit_Parameters: The constructed parameter collection.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        params.num_of_parameters()
+        ```
+    """
+    def __init__(
+        self,
+        fit_parameters: Optional[List[Fit_Parameter]] = None,
+        names: Optional[Sequence[str]] = None,
+    ) -> None:
         if fit_parameters is not None:
             self.fit_parameters = fit_parameters
         elif names is not None:
@@ -110,24 +294,126 @@ class Fit_Parameters(Artifact):
         self.is_differential = False
         self.ref_sample = None
         self.aux = {}
-    def initialize_from_sample(self,sample):
+    def initialize_from_sample(self, sample: Any) -> None:
+        """Set a reference sample for parameter application.
+
+        Args:
+            sample (Any): Reference object used during fitting.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters()
+            params.initialize_from_sample(sample=None)
+            params.ref_sample is None
+            ```
+        """
         self.ref_sample = sample
-    def add_fit_parameter(self,fit_parameter):
+    def add_fit_parameter(self, fit_parameter: Fit_Parameter) -> None:
+        """Add a Fit_Parameter to the collection.
+
+        Args:
+            fit_parameter (Fit_Parameter): Parameter to add.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters, Fit_Parameter
+            params = Fit_Parameters()
+            params.add_fit_parameter(Fit_Parameter(name="Rs"))
+            params.num_of_parameters()
+            ```
+        """
         self.fit_parameters.append(fit_parameter)
-    def enable_parameter(self,name=None):
+    def enable_parameter(self, name: Optional[str] = None) -> None:
+        """Enable all or a named parameter.
+
+        Args:
+            name (Optional[str]): Parameter name to enable; None for all.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.disable_parameter("Rs")
+            params.enable_parameter("Rs")
+            ```
+        """
         for element in self.fit_parameters:
             if name is None or element.name==name:
                 element.enabled = True
-    def disable_parameter(self,name=None):
+    def disable_parameter(self, name: Optional[str] = None) -> None:
+        """Disable all or a named parameter.
+
+        Args:
+            name (Optional[str]): Parameter name to disable; None for all.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.disable_parameter("Rs")
+            params.fit_parameters[0].enabled
+            ```
+        """
         for element in self.fit_parameters:
             if name is None or element.name==name:
                 element.enabled = False
-    def delete_fit_parameter(self,name):
+    def delete_fit_parameter(self, name: str) -> None:
+        """Remove the first parameter with a matching name.
+
+        Args:
+            name (str): Parameter name to delete.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.delete_fit_parameter("Rs")
+            params.num_of_parameters()
+            ```
+        """
         for element in self.fit_parameters:
             if element.name==name:
                 self.fit_parameters.remove(element)
                 break
-    def get(self, attribute, names=None, enabled_only=True):
+    def get(
+        self,
+        attribute: str,
+        names: Optional[Union[str, List[str]]] = None,
+        enabled_only: bool = True,
+    ) -> Union[Any, List[Any]]:
+        """Get an attribute list (or scalar if single) for parameters.
+
+        Args:
+            attribute (str): Attribute name or special key ("min", "max").
+            names (Optional[Union[str, List[str]]]): Filter by name(s).
+            enabled_only (bool): If True, include only enabled parameters.
+
+        Returns:
+            Union[Any, List[Any]]: Attribute values.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.get("name")
+            ```
+        """
         if names is not None:
             if not isinstance(names,list):
                 names = [names]
@@ -153,7 +439,32 @@ class Fit_Parameters(Artifact):
         if len(list_)==1:
             return list_[0]
         return list_
-    def set(self, attribute, values, names=None, enabled_only=True):
+    def set(
+        self,
+        attribute: str,
+        values: Union[Any, List[Any], np.ndarray],
+        names: Optional[Union[str, List[str]]] = None,
+        enabled_only: bool = True,
+    ) -> None:
+        """Set an attribute for parameters.
+
+        Args:
+            attribute (str): Attribute name or auxiliary key.
+            values (Union[Any, List[Any], np.ndarray]): Values to set.
+            names (Optional[Union[str, List[str]]]): Filter by name(s).
+            enabled_only (bool): If True, apply only to enabled parameters.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.set("value", 0.1)
+            params.get("value")
+            ```
+        """
         if names is not None:
             if not isinstance(names,list):
                 names = [names]
@@ -168,16 +479,89 @@ class Fit_Parameters(Artifact):
                     element.aux[attribute] = values[count]
                 element.check_max_min()
                 count += 1
-    def initialize(self, values, names=None, enabled_only=True):
+    def initialize(
+        self,
+        values: Union[Any, List[Any], np.ndarray],
+        names: Optional[Union[str, List[str]]] = None,
+        enabled_only: bool = True,
+    ) -> None:
+        """Initialize current and nominal values together.
+
+        Args:
+            values (Union[Any, List[Any], np.ndarray]): Values to set.
+            names (Optional[Union[str, List[str]]]): Filter by name(s).
+            enabled_only (bool): If True, apply only to enabled parameters.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.initialize(0.1)
+            params.get("nominal_value")
+            ```
+        """
         self.set("value",values,names=names,enabled_only=enabled_only)
         self.set("nominal_value",values,names=names,enabled_only=enabled_only)
-    def set_nominal(self):
+    def set_nominal(self) -> None:
+        """Set all nominal values to their current values.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.set("value", 0.2)
+            params.set_nominal()
+            params.get("nominal_value")
+            ```
+        """
         for element in self.fit_parameters:
             element.set_nominal()
-    def set_d_value(self):
+    def set_d_value(self) -> None:
+        """Reset differential steps for all parameters.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.set_d_value()
+            params.get("d_value")
+            ```
+        """
         for element in self.fit_parameters:
             element.set_d_value()
-    def set_differential(self,which=-1,enabled_only=True):
+    def set_differential(self, which: int = -1, enabled_only: bool = True) -> None:
+        """Enable differential mode for a single parameter index.
+
+        Args:
+            which (int): Index of parameter to mark; -1 disables.
+            enabled_only (bool): If True, count only enabled parameters.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs", "Rsh"])
+            params.set_differential(0)
+            params.is_differential
+            ```
+        """
         count = 0
         if which<0:
             self.is_differential = False
@@ -189,50 +573,213 @@ class Fit_Parameters(Artifact):
                 if count==which:
                     element.is_differential = True
                 count += 1
-    def get_parameters(self):
+    def get_parameters(self) -> Dict[str, float]:
+        """Return a dictionary of effective parameter values.
+
+        Args:
+            None
+
+        Returns:
+            Dict[str, float]: Name-to-value mapping.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.get_parameters()
+            ```
+        """
         dict_ = {}
         for element in self.fit_parameters:
             dict_[element.name] = element.get_parameter()
         return dict_
-    def limit_order_of_mag(self,order_of_mag=1.0):
+    def limit_order_of_mag(self, order_of_mag: float = 1.0) -> None:
+        """Limit parameter bounds by order of magnitude.
+
+        Args:
+            order_of_mag (float): Number of decades to allow.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.limit_order_of_mag(1.0)
+            params.get("min")
+            ```
+        """
         if not isinstance(order_of_mag,numbers.Number):
             order_of_mag = 1.0
         for element in self.fit_parameters:
             element.limit_order_of_mag(order_of_mag=order_of_mag)
-    def num_of_parameters(self):
+    def num_of_parameters(self) -> int:
+        """Return the total number of parameters.
+
+        Args:
+            None
+
+        Returns:
+            int: Total parameter count.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs", "Rsh"])
+            params.num_of_parameters()
+            ```
+        """
         return len(self.fit_parameters)
-    def num_of_enabled_parameters(self):
+    def num_of_enabled_parameters(self) -> int:
+        """Return the number of enabled parameters.
+
+        Args:
+            None
+
+        Returns:
+            int: Enabled parameter count.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            params.num_of_enabled_parameters()
+            ```
+        """
         count = 0
         for element in self.fit_parameters:
             if element.enabled:
                 count += 1
         return count
-    def apply_to_ref(self, aux_info):
+    def apply_to_ref(self, aux_info: Any) -> None:
+        """Apply parameters to the reference sample.
+
+        Warning:
+            This is a stub meant to be overridden in subclasses.
+
+        Args:
+            aux_info (Any): Auxiliary data for applying parameters.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters()
+            params.apply_to_ref(aux_info=None)
+            ```
+        """
         pass
-    def apply_to_device(self, device):
+    def apply_to_device(self, device: Any) -> None:
+        """Apply parameters to a device instance.
+
+        Warning:
+            This is a stub meant to be overridden in subclasses.
+
+        Args:
+            device (Any): Device object to modify.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters()
+            params.apply_to_device(device=None)
+            ```
+        """
         pass
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return a string representation of parameter values.
+
+        Args:
+            None
+
+        Returns:
+            str: Stringified parameter mapping.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Parameters
+            params = Fit_Parameters(names=["Rs"])
+            str(params)
+            ```
+        """
         return str(self.get_parameters())
 
 # generally, measurment samples may not be equal to fit_parameters.ref_sample
-def compare_experiments_to_simulations(fit_parameters, measurement_samples, aux):
+def compare_experiments_to_simulations(
+    fit_parameters: Optional[Fit_Parameters],
+    measurement_samples: Any,
+    aux: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Compare experimental measurements with simulated results.
+
+    Applies fit parameters to a reference sample and computes error vectors.
+
+    Args:
+        fit_parameters (Optional[Fit_Parameters]): Parameters to apply.
+        measurement_samples (Any): Measurement samples or collection.
+        aux (Dict[str, Any]): Auxiliary options for comparison.
+
+    Returns:
+        Dict[str, Any]: Output dict with error and baseline vectors.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import compare_experiments_to_simulations, Fit_Parameters
+        output = compare_experiments_to_simulations(Fit_Parameters(), [], {})
+        "error_vector" in output or "differential_vector" in output
+        ```
+    """
     if fit_parameters is not None:
         fit_parameters.apply_to_ref(aux)
-    measurements = collate_device_measurements(measurement_samples)
+    measurements = measurement_module.collate_device_measurements(measurement_samples)
     for measurement in measurements:
         measurement.simulate()
     output = {}
-    if fit_parameters is None or fit_parameters.is_differential==False: # baseline case
-        set_simulation_baseline(measurements)
-        output["error_vector"] = get_measurements_error_vector(measurements)
-        output["baseline_vector"] = get_measurements_baseline_vector(measurements)
+    if fit_parameters is None or not fit_parameters.is_differential: # baseline case
+        measurement_module.set_simulation_baseline(measurements)
+        output["error_vector"] = measurement_module.get_measurements_error_vector(measurements)
+        output["baseline_vector"] = measurement_module.get_measurements_baseline_vector(measurements)
         output["measurement_samples"] = measurement_samples
     else:
-        output["differential_vector"] = get_measurements_differential_vector(measurements)
+        output["differential_vector"] = measurement_module.get_measurements_differential_vector(measurements)
     return output
 
 class Fit_Dashboard():
-    def __init__(self,nrows,ncols,save_file_name=None,measurements=None,RMS_errors=None):
+    """Dashboard for visualizing fit progress and comparisons.
+
+    Supports multiple plot types and notebook or GUI rendering.
+
+    Args:
+        nrows (int): Number of subplot rows.
+        ncols (int): Number of subplot columns.
+        save_file_name (Optional[str]): Base filename for saved images.
+        measurements (Optional[list]): Measurement objects to display.
+        RMS_errors (Optional[list]): Error values for plotting progress.
+
+    Returns:
+        Fit_Dashboard: The constructed dashboard.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Fit_Dashboard
+        dashboard = Fit_Dashboard(1, 1)
+        dashboard.close()
+        ```
+    """
+    def __init__(
+        self,
+        nrows: int,
+        ncols: int,
+        save_file_name: Optional[str] = None,
+        measurements: Optional[List[Any]] = None,
+        RMS_errors: Optional[List[float]] = None,
+    ) -> None:
         self.fig, self.axs = plt.subplots(nrows, ncols, figsize=(6, 5), constrained_layout=True)
         self._display_handle = None   # for notebook live-updates
         self._shown = False           # for desktop GUI
@@ -254,13 +801,48 @@ class Fit_Dashboard():
         self.measurements = measurements # pointer
         self.RMS_errors = RMS_errors # pointer
         self.save_file_name = save_file_name
-    def define_plot_what(self, which_axs=None, measurement_type=None, key_parameter=None, measurement_condition={}, 
-                         plot_type="exp_vs_sim", x_axis=None, title=None, plot_style_parameters={}):
+    def define_plot_what(
+        self,
+        which_axs: Optional[int] = None,
+        measurement_type: Optional[Any] = None,
+        key_parameter: Optional[str] = None,
+        measurement_condition: Optional[Dict[str, Any]] = None,
+        plot_type: str = "exp_vs_sim",
+        x_axis: Optional[str] = None,
+        title: Optional[str] = None,
+        plot_style_parameters: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Add a plot specification to the dashboard.
+
+        Args:
+            which_axs (Optional[int]): Axis index to use; auto if None.
+            measurement_type (Optional[Any]): Measurement class filter.
+            key_parameter (Optional[str]): Parameter to plot.
+            measurement_condition (Optional[Dict[str, Any]]): Filter conditions.
+            plot_type (str): "error", "exp_vs_sim", "overlap_curves", or "overlap_key_parameter".
+            x_axis (Optional[str]): Key for x-axis data.
+            title (Optional[str]): Plot title.
+            plot_style_parameters (Optional[Dict[str, Any]]): Matplotlib style kwargs.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            dashboard = Fit_Dashboard(1, 1)
+            dashboard.define_plot_what(plot_type="error")
+            ```
+        """
+        if measurement_condition is None:
+            measurement_condition = {}
+        if plot_style_parameters is None:
+            plot_style_parameters = {}
         # plot type is "error", "exp_vs_sim", "overlap_curves" or "overlap_key_parameter"
         # if measurement_type is None, then plot_type defaults to "error"
         # if plot type is "exp_vs_sim" or "overlap_key_parameter", need to specify key_parameter
         # if plot type is "overlap_key_parameter", need to additionally specify x_axis
-        if which_axs==None:
+        if which_axs is None:
             if len(self.plot_what)==0:
                 which_axs=0
             else:
@@ -274,14 +856,43 @@ class Fit_Dashboard():
                              "title": title,
                              "plot_style_parameters": plot_style_parameters})
     @staticmethod 
-    def convert_scatter_valid_kwargs(plot_style_parameters):
+    def convert_scatter_valid_kwargs(plot_style_parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Filter kwargs to those accepted by `Axes.scatter`.
+
+        Args:
+            plot_style_parameters (Dict[str, Any]): Candidate kwargs.
+
+        Returns:
+            Dict[str, Any]: Filtered kwargs.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            Fit_Dashboard.convert_scatter_valid_kwargs({"s": 5, "bad": 1})
+            ```
+        """
         scatter_args = inspect.signature(plt.Axes.scatter).parameters
         kwargs = {}
         for key, value in plot_style_parameters.items():
             if key in scatter_args:
                 kwargs[key] = value
         return kwargs
-    def prep_plot(self):
+    def prep_plot(self) -> None:
+        """Prepare axes and draw plots based on configured specs.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            dashboard = Fit_Dashboard(1, 1)
+            dashboard.prep_plot()
+            ```
+        """
         for ax in self.axs.flatten():
             ax.clear()
         for i in range(len(self.plot_what)):
@@ -323,7 +934,7 @@ class Fit_Dashboard():
                     categories.append(key)
                     values.append(value)
                 cond_key = self.plot_what[i]["x_axis"]
-                result = get_measurements_groups(self.measurements,
+                result = measurement_module.get_measurements_groups(self.measurements,
                                 measurement_class=measurement_type,
                                 categories=categories,
                                 optional_x_axis=cond_key,plot_offset=True)
@@ -360,7 +971,22 @@ class Fit_Dashboard():
                     if title is not None:
                         ax.set_title(title, fontsize=6)
         # self.fig.tight_layout()
-    def plt_plot(self):
+    def plt_plot(self) -> None:
+        """Render or update the dashboard figure.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            dashboard = Fit_Dashboard(1, 1)
+            dashboard.plt_plot()
+            ```
+        """
         # draw/flush the existing fig; do NOT call plt.show() in loops
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
@@ -391,10 +1017,40 @@ class Fit_Dashboard():
             word = self.save_file_name + "_fit_round_"+str(len(self.RMS_errors)-1)+".jpg"
             self.fig.savefig(word, format='jpg', dpi=300)
         plt.pause(0.1)
-    def plot(self):
+    def plot(self) -> None:
+        """Prepare and render the dashboard.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            dashboard = Fit_Dashboard(1, 1)
+            dashboard.plot()
+            ```
+        """
         self.prep_plot()
         self.plt_plot()
-    def close(self):
+    def close(self) -> None:
+        """Close the dashboard figure safely.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            dashboard = Fit_Dashboard(1, 1)
+            dashboard.close()
+            ```
+        """
         # stop trying to draw/update
         try:
             self.fig.canvas.draw_idle()
@@ -407,13 +1063,77 @@ class Fit_Dashboard():
             plt.close(self.fig)
         except Exception:
             pass
-    def __enter__(self):
+    def __enter__(self) -> "Fit_Dashboard":
+        """Return the dashboard for context-manager usage.
+
+        Args:
+            None
+
+        Returns:
+            Fit_Dashboard: This dashboard instance.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            with Fit_Dashboard(1, 1) as dashboard:
+                dashboard.plot()
+            ```
+        """
         return self
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        """Close the dashboard on context exit.
+
+        Args:
+            exc_type (Any): Exception type, if any.
+            exc (Any): Exception instance, if any.
+            tb (Any): Traceback, if any.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.data_fitting import Fit_Dashboard
+            with Fit_Dashboard(1, 1) as dashboard:
+                pass
+            ```
+        """
         self.close()
 
 class Interactive_Fit_Dashboard(Fit_Dashboard):
-    def __init__(self,measurement_samples,fit_parameters,nrows=None,ncols=None,ref_fit_dashboard=None,**kwargs):
+    """Interactive Tk-based dashboard with parameter sliders.
+
+    Warning:
+        Requires a Tkinter environment; will not work in headless mode.
+
+    Args:
+        measurement_samples (Any): Samples with measurements to simulate.
+        fit_parameters (Fit_Parameters): Parameter collection to adjust.
+        nrows (Optional[int]): Number of subplot rows.
+        ncols (Optional[int]): Number of subplot columns.
+        ref_fit_dashboard (Optional[Fit_Dashboard]): Reference dashboard settings.
+        **kwargs (Any): Optional configuration, including apply_function.
+
+    Returns:
+        Interactive_Fit_Dashboard: The constructed interactive dashboard.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
+        dashboard.close()
+        ```
+    """
+    def __init__(
+        self,
+        measurement_samples: Any,
+        fit_parameters: Fit_Parameters,
+        nrows: Optional[int] = None,
+        ncols: Optional[int] = None,
+        ref_fit_dashboard: Optional[Fit_Dashboard] = None,
+        **kwargs: Any,
+    ) -> None:
         self.apply_function = None
         if "apply_function" in kwargs:
             self.apply_function = kwargs["apply_function"]
@@ -428,7 +1148,7 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.RMS_errors = None
         if ref_fit_dashboard is not None:
             self.plot_what = ref_fit_dashboard.plot_what
-        self.measurements = collate_device_measurements(measurement_samples)
+        self.measurements = measurement_module.collate_device_measurements(measurement_samples)
         self.parameter_names = fit_parameters.get("name",enabled_only=False)
         self.default_values = fit_parameters.get("value",enabled_only=False)
         self.measurement_samples = measurement_samples
@@ -447,7 +1167,23 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
                     self.max[i] = 2*abs(self.default_values[i])
         self.fit_parameters = fit_parameters
 
-    def sync_slider_to_entry(self, i):
+    def sync_slider_to_entry(self, i: int) -> None:
+        """Update slider label and refresh plots.
+
+        Args:
+            i (int): Slider index.
+
+        Returns:
+            None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
+        dashboard.close()
+        ```
+    """
         val = self.sliders[i].get()
         if max(abs(self.min[i]),abs(self.max[i])) >= 0.1:
             self.display_values[i].config(text=f"{val:.2f}")
@@ -455,16 +1191,64 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
             self.display_values[i].config(text=f"{val:.2e}")
         self.plot()
 
-    def reset_slider(self,i):
+    def reset_slider(self, i: int) -> None:
+        """Reset a slider to its default value.
+
+        Args:
+            i (int): Slider index.
+
+        Returns:
+            None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
+        dashboard.close()
+        ```
+    """
         self.sliders[i].set(self.default_values[i])
         self.sync_slider_to_entry(i)
 
-    def on_close(self):
+    def on_close(self) -> None:
+        """Close the interactive dashboard windows.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
+        dashboard.close()
+        ```
+    """
         self.control_root.quit()
         self.plot_root.destroy()
         self.control_root.destroy()
 
-    def plot(self):
+    def plot(self) -> None:
+        """Update simulations and redraw the dashboard plot.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
+        dashboard.close()
+        ```
+    """
         update_values = []
         for slider in self.sliders:
             update_values.append(slider.get())
@@ -478,7 +1262,26 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.prep_plot()
         self.canvas.draw()
 
-    def run(self):
+    def run(self) -> None:
+        """Start the interactive Tk UI event loop.
+
+        Warning:
+            Requires Tkinter and a display environment.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
+        params = Fit_Parameters(names=["Rs", "Rsh"])
+        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
+        # dashboard.run()
+        ```
+    """
         plot_what = self.plot_what
         super().__init__(self.nrows,self.ncols,measurements=self.measurements)
         self.plot_what = plot_what
@@ -527,7 +1330,37 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.plot()
         self.control_root.mainloop()
 
-def linear_regression(M, Y, fit_parameters, aux={}): 
+def linear_regression(
+    M: np.ndarray,
+    Y: np.ndarray,
+    fit_parameters: Fit_Parameters,
+    aux: Optional[Dict[str, Any]] = None,
+) -> np.ndarray:
+    """Perform constrained linear regression update for fit parameters.
+
+    Applies bounds, regularization, and updates parameter values in place.
+
+    Args:
+        M (np.ndarray): Sensitivity matrix.
+        Y (np.ndarray): Error vector.
+        fit_parameters (Fit_Parameters): Parameter collection to update.
+        aux (Optional[Dict[str, Any]]): Options like alpha and regularization.
+
+    Returns:
+        np.ndarray: Updated parameter values.
+
+    Example:
+        ```python
+        import numpy as np
+        from PV_Circuit_Model.data_fitting import Fit_Parameters, linear_regression
+        params = Fit_Parameters(names=["Rs"])
+        M = np.array([[1.0]])
+        Y = np.array([0.1])
+        linear_regression(M, Y, params)
+        ```
+    """
+    if aux is None:
+        aux = {}
     alpha = 1e-5 
     regularization_method=0 
     if "alpha" in aux:
@@ -626,7 +1459,25 @@ def linear_regression(M, Y, fit_parameters, aux={}):
     fit_parameters.set("value",new_values)
     return new_values
 
-def uncertainty_analysis(M,Y):
+def uncertainty_analysis(M: np.ndarray, Y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Estimate parameter resolution and error using SVD.
+
+    Args:
+        M (np.ndarray): Sensitivity matrix.
+        Y (np.ndarray): Error vector.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: (resolution, error) arrays.
+
+    Example:
+        ```python
+        import numpy as np
+        from PV_Circuit_Model.data_fitting import uncertainty_analysis
+        M = np.eye(2)
+        Y = np.array([0.1, 0.2])
+        uncertainty_analysis(M, Y)
+        ```
+    """
     U, S, VT = np.linalg.svd(M)
     # resolve Y into the Us
     YintoU = Y**2 @ U[:,:len(S)]**2
@@ -635,8 +1486,34 @@ def uncertainty_analysis(M,Y):
     # in units of the parameter deltas
     return resolution, error
 
-def construct_M(iteration,measurement_samples,fit_parameters,
-                comparison_function,aux):
+def construct_M(
+    iteration: int,
+    measurement_samples: Any,
+    fit_parameters: Fit_Parameters,
+    comparison_function: Any,
+    aux: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Construct a differential measurement output for a fit iteration.
+
+    Args:
+        iteration (int): Iteration index for differential parameter selection.
+        measurement_samples (Any): Measurement sample collection.
+        fit_parameters (Fit_Parameters): Parameters to perturb.
+        comparison_function (Any): Function to compare measurements.
+        aux (Dict[str, Any]): Auxiliary configuration for progress.
+
+    Returns:
+        Dict[str, Any]: Output from the comparison function.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import construct_M, Fit_Parameters
+        params = Fit_Parameters(names=["Rs"])
+        def compare(fp, samples, aux):
+            return {"differential_vector": [0.0]}
+        construct_M(0, [], params, compare, {})
+        ```
+    """
     fit_parameters.set_differential(iteration-1)
     if "pbar" in aux:
         pbar_before = aux["pbar"].n
@@ -656,9 +1533,44 @@ def construct_M(iteration,measurement_samples,fit_parameters,
 # each with its measurements stored inside .measurements attribute
 # could be one sample only
 # could be multiple samples
-def fit_routine(measurement_samples,fit_parameters,
-                routine_functions,fit_dashboard=None,
-                aux={},num_of_epochs=10,enable_pbar=True,parallel=False):
+def fit_routine(
+    measurement_samples: Any,
+    fit_parameters: Fit_Parameters,
+    routine_functions: Dict[str, Any],
+    fit_dashboard: Optional[Fit_Dashboard] = None,
+    aux: Optional[Dict[str, Any]] = None,
+    num_of_epochs: int = 10,
+    enable_pbar: bool = True,
+    parallel: bool = False,
+) -> Any:
+    """Run an iterative fitting routine over measurement samples.
+
+    Supports optional parallel evaluation and fit dashboards.
+
+    Args:
+        measurement_samples (Any): Measurement samples to fit.
+        fit_parameters (Fit_Parameters): Parameter collection to update.
+        routine_functions (Dict[str, Any]): Functions for comparison and update.
+        fit_dashboard (Optional[Fit_Dashboard]): Optional visualization dashboard.
+        aux (Optional[Dict[str, Any]]): Auxiliary configuration.
+        num_of_epochs (int): Number of fitting epochs.
+        enable_pbar (bool): If True, show progress bar updates.
+        parallel (bool): If True, use joblib parallel evaluation.
+
+    Returns:
+        Any: Output from the final comparison function or intermediate data.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.data_fitting import fit_routine, Fit_Parameters
+        params = Fit_Parameters(names=["Rs"])
+        routine_functions = {"comparison_function": lambda fp, s, a: {"error_vector": [0.0], "baseline_vector": [0.0], "measurement_samples": s},
+                             "update_function": lambda M, Y, fp, a: None}
+        fit_routine([], params, routine_functions, num_of_epochs=1)
+        ```
+    """
+    if aux is None:
+        aux = {}
     if parallel:
         parallel_mode_prior = get_parallel_mode()
         set_parallel_mode(False)
@@ -667,7 +1579,7 @@ def fit_routine(measurement_samples,fit_parameters,
     RMS_errors = []
     this_RMS_errors = []
     record = []
-    measurements = collate_device_measurements(measurement_samples)
+    measurements = measurement_module.collate_device_measurements(measurement_samples)
     if fit_dashboard is not None and num_of_epochs>0:
         if fit_dashboard.RMS_errors is None:
             fit_dashboard.RMS_errors = RMS_errors
@@ -739,7 +1651,7 @@ def fit_routine(measurement_samples,fit_parameters,
                             measurement.simulated_key_parameters_baseline = measurement_samples_list_[i].measurements[j].simulated_key_parameters_baseline
                 Y = np.array(output["error_vector"])
                 this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
-                RMS_errors.append(np.sqrt(np.mean(np.array(get_measurements_error_vector(measurements,exclude_tags=None))**2)))
+                RMS_errors.append(np.sqrt(np.mean(np.array(measurement_module.get_measurements_error_vector(measurements,exclude_tags=None))**2)))
                 fit_parameters_clone = fit_parameters.clone()
                 fit_parameters_clone.ref_sample = fit_parameters.ref_sample
                 record.append({"fit_parameters": fit_parameters_clone,"output": output})
@@ -792,7 +1704,7 @@ def fit_routine(measurement_samples,fit_parameters,
                         error[i] *= d_values[i]
                 fit_parameters.set("error",error)
                 fit_parameters.set("resolution",resolution)
-            except Exception as e:
+            except Exception:
                 pass
         fit_parameters.set_differential(-1)
         for measurement in measurements:

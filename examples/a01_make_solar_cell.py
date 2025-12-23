@@ -3,8 +3,9 @@
 # This notebook shows how to build and run a silicon wafer solar cell circuit model.
 
 #%%
-from PV_Circuit_Model.device import *
-from PV_Circuit_Model.device_analysis import *
+from PV_Circuit_Model.circuit_model import IL, D1, D2, Dintrinsic_Si, Drev, R
+from PV_Circuit_Model.device import Cell, wafer_shape
+from PV_Circuit_Model.device_analysis import Cell_
 from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 

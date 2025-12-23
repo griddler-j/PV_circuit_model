@@ -1,9 +1,10 @@
 import subprocess
 from pathlib import Path
-import sys, types
+import sys
+import types
 import importlib
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 def _get_git_info():
     try:

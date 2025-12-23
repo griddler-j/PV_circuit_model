@@ -1,12 +1,11 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import cm
-from PV_Circuit_Model.utilities import *
-from PV_Circuit_Model.utilities_silicon import *
+import PV_Circuit_Model.utilities as utilities
+import PV_Circuit_Model.utilities_silicon as silicon
 from tqdm import tqdm
-from functools import partial
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Type, TypeVar, Union
 try:
-    from PV_Circuit_Model.IV_jobs import *
+    import PV_Circuit_Model.IV_jobs as IV_jobs
 except Exception as e:
     raise ImportError(
         "Failed to import the compiled extension 'PV_Circuit_Model.IV_jobs'.\n"
@@ -21,13 +20,26 @@ except Exception as e:
 import gc
 
 # Solver tuning pulled from ParameterSet to control IV remeshing thresholds.
-solver_env_variables = ParameterSet.get_set("solver_env_variables")
+solver_env_variables = utilities.ParameterSet.get_set("solver_env_variables")
+if solver_env_variables is None:
+    raise TypeError("Cannot load solver_env_variables")
 REMESH_POINTS_DENSITY = solver_env_variables["REMESH_POINTS_DENSITY"]
 REMESH_NUM_ELEMENTS_THRESHOLD = solver_env_variables["REMESH_NUM_ELEMENTS_THRESHOLD"]
 DEFAULT_MAX_DIODE_CURRENT_DENSITY = solver_env_variables["DEFAULT_MAX_DIODE_CURRENT_DENSITY"]
       
+T_CircuitComponent = TypeVar("T_CircuitComponent", bound="CircuitComponent")
+
 # Base class for any circuit component; manages IV artifacts and serialization hooks.
-class CircuitComponent(Artifact):
+class CircuitComponent(utilities.Artifact):
+    """Base class for all circuit components.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import Resistor
+        component = Resistor(cond=1.0)
+        isinstance(component, CircuitComponent) # True
+        ```
+    """
     _critical_fields = ("max_I","max_num_points")
     _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
@@ -45,7 +57,7 @@ class CircuitComponent(Artifact):
     circuit_depth = 1
     registered_type_numbers = set()
 
-    def __init__(self,tag=None):
+    def __init__(self, tag: Optional[str] = None) -> None:
         self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
         self.aux = {}
@@ -54,7 +66,7 @@ class CircuitComponent(Artifact):
         self.extrapolation_dI_dV = [0,0]
         self.has_I_domain_limit = [False,False]
 
-    def __init_subclass__(cls, *, _type_number=-1, **kwargs):
+    def __init_subclass__(cls, *, _type_number: int = -1, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if _type_number == -1:
             for base in cls.__mro__[1:]:
@@ -71,18 +83,27 @@ class CircuitComponent(Artifact):
             CircuitComponent.registered_type_numbers.add(_type_number)
         cls._type_number = _type_number
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Return the number of circuit elements contained.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import *
+            group = R(1) + R(2)
+            len(group) #2
+            ```
+        """
         return self.num_circuit_elements
 
     @property
-    def IV_table(self):
+    def IV_table(self) -> Optional[np.ndarray]:
         if self.IV_V is None or self.IV_I is None:
             return None
         # This allocates a fresh 2xN array for user-land / plotting.
         return np.stack([self.IV_V, self.IV_I], axis=0)
 
     @IV_table.setter
-    def IV_table(self, value):
+    def IV_table(self, value: Optional[np.ndarray]) -> None:
         # Allow clearing with None
         if value is None:
             self.IV_V = None
@@ -97,21 +118,30 @@ class CircuitComponent(Artifact):
         self.IV_V = value[0, :].copy()
         self.IV_I = value[1, :].copy()
 
-    def null_IV(self):
+    def null_IV(self) -> None:
         self.clear_artifacts()
         if self.parent is not None:
             self.parent.null_IV()
 
-    def null_all_IV(self):
+    def null_all_IV(self) -> None:
         self.clear_artifacts()
         if isinstance(self,CircuitGroup):
             for element in self.subgroups:
                 element.null_all_IV()
 
-    def build_IV(self):
+    def build_IV(self) -> None:
+        """Compute the IV curve for this component or group.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            r = R(1.0)
+            r.build_IV()
+            ```
+        """
         gc.disable()
         # Run IV solver; if needed, expand diode current range and retry.
-        self.job_heap = IV_Job_Heap(self)
+        self.job_heap = IV_jobs.IV_Job_Heap(self)
         success = self.job_heap.run_IV()
         if not success:
             diodes = self.findElementType(Diode)
@@ -119,14 +149,25 @@ class CircuitComponent(Artifact):
                 for diode in diodes:
                     diode.max_I *= 10
                 self.null_all_IV()
-                self.job_heap = IV_Job_Heap(self)
+                self.job_heap = IV_jobs.IV_Job_Heap(self)
                 if self.job_heap.run_IV():
                     break
             if not success:
                 raise RuntimeError
         gc.enable()
 
-    def refine_IV(self):
+    def refine_IV(self) -> None:
+        """Refine the IV curve near the current operating point.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            r = R(1.0)
+            r.build_IV()
+            r.set_operating_point(V=0.1)
+            r.refine_IV()
+            ```
+        """
         if hasattr(self,"job_heap") and getattr(self,"operating_point",None) is not None:
             gc.disable()
             # Refine around the current operating point if available.
@@ -134,54 +175,130 @@ class CircuitComponent(Artifact):
             self.refined_IV = True
             gc.enable()
 
-    def calc_uncertainty(self):
+    def calc_uncertainty(self) -> None:
         if hasattr(self,"job_heap"):
             if hasattr(self.job_heap,"calc_uncertainty"): # python version does not have this
                 self.job_heap.calc_uncertainty()
 
-    def __call__(self, *, atomic=True):
+    def __call__(self, *, atomic: bool = True) -> "CircuitComponent":
         # Clone while optionally marking as atomic to avoid flattening.
         clone = self.clone()
         clone._is_atomic = atomic
         return clone
 
-    def __add__(self, other):
+    def __add__(self, other: "CircuitComponent") -> "CircuitGroup":
+        """Connect components in series with the `+` operator.
+
+        Args:
+            other (CircuitComponent): The component to place in series.
+
+        Returns:
+            CircuitGroup: A series-connected circuit group.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            group = R(1.0) + R(2.0)
+            group.connection # 'series'
+            ```
+        """
         if not isinstance(other, CircuitComponent):
             return NotImplemented
         return series(self, other, flatten_connection_=True)
     
-    def __or__(self, other):
+    def __or__(self, other: "CircuitComponent") -> "CircuitGroup":
+        """Connect components in parallel with the `|` operator.
+
+        Args:
+            other (CircuitComponent): The component to place in parallel.
+
+        Returns:
+            CircuitGroup: A parallel-connected circuit group.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            group = R(1.0) | R(2.0)
+            group.connection #'parallel'
+            ```
+        """
         if not isinstance(other, CircuitComponent):
             return NotImplemented
         return parallel(self, other, flatten_connection_=True)
     
-    def __mul__(self, other):
+    def __mul__(self, other: Union[int, float]) -> "CircuitGroup":
+        """Repeat a component in series using `*`.
+
+        Args:
+            other (Union[int, float]): Number of repeats.
+
+        Returns:
+            CircuitGroup: A series-connected circuit group.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            group = R(1.0) * 3
+            len(group) #3
+            ```
+        """
         # component * scalar
         if isinstance(other, (int, float)):
             return series(*[circuit_deepcopy(self)() for _ in range(int(other))])
         return NotImplemented
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[int, float]) -> "CircuitGroup":
         # scalar * component
         return self.__mul__(other)
     
-    def __imul__(self, other):
+    def __imul__(self, other: Union[int, float]) -> "CircuitGroup":
         return self.__mul__(other)
 
-    def __pow__(self, other):
+    def __pow__(self, other: Union[int, float]) -> "CircuitGroup":
+        """Repeat a component in parallel using `**`.
+
+        Args:
+            other (Union[int, float]): Number of repeats.
+
+        Returns:
+            CircuitGroup: A parallel-connected circuit group.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            group = R(1.0) ** 2
+            group.connection # 'parallel'
+            ```
+        """
         # component ** scalar
         if isinstance(other, (int, float)):
             return parallel(*[circuit_deepcopy(self)() for _ in range(int(other))])
         return NotImplemented
 
-    def __rpow__(self, other):
+    def __rpow__(self, other: Union[int, float]) -> "CircuitGroup":
         # scalar * component
         return self.__pow__(other)
 
-    def __ipow__(self, other):
+    def __ipow__(self, other: Union[int, float]) -> "CircuitGroup":
         return self.__pow__(other)
     
-    def structure(self):
+    def structure(self) -> Tuple[Any, Any, Tuple[Any, ...]]:
+        """Return a tuple describing circuit topology.
+
+        Args:
+            None
+
+        Returns:
+            Tuple[Any, Any, Tuple[Any, ...]]: A structural signature tuple.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R
+            group = series(R(1), R(2))
+            group2 = series(R(3), R(4))
+            group.structure == group2.structure # True
+            ```
+        """
         # Tuple structure used for comparing circuit topology.
         children = getattr(self, "subgroups", None)
         return (
@@ -190,13 +307,43 @@ class CircuitComponent(Artifact):
             tuple(c.structure() for c in children) if children else (),
         )
     
-    def copy_values(self,other): # weak copy, only critical fields
+    def copy_values(self, other: "CircuitComponent") -> None:
+        """Copy only critical fields from another component.
+
+        Args:
+            other (CircuitComponent): Component to copy from.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Resistor
+            a = Resistor(cond=1.0)
+            b = Resistor(cond=2.0)
+            a.copy_values(b)
+            a.cond == b.cond # True
+            ```
+        """
         for field in self._critical_fields:
             if hasattr(self,field) and hasattr(other,field):
                 setattr(self,field,getattr(other,field))
+    
+    def plot(self,
+        fourth_quadrant: bool = True,
+        show_IV_parameters: bool = True,
+        title: str = "I-V Curve",
+        show_solver_summary: bool = False,
+    ) -> None:
+        pass
+
+    def show(self) -> None:
+        pass
+
+
 
 # Helper to collapse nested CircuitGroups with the same connection type.
-def flatten_connection(parts_list,connection):
+def flatten_connection(parts_list: Sequence["CircuitComponent"], connection: str) -> List["CircuitComponent"]:
     flat_list = []
     for part in parts_list:
         # do not flatten if it's Device
@@ -207,7 +354,31 @@ def flatten_connection(parts_list,connection):
     return flat_list
 
 # Normalize args and build a CircuitGroup with optional tiling and flattening.
-def connect(*args,connection="series",flatten_connection_=False,**kwargs):
+def connect(
+    *args: Union["CircuitComponent", Sequence["CircuitComponent"]],
+    connection: str = "series",
+    flatten_connection_: bool = False,
+    **kwargs: Any,
+) -> "CircuitGroup":
+    """Build a CircuitGroup from components and sequences.
+
+    Args:
+        *args (Union[CircuitComponent, Sequence[CircuitComponent]]): Components
+            or iterables of components.
+        connection (str): "series" or "parallel" connection type.
+        flatten_connection_ (bool): If True, collapse nested groups.
+        **kwargs (Any): Forwarded to tiling and CircuitGroup init.
+
+    Returns:
+        CircuitGroup: The connected circuit group.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import connect, R
+        group = connect(R(1), R(2), connection="series")
+        group.connection # 'series'
+        ```
+    """
     flat_list = []
     for arg in args:
         if isinstance(arg,(list, tuple)):
@@ -219,24 +390,70 @@ def connect(*args,connection="series",flatten_connection_=False,**kwargs):
     all_items_have_extent = True
     for item in flat_list:
         if hasattr(item,"_is_atomic"):
-            try: del item._is_atomic 
-            except: pass
+            try:
+                del item._is_atomic
+            except AttributeError:
+                pass
         if not hasattr(item,"extent"):
             all_items_have_extent = False
     if all_items_have_extent:
-        safe_kwargs = filter_kwargs(tile_elements, kwargs)
+        safe_kwargs = utilities.filter_kwargs(tile_elements, kwargs)
         tile_elements(flat_list, **safe_kwargs)
-    safe_kwargs = filter_kwargs(CircuitGroup.__init__, kwargs)
+    safe_kwargs = utilities.filter_kwargs(CircuitGroup.__init__, kwargs)
     return CircuitGroup(subgroups=flat_list,connection=connection,**safe_kwargs)
 
 # Convenience constructors for series/parallel connections.
-def series(*args,flatten_connection_=False,**kwargs):
+def series(
+    *args: Union["CircuitComponent", Sequence["CircuitComponent"]],
+    flatten_connection_: bool = False,
+    **kwargs: Any,
+) -> "CircuitGroup":
+    """Connect components in series.
+
+    Args:
+        *args (Union[CircuitComponent, Sequence[CircuitComponent]]): Components
+            or iterables of components.
+        flatten_connection_ (bool): If True, collapse nested groups.
+        **kwargs (Any): Forwarded to `connect` and layout helpers.
+
+    Returns:
+        CircuitGroup: A series-connected circuit group.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import series, R
+        group = series(R(1), R(2))
+        group.connection # 'series'
+        ```
+    """
     kwargs.pop("connection", None)
     if "rows" not in kwargs:
         kwargs["rows"] = 1
     return connect(*args,connection="series",flatten_connection_=flatten_connection_,**kwargs)
 
-def parallel(*args,flatten_connection_=False,**kwargs):
+def parallel(
+    *args: Union["CircuitComponent", Sequence["CircuitComponent"]],
+    flatten_connection_: bool = False,
+    **kwargs: Any,
+) -> "CircuitGroup":
+    """Connect components in parallel.
+
+    Args:
+        *args (Union[CircuitComponent, Sequence[CircuitComponent]]): Components
+            or iterables of components.
+        flatten_connection_ (bool): If True, collapse nested groups.
+        **kwargs (Any): Forwarded to `connect` and layout helpers.
+
+    Returns:
+        CircuitGroup: A parallel-connected circuit group.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import parallel, R
+        group = parallel(R(1), R(2))
+        group.connection # 'parallel'
+        ```
+    """
     kwargs.pop("connection", None)
     if "cols" not in kwargs:
         kwargs["cols"] = 1
@@ -244,32 +461,118 @@ def parallel(*args,flatten_connection_=False,**kwargs):
 
 # Leaf element interface: must implement IV behavior and drawing hooks.
 class CircuitElement(CircuitComponent):
-    def set_operating_point(self,V=None,I=None):
+    """A circuit element class
+    """
+    def set_operating_point(self, V: Optional[float] = None, I: Optional[float] = None) -> None: # noqa: E741
+        """Set the operating point for this element.
+
+        Args:
+            V (Optional[float]): Voltage to evaluate.
+            I (Optional[float]): Current to evaluate.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Resistor
+            r = Resistor(cond=2.0)
+            r.set_operating_point(V=0.5)
+            r.operating_point[1] == 1.0 # True
+            ```
+        """
         if V is not None:
             self.operating_point = [V, self.calc_I(V)]
         else:
-            self.operating_point = [interp_(I,self.IV_I,self.IV_V),I]
-    def get_value_text(self):
+            self.operating_point = [utilities.interp_(I,self.IV_I,self.IV_V),I]
+    def get_value_text(self) -> str:
         pass
-    def get_draw_func(self):
+    def get_draw_func(self) -> Callable[..., Any]:
         pass
-    def draw(self, ax=None, x=0, y=0, color="black", display_value=False):
+    def draw(
+        self,
+        ax: Optional[Any] = None,
+        x: float = 0,
+        y: float = 0,
+        color: str = "black",
+        display_value: bool = False,
+    ) -> None:
+        """Draw this element on a matplotlib axis.
+
+        Args:
+            ax (Optional[Any]): Matplotlib Axes to draw into, or None.
+            x (float): X position of the element center.
+            y (float): Y position of the element center.
+            color (str): Line color for the symbol.
+            display_value (bool): If True, show the value label.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import R
+            R(10).draw(ax=ax)
+            ```
+        """
         text = None
         if display_value:
             text = self.get_value_text()
-        draw_symbol(self.get_draw_func(),ax=ax,x=x,y=y,color=color,text=text)
+        utilities.draw_symbol(self.get_draw_func(),ax=ax,x=x,y=y,color=color,text=text)
         if "pos_node" in self.aux:
             ax.text(x,y-0.5,str(self.aux["neg_node"]), va='center', fontsize=6)
             ax.text(x,y+0.5,str(self.aux["pos_node"]), va='center', fontsize=6)
-    def calc_I(self,V):
+    def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        """Compute current for a given voltage.
+
+        Args:
+            V (Union[float, np.ndarray]): Voltage value(s).
+
+        Returns:
+            Union[float, np.ndarray]: Current value(s).
+
+        Raises:
+            NotImplementedError: If not implemented in a subclass.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Resistor
+            Resistor(cond=2.0).calc_I(0.5) # 1.0
+            ```
+        """
         raise NotImplementedError("Every child class of CircuitElement must have its own calc_I function")
-    def get_V_range(self):
+    def get_V_range(self) -> np.ndarray:
         raise NotImplementedError("Every child class of CircuitElement must have its own get_V_range function")
 
 # Ideal current source with optional temperature and irradiance scaling.
 class CurrentSource(CircuitElement,_type_number=0):
+    """Ideal current source with temperature and irradiance scaling.
+    """
     _critical_fields = CircuitComponent._critical_fields + ("IL","refSuns","Suns","refIL","refT","T","temp_coeff")
-    def __init__(self, IL, Suns=1.0, temperature=25, temp_coeff=0.0, tag=None):
+    def __init__(
+        self,
+        IL: float,
+        Suns: float = 1.0,
+        temperature: float = 25,
+        temp_coeff: float = 0.0,
+        tag: Optional[str] = None,
+    ) -> None:
+        """Initialize a current source.
+
+        Args:
+            IL (float): Light-generated current at reference conditions.
+            Suns (float): Relative irradiance multiplier.
+            temperature (float): Temperature in Celsius.
+            temp_coeff (float): Temperature coefficient for IL scaling.
+            tag (Optional[str]): Optional identifier for this source.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import CurrentSource
+            src = CurrentSource(IL=1.0, temperature=25)
+            src.IL # 1.0
+            ```
+        """
         super().__init__(tag=tag)
         self.IL = IL
         self.refSuns = Suns
@@ -278,55 +581,130 @@ class CurrentSource(CircuitElement,_type_number=0):
         self.refT = temperature
         self.T = temperature
         self.temp_coeff = temp_coeff
-    def set_operating_point(self,V=None,I=None):
+    def set_operating_point(self, V: Optional[float] = None, I: Optional[float] = None) -> None: # noqa: E741
         if I is not None:
             raise NotImplementedError
         super().set_operating_point(V,I)
-    def calc_I(self,V):
+    def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return -self.IL if np.isscalar(V) else -self.IL*np.ones_like(V)
-    def get_V_range(self):
+    def get_V_range(self) -> np.ndarray:
         return np.array([0.0])
-    def set_IL(self,IL):
+    def set_IL(self, IL: float) -> None:
+        """Update IL and invalidate IV caches.
+
+        Args:
+            IL (float): New light-generated current.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import CurrentSource
+            src = CurrentSource(IL=1.0)
+            src.set_IL(2.0)
+            src.IL # 2.0
+            ```
+        """
         self.IL = IL
         self.null_IV()
-    def changeTemperatureAndSuns(self,temperature=None,Suns=None):
+    def changeTemperatureAndSuns(
+        self,
+        temperature: Optional[float] = None,
+        Suns: Optional[float] = None,
+    ) -> None:
+        """Update temperature and irradiance, then recompute IL.
+
+        Args:
+            temperature (Optional[float]): New temperature in Celsius.
+            Suns (Optional[float]): New irradiance multiplier.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import CurrentSource
+            src = CurrentSource(IL=1.0, Suns=1.0)
+            src.changeTemperatureAndSuns(Suns=2.0)
+            src.Suns # 2.0
+            ```
+        """
         if Suns is not None:
             self.Suns = Suns
         if temperature is not None:
             self.T = temperature
         self.set_IL(self.Suns*(self.refIL / self.refSuns + self.temp_coeff * (self.T - self.refT)))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Current Source: IL = " + self.get_value_text()
     
-    def get_value_text(self):
+    def get_value_text(self) -> str:
         return f"{self.IL:.4f} A"
-    def get_draw_func(self):
-        return draw_CC_symbol
+    def get_draw_func(self) -> Callable[..., Any]:
+        return utilities.draw_CC_symbol
     
-# simplified initializer
-IL = partial(CurrentSource)
+def IL(*args, **kwargs):
+    """
+    This is a convenience alias for :class:`CurrentSource`, typically used
+    to represent the light-generated current term in a PV circuit.
+
+    Example:
+        ```python
+        IL = IL(5.0)
+        cell = IL + diode
+        ```
+    """
+    return CurrentSource(*args, **kwargs)
 
 # Ohmic resistor represented by conductance (1/R).
 class Resistor(CircuitElement,_type_number=1):
+    """Ohmic resistor represented by conductance (1/R).
+    """
     _critical_fields = CircuitComponent._critical_fields + ("cond",)
-    def __init__(self, cond=1.0, tag=None):
+    def __init__(self, cond: float = 1.0, tag: Optional[str] = None) -> None:
+        """Initialize a resistor.
+
+        Args:
+            cond (float): Conductance in 1/ohm.
+            tag (Optional[str]): Optional identifier for this resistor.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Resistor
+            r = Resistor(cond=1.0)
+            r.cond # 1.0
+            ```
+        """
         super().__init__(tag=tag)
         self.cond = cond
-    def set_cond(self,cond):
+    def set_cond(self, cond: float) -> None:
+        """Update conductance and invalidate IV caches.
+
+        Args:
+            cond (float): New conductance in 1/ohm.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Resistor
+            r = Resistor(cond=1.0)
+            r.set_cond(2.0)
+            r.cond # 2.0
+            ```
+        """
         self.cond = cond
         self.null_IV()
-    def calc_I(self,V):
+    def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return V*self.cond
-    def get_V_range(self):
+    def get_V_range(self) -> np.ndarray:
         cond = self.cond
         step = 1e-3
         if (cond > 1):
             step /= cond
         return np.array([-step,step])
-    def __str__(self):
+    def __str__(self) -> str:
         return "Resistor: R = " + self.get_value_text()
-    def get_value_text(self):
+    def get_value_text(self) -> str:
         R = 1/self.cond
         if "area" in self.aux:
             R *= self.aux["area"]
@@ -337,31 +715,86 @@ class Resistor(CircuitElement,_type_number=1):
             word += f"\n\u00B1{R_error:.3f}"
         word += " ohm"
         return word
-    def get_draw_func(self):
-        return draw_resistor_symbol
+    def get_draw_func(self) -> Callable[..., Any]:
+        return utilities.draw_resistor_symbol
     
 # simplified initializer
-def R(R,tag=None):
+def R(R: float, tag: Optional[str] = None) -> Resistor:
+    """Create a resistor by specifying resistance in ohms.
+
+    Args:
+        R (float): Resistance in ohms.
+        tag (Optional[str]): Optional identifier for this resistor.
+
+    Returns:
+        Resistor: A resistor with conductance 1/R.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import R
+        R(10).cond # 0.1
+        ```
+    """
     return Resistor(cond=1/R, tag=tag)
 
 # Generic diode with temperature-dependent thermal voltage and shift.
 class Diode(CircuitElement,_type_number=2):
+    """Generic diode class
+    """
     _critical_fields = CircuitComponent._critical_fields + ("I0","n","V_shift","VT","refI0","refT")
     max_I = DEFAULT_MAX_DIODE_CURRENT_DENSITY
-    def __init__(self,I0=1e-15,n=1,V_shift=0,max_I=None,tag=None,temperature=25): #V_shift is to shift the starting voltage, e.g. to define breakdown
+    def __init__(
+        self,
+        I0: float = 1e-15,
+        n: float = 1,
+        V_shift: float = 0,
+        max_I: Optional[float] = None,
+        tag: Optional[str] = None,
+        temperature: float = 25,
+    ) -> None:
+        """Initialize a diode.
+
+        Args:
+            I0 (float): Saturation current.
+            n (float): Ideality factor.
+            V_shift (float): Voltage shift (e.g., breakdown offset).
+            max_I (Optional[float]): Maximum current density for IV ranges.
+            tag (Optional[str]): Optional identifier for this diode.
+            temperature (float): Temperature in Celsius.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Diode
+            d = Diode(I0=1e-12, n=1.0)
+            d.I0 # 1e-12
+            ```
+        """
         super().__init__(tag=tag)
         self.I0 = I0
         self.n = n
         self.V_shift = V_shift
-        self.VT = get_VT(temperature)
+        self.VT = utilities.get_VT(temperature)
         self.refI0 = I0
         self.refT = temperature
         if max_I is not None:
             self.max_I = max_I
-    def set_I0(self,I0):
+    def set_I0(self, I0: float) -> None:
+        """Update saturation current and invalidate IV caches.
+
+        Args:
+            I0 (float): New saturation current.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Diode
+            d = Diode()
+            d.set_I0(1e-12)
+            d.I0 # 1e-12
+            ```
+        """
         self.I0 = I0
         self.null_IV()
-    def get_V_range(self):
+    def get_V_range(self) -> np.ndarray:
         max_num_points = self.max_num_points
         if max_num_points is None:
             max_num_points = 100
@@ -373,71 +806,147 @@ class Diode(CircuitElement,_type_number=2):
         V = [-1.1,-1.0,0]+list(Voc*np.log(np.arange(1,max_num_points_))/np.log(max_num_points_-1))
         V = np.array(V) + self.V_shift
         return V
-    def estimate_Voc(self,max_I):
+    def estimate_Voc(self, max_I: float) -> float:
         Voc = 10
         if self.I0>0:
             Voc = self.n*self.VT*np.log(max_I/self.I0) 
         return Voc
-    def changeTemperature(self,temperature):
-        self.VT = get_VT(temperature)
-        old_ni  = get_ni(self.refT)
-        new_ni  = get_ni(temperature)
+    def changeTemperature(self, temperature: float) -> None:
+        """Update temperature and scale saturation current.
+
+        Args:
+            temperature (float): Temperature in Celsius.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Diode
+            d = Diode()
+            d.changeTemperature(35)
+            ```
+        """
+        self.VT = utilities.get_VT(temperature)
+        old_ni  = silicon.get_ni(self.refT)
+        new_ni  = silicon.get_ni(temperature)
         scale_factor = (new_ni/old_ni)**(2/self.n)
         self.set_I0(self.refI0*scale_factor)
     
 # Standard Shockley diode (forward direction).
 class ForwardDiode(Diode):
-    def __str__(self):
+    """Diode that points from '+' to '-'
+    """
+    def __str__(self) -> str:
         return "Forward Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
-    def get_value_text(self):
+    def get_value_text(self) -> str:
         word = f"I0 = {self.I0:.3e}"
         if "error" in self.aux and not np.isnan(self.aux["error"]):
             word += f"\n\u00B1{self.aux['error']:.3e}"
         word += f" A\nn = {self.n:.2f}"
         return word
-    def calc_I(self,V):
+    def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return self.I0*(np.exp((V-self.V_shift)/(self.n*self.VT))-1)
-    def get_draw_func(self):
-        return draw_forward_diode_symbol
+    def get_draw_func(self) -> Callable[..., Any]:
+        return utilities.draw_forward_diode_symbol
     
 # simplified initializer
-D = partial(ForwardDiode)
-D1 = partial(ForwardDiode,n=1)
-D2 = partial(ForwardDiode,n=2)
+def D(*args, **kwargs):
+    """
+    This is a shorthand constructor for :class:`ForwardDiode`.
+    """
+    return ForwardDiode(*args, **kwargs)
+
+
+def D1(*args, **kwargs):
+    """
+    Create a forward diode with ideality factor n = 1.
+    """
+    n = kwargs.pop("n", 1)
+    return ForwardDiode(*args, n=n, **kwargs)
+
+
+def D2(*args, **kwargs):
+    """
+    Create a forward diode with ideality factor n = 2.
+    """
+    n = kwargs.pop("n", 2)
+    return ForwardDiode(*args, n=n, **kwargs)
     
 # LED-like diode used for photon coupling in tandem models.
 class PhotonCouplingDiode(ForwardDiode):
-    def get_draw_func(self):
-        return draw_LED_diode_symbol
-    def __str__(self):
+    """LED-like diode for photon coupling in tandem models.
+    """
+    def get_draw_func(self) -> Callable[..., Any]:
+        return utilities.draw_LED_diode_symbol
+    def __str__(self) -> str:
         return "Photon Coupling Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n)
-    
+
 # simplified initializer
-Dpc = partial(PhotonCouplingDiode)
+def Dpc(*args, **kwargs):
+    """
+    This is a shorthand constructor for :class:`PhotonCouplingDiode`.
+    """
+    return PhotonCouplingDiode(*args, **kwargs)
 
 # Reverse (breakdown) diode; shifts voltage and flips IV direction.
 class ReverseDiode(Diode,_type_number=3):
-    def __str__(self):
+    """Reverse (breakdown) diode with inverted IV direction.
+    """
+    def __str__(self) -> str:
         return "Reverse Diode: I0 = " + str(self.I0) + "A, n = " + str(self.n) + ", breakdown V = " + str(self.V_shift)
-    def get_value_text(self):
+    def get_value_text(self) -> str:
         return f"I0 = {self.I0:.3e}A\nn = {self.n:.2f}\nbreakdown V = {self.V_shift:.2f}"
-    def calc_I(self,V):
+    def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return -self.I0*np.exp((-V-self.V_shift)/(self.n*self.VT))
-    def get_V_range(self):
+    def get_V_range(self) -> np.ndarray:
         V_range = super().get_V_range()
         return -V_range[::-1]
-    def get_draw_func(self):
-        return draw_reverse_diode_symbol
-    
+    def get_draw_func(self) -> Callable[..., Any]:
+        return utilities.draw_reverse_diode_symbol
+
 # simplified initializer
-Drev = partial(ReverseDiode)
+def Drev(*args, **kwargs):
+    """
+    This is a shorthand constructor for :class:`ReverseDiode`.
+    """
+    return ReverseDiode(*args, **kwargs)
     
 # Intrinsic Si diode with recombination physics for base region.
 class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
+    """Intrinsic silicon diode with base recombination physics.
+    """
     _critical_fields = CircuitComponent._critical_fields + ("base_thickness","base_type","base_doping","temperature","VT","ni","area")
-    bandgap_narrowing_RT = np.array(bandgap_narrowing_RT)
+    bandgap_narrowing_RT = np.array(silicon.bandgap_narrowing_RT)
     # area is 1 is OK because the cell subgroup has normalized area of 1
-    def __init__(self,base_thickness=180e-4,base_type="n",base_doping=1e+15,area=1.0,temperature=25,max_I=None,tag=None):
+    def __init__(
+        self,
+        base_thickness: float = 180e-4,
+        base_type: str = "n",
+        base_doping: float = 1e+15,
+        area: float = 1.0,
+        temperature: float = 25,
+        max_I: Optional[float] = None,
+        tag: Optional[str] = None,
+    ) -> None:
+        """Initialize an intrinsic silicon diode.
+
+        Args:
+            base_thickness (float): Base thickness in cm.
+            base_type (str): "p" or "n" base type.
+            base_doping (float): Base doping concentration in cm^-3.
+            area (float): Active area multiplier.
+            temperature (float): Temperature in Celsius.
+            max_I (Optional[float]): Maximum current density for IV ranges.
+            tag (Optional[str]): Optional identifier.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import Intrinsic_Si_diode
+            d = Intrinsic_Si_diode()
+            d.base_type # 'n'
+            ```
+        """
         CircuitElement.__init__(self, tag)
         self.base_thickness = base_thickness
         self.base_type = base_type
@@ -445,13 +954,13 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         self.temperature = temperature
         self.area = area
         self.V_shift = 0
-        self.VT = get_VT(self.temperature)
-        self.ni = get_ni(self.temperature)
+        self.VT = utilities.get_VT(self.temperature)
+        self.ni = silicon.get_ni(self.temperature)
         if max_I is not None:
             self.max_I = max_I
-    def __str__(self):
+    def __str__(self) -> str:
         return "Si Intrinsic Diode"
-    def calc_I(self, V):
+    def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         ni = self.ni
         VT = self.VT
         N_doping = self.base_doping
@@ -463,42 +972,80 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         else:
             p0 = 0.5*(-N_doping + np.sqrt(N_doping**2 + 4*ni**2))
             n0 = 0.5*(N_doping + np.sqrt(N_doping**2 + 4*ni**2))
-        BGN = interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
+        BGN = utilities.interp_(delta_n,self.bandgap_narrowing_RT[:,0],self.bandgap_narrowing_RT[:,1])
         ni_eff = ni*np.exp(BGN/2/VT)
         geeh = 1 + 13*(1-np.tanh((n0/3.3e17)**0.66))
         gehh = 1 + 7.5*(1-np.tanh((p0/7e17)**0.63))
         Brel = 1
         Blow = 4.73e-15
         intrinsic_recomb = (pn - ni_eff**2)*(2.5e-31*geeh*n0+8.5e-32*gehh*p0+3e-29*delta_n**0.92+Brel*Blow) # in units of 1/s/cm3
-        return q*intrinsic_recomb*self.base_thickness*self.area
-    def estimate_Voc(self,max_I):
+        return utilities.q*intrinsic_recomb*self.base_thickness*self.area
+    def estimate_Voc(self, max_I: float) -> float:
         Voc = 10
         if self.base_thickness>0:
             Voc = 0.7
             for _ in range(10):
-                I = self.calc_I(Voc)
-                if I >= max_I and I <= max_I*1.1:
+                I_ = self.calc_I(Voc)
+                if I_ >= max_I and I_ <= max_I*1.1:
                     break
-                Voc += self.VT*np.log(max_I/I)
+                Voc += self.VT*np.log(max_I/I_)
         return Voc
-    def get_value_text(self):
+    def get_value_text(self) -> str:
         word = f"intrinsic:\nt={self.base_thickness:.2e}\n{self.base_type} type\n{self.base_doping:.2e} cm-3"
         return word
-    def set_I0(self,I0):
+    def set_I0(self, I0: float) -> None:
         pass # does nothing
-    def changeTemperature(self,temperature):
+    def changeTemperature(self, temperature: float) -> None:
         self.temperature = temperature
-        self.VT = get_VT(self.temperature)
-        self.ni = get_ni(self.temperature)
+        self.VT = utilities.get_VT(self.temperature)
+        self.ni = silicon.get_ni(self.temperature)
         self.null_IV()
 
-Dintrinsic_Si = partial(Intrinsic_Si_diode)
+# simplified initializer
+def Dintrinsic_Si(*args, **kwargs):
+    """
+    This is a shorthand constructor for :class:`Intrinsic_Si_diode`.
+    """
+    return Intrinsic_Si_diode(*args, **kwargs)
 
 # Composite circuit node that holds subgroups in series or parallel.
 class CircuitGroup(CircuitComponent,_type_number=5):
+    """Circuit with series or parallel connected parts.
+    """
     _critical_fields = CircuitComponent._critical_fields + ("connection","subgroups")
-    def __init__(self,subgroups,connection="series",name=None,location=None,
-                 rotation=0,x_mirror=1,y_mirror=1,extent=None):
+    def __init__(
+        self,
+        subgroups: Sequence[CircuitComponent],
+        connection: str = "series",
+        name: Optional[str] = None,
+        location: Optional[Sequence[float]] = None,
+        rotation: float = 0,
+        x_mirror: int = 1,
+        y_mirror: int = 1,
+        extent: Optional[Sequence[float]] = None,
+    ) -> None:
+        """Initialize a CircuitGroup.
+
+        Args:
+            subgroups (Sequence[CircuitComponent]): Child components/groups.
+            connection (str): "series" or "parallel" connection type.
+            name (Optional[str]): Optional name for lookup.
+            location (Optional[Sequence[float]]): XY location for layout.
+            rotation (float): Rotation in degrees.
+            x_mirror (int): X mirror flag (+1 or -1).
+            y_mirror (int): Y mirror flag (+1 or -1).
+            extent (Optional[Sequence[float]]): Precomputed extent (width, height).
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import CircuitGroup, R
+            group = CircuitGroup([R(1), R(2)], connection="series")
+            group.connection # 'series' 
+            ```
+        """
         super().__init__()
         self.connection = connection
         self.subgroups = subgroups
@@ -540,22 +1087,78 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         self.is_circuit_group = True
 
     @property
-    def parts(self):
+    def parts(self) -> Sequence["CircuitComponent"]:
+        """Alias for subgroups.
+
+        Args:
+            None
+
+        Returns:
+            Sequence[CircuitComponent]: Child components/groups.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R
+            group = series(R(1), R(2))
+            len(group.parts) # 2
+            ```
+        """
         return self.subgroups
 
     @parts.setter
-    def parts(self, value):
+    def parts(self, value: Sequence["CircuitComponent"]) -> None:
         self.subgroups = value
 
     @property
-    def children(self):
+    def children(self) -> Sequence["CircuitComponent"]:
+        """Another alias for subgroups.
+
+        Args:
+            None
+
+        Returns:
+            Sequence[CircuitComponent]: Child components/groups.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R
+            group = series(R(1), R(2))
+            len(group.children) # 2
+            ```
+        """
         return self.subgroups
 
     @children.setter
-    def children(self, value):
+    def children(self, value: Sequence["CircuitComponent"]) -> None:
         self.subgroups = value
 
-    def set_operating_point(self,V=None,I=None,refine_IV=False,shallow=False):
+    def set_operating_point(
+        self,
+        V: Optional[float] = None,
+        I: Optional[float] = None, # noqa: E741
+        refine_IV: bool = False,
+        shallow: bool = False,
+    ) -> None:
+        """Set the operating point for the circuit group.
+
+        Args:
+            V (Optional[float]): Voltage to set or evaluate.
+            I (Optional[float]): Current to set or evaluate.
+            refine_IV (bool): If True, refine IV around operating point.
+            shallow (bool): If True, skip recursion into subgroups.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import *
+            group = R(1) + R(2)
+            group.build_IV()
+            group.set_operating_point(V=0.5, shallow=True)
+            group.operating_point[0] # 0.5
+            ```
+        """
         if not hasattr(self,"job_heap"):
             self.build_IV()
         elif self.IV_V is None:
@@ -579,7 +1182,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                     self.null_all_IV()
                     self.build_IV()
 
-        if shallow or self.num_circuit_elements < 10000 or not hasattr(IV_Job_Heap,"set_operating_point"): # no need to go c++ overkill
+        if shallow or self.num_circuit_elements < 10000: # no need to go c++ overkill
             # Use python interpolation for shallow/small circuits.
             V_ = V
             I_ = I
@@ -606,7 +1209,23 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         self.refined_IV = True
         gc.enable()
 
-    def removeElementOfTag(self,tag):
+    def removeElementOfTag(self, tag: Any) -> None:
+        """Remove all elements with a matching tag.
+
+        Args:
+            tag (Any): Tag value to remove.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R
+            group = series(R(1, tag="R1"), R(2, tag="R2"))
+            group.removeElementOfTag("R1")
+            len(group.subgroups) # 1
+            ```
+        """
         for j in range(len(self.subgroups) - 1, -1, -1):
             element = self.subgroups[j]
             if isinstance(element, CircuitElement):
@@ -616,7 +1235,22 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 element.removeElementOfTag(tag)
         self.null_IV()
 
-    def set_temperature(self,temperature):
+    def set_temperature(self, temperature: float) -> None:
+        """Update temperature for all diodes and current sources.
+
+        Args:
+            temperature (float): Temperature in Celsius.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R, CurrentSource
+            group = series(CurrentSource(1.0), R(1))
+            group.set_temperature(35)
+            ```
+        """
         diodes = self.findElementType(Diode)
         for diode in diodes:
             diode.changeTemperature(temperature)
@@ -624,7 +1258,22 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         for currentSource in currentSources:
             currentSource.changeTemperatureAndSuns(temperature=temperature)
 
-    def findElementType(self,type_):
+    def findElementType(self, type_: Union[type, str]) -> List["CircuitComponent"]:
+        """Find all elements of a given type in the subtree.
+
+        Args:
+            type_ (Union[type, str]): Class or class name to match.
+
+        Returns:
+            List[CircuitComponent]: Matching elements.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R, Diode
+            group = series(R(1), Diode())
+            len(group.findElementType(Diode)) # 1
+            ```
+        """
         list_ = []
         for element in self.subgroups:
             if (not isinstance(type_,str) and isinstance(element,type_))  or (isinstance(type_,str) and type(element).__name__==type_):
@@ -633,10 +1282,19 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 list_.extend(element.findElementType(type_))
         return list_
     
-    def __getitem__(self,type_):
+    def __getitem__(self, type_: Union[type, str]) -> List["CircuitComponent"]:
+        """Shortcut for `findElementType`.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R, Diode
+            group = series(R(1), Diode())
+            len(group[Diode])
+            ```
+        """
         return self.findElementType(type_)
     
-    def __str__(self):
+    def __str__(self) -> Optional[str]:
         if self.num_circuit_elements > 2000:
             print(f"There are too many elements to draw ({self.num_circuit_elements}).  I give up!")
             return
@@ -647,7 +1305,34 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             word += str(element) + "\n"
         return word    
     
-    def draw(self, ax=None, x=0, y=0, display_value=False, title="Model", linewidth=1.5):
+    def draw(
+        self,
+        ax: Optional[Any] = None,
+        x: float = 0,
+        y: float = 0,
+        display_value: bool = False,
+        title: str = "Model",
+        linewidth: float = 1.5,
+    ) -> None:
+        """Draw the circuit group with matplotlib.
+
+        Args:
+            ax (Optional[Any]): Matplotlib Axes to draw into, or None.
+            x (float): X position of the diagram center.
+            y (float): Y position of the diagram center.
+            display_value (bool): If True, show component values.
+            title (str): Figure title when creating a new figure.
+            linewidth (float): Line width for wiring.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.circuit_model import series, R
+            series(R(1), R(2)).draw(ax=ax)
+            ```
+        """
         if self.num_circuit_elements > 2000:
             print(f"There are too many elements to draw ({self.num_circuit_elements}).  I give up!")
             return
@@ -677,20 +1362,20 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             element.draw(ax=ax, x=center_x, y=center_y, display_value=display_value)
             if self.connection=="series":
                 if i > 0:
-                    line = plt.Line2D([x,x],[current_y-y_spacing, current_y], color="black", linewidth=linewidth)
+                    line = plt.Line2D([x,x],[current_y-utilities.y_spacing, current_y], color="black", linewidth=linewidth)
                     ax.add_line(line)
-                current_y += element.circuit_diagram_extent[1]+y_spacing
+                current_y += element.circuit_diagram_extent[1]+utilities.y_spacing
             else:
                 line = plt.Line2D([center_x,center_x], [center_y+element.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
                 ax.add_line(line)
                 line = plt.Line2D([center_x,center_x], [center_y-element.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
                 ax.add_line(line)
                 if i > 0:
-                    line = plt.Line2D([center_x,current_x-x_spacing-self.subgroups[i-1].circuit_diagram_extent[0]/2], [y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
+                    line = plt.Line2D([center_x,current_x-utilities.x_spacing-self.subgroups[i-1].circuit_diagram_extent[0]/2], [y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
                     ax.add_line(line)
-                    line = plt.Line2D([center_x,current_x-x_spacing-self.subgroups[i-1].circuit_diagram_extent[0]/2], [y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
+                    line = plt.Line2D([center_x,current_x-utilities.x_spacing-self.subgroups[i-1].circuit_diagram_extent[0]/2], [y-self.circuit_diagram_extent[1]/2,y-self.circuit_diagram_extent[1]/2], color="black", linewidth=linewidth)
                     ax.add_line(line)
-                current_x += element.circuit_diagram_extent[0]+x_spacing
+                current_x += element.circuit_diagram_extent[0]+utilities.x_spacing
         if draw_immediately:
             pbar.close()
             # Add terminals and clean up axes for diagram output.
@@ -698,8 +1383,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             ax.add_line(line)
             line = plt.Line2D([x,x], [y+self.circuit_diagram_extent[1]/2,y+self.circuit_diagram_extent[1]/2+0.2], color="black", linewidth=linewidth)
             ax.add_line(line)
-            draw_symbol(draw_earth_symbol, ax=ax,  x=x, y=y-self.circuit_diagram_extent[1]/2-0.3)
-            draw_symbol(draw_pos_terminal_symbol, ax=ax,  x=x, y=y+self.circuit_diagram_extent[1]/2+0.25)
+            utilities.draw_symbol(utilities.draw_earth_symbol, ax=ax,  x=x, y=y-self.circuit_diagram_extent[1]/2-0.3)
+            utilities.draw_symbol(utilities.draw_pos_terminal_symbol, ax=ax,  x=x, y=y+self.circuit_diagram_extent[1]/2+0.25)
             ax.set_aspect('equal')
             ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
             for spine in ax.spines.values():
@@ -708,19 +1393,74 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             fig.canvas.manager.set_window_title(title)
             plt.show()
     
-    def as_type(self, cls, **kwargs):
+    def as_type(self, cls: Type[T_CircuitComponent], **kwargs: Any) -> T_CircuitComponent:
+        """Convert this group to another circuit component type.
+
+        Args:
+            cls (Type[CircuitComponent]): Target class with `from_circuitgroup`.
+            **kwargs (Any): Forwarded to `from_circuitgroup`.
+
+        Returns:
+            CircuitComponent: Converted instance of `cls`.
+
+        Raises:
+            TypeError: If `cls` is not a CircuitComponent or lacks conversion.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.device import *
+            circuit_group = ( 
+                (IL(41e-3) | D1(10e-15) | D2(5e-9) | Dintrinsic_Si(180e-4) | Drev(V_shift=10) | R(1e5)) 
+                + R(1/3)
+            )
+            cell_ = circuit_group.as_type(Cell, **wafer_shape(format="M10",half_cut=True))
+            ```
+        """
         if not issubclass(cls, CircuitComponent):
             raise TypeError(...)
         if hasattr(cls, "from_circuitgroup"):
             return cls.from_circuitgroup(self, **kwargs)
         raise TypeError(f"{cls.__name__} does not support conversion")
     
-    def tile_subgroups(self, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=False, xflip=False, yflip=False, col_wise_ordering=True):
+    def tile_subgroups(
+        self,
+        rows: Optional[int] = None,
+        cols: Optional[int] = None,
+        x_gap: float = 0.0,
+        y_gap: float = 0.0,
+        turn: bool = False,
+        xflip: bool = False,
+        yflip: bool = False,
+        col_wise_ordering: bool = True,
+    ) -> "CircuitGroup":
+        """Tile subgroups into a grid layout.
+
+        Args:
+            rows (Optional[int]): Number of rows.
+            cols (Optional[int]): Number of columns.
+            x_gap (float): Horizontal gap between tiles.
+            y_gap (float): Vertical gap between tiles.
+            turn (bool): Alternate rotation per column/row.
+            xflip (bool): Flip X orientation for 2-column layout.
+            yflip (bool): Flip Y orientation for 2-row layout.
+            col_wise_ordering (bool): Fill columns before rows.
+
+        Returns:
+            CircuitGroup: The updated group (self).
+
+        Example:
+            ```python
+            from PV_Circuit_Model.device import Cell_
+            cell = Cell_()
+            cells = cell*5
+            cells.tile_subgroups(rows=1)
+            ```
+        """
         tile_elements(self.subgroups, rows=rows, cols=cols, x_gap = x_gap, y_gap = y_gap, turn=turn, xflip=xflip, yflip=yflip, col_wise_ordering=col_wise_ordering)
         self.extent = get_extent(self.subgroups)
         return self
 
-def get_extent(elements, center=True):
+def get_extent(elements: Sequence[Any], center: bool = True) -> Optional[List[float]]:
     x_bounds = [None,None]
     y_bounds = [None,None]
     for element in elements:
@@ -755,7 +1495,7 @@ def get_extent(elements, center=True):
         return None
 
 # Compute drawing extent based on series/parallel layout.
-def get_circuit_diagram_extent(elements,connection):
+def get_circuit_diagram_extent(elements: Sequence[Any], connection: str) -> List[float]:
     total_extent = [0.0,0.0]
     for i, element in enumerate(elements):
         extent_ = element.circuit_diagram_extent
@@ -763,18 +1503,52 @@ def get_circuit_diagram_extent(elements,connection):
             total_extent[0] = max(total_extent[0], extent_[0])
             total_extent[1] += extent_[1]
             if i > 0:
-                total_extent[1] += y_spacing
+                total_extent[1] += utilities.y_spacing
         else:
             total_extent[1] = max(total_extent[1], extent_[1])
             total_extent[0] += extent_[0]
             if i > 0:
-                total_extent[0] += x_spacing
+                total_extent[0] += utilities.x_spacing
     if connection!="series":
         total_extent[1] += 0.2 # the connectors
     return total_extent
 
 # Tile elements into a grid for layout and diagram placement.
-def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn=False, xflip=False, yflip=False, col_wise_ordering=True):
+def tile_elements(
+    elements: Sequence[Any],
+    rows: Optional[int] = None,
+    cols: Optional[int] = None,
+    x_gap: float = 0.0,
+    y_gap: float = 0.0,
+    turn: bool = False,
+    xflip: bool = False,
+    yflip: bool = False,
+    col_wise_ordering: bool = True,
+) -> None:
+    """Tile elements into a grid for layout and diagram placement.
+
+    Args:
+        elements (Sequence[Any]): Elements with `extent` and `location`.
+        rows (Optional[int]): Number of rows.
+        cols (Optional[int]): Number of columns.
+        x_gap (float): Horizontal gap between tiles.
+        y_gap (float): Vertical gap between tiles.
+        turn (bool): Alternate rotation per column/row.
+        xflip (bool): Flip X orientation for 2-column layout.
+        yflip (bool): Flip Y orientation for 2-row layout.
+        col_wise_ordering (bool): Fill columns before rows.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+            from PV_Circuit_Model.device import Cell_
+            cell = Cell_()
+            cells = cell*5
+            tile_elements(cells.parts,rows=1)
+        ```
+    """
     tile_objects = []
     for element in elements:
         if hasattr(element,"extent"):
@@ -835,12 +1609,46 @@ def tile_elements(elements, rows=None, cols=None, x_gap = 0.0, y_gap = 0.0, turn
     if yflip and rows==2 and len(tile_objects)==2:
         tile_objects[1].y_mirror = -1
 
-# Shallow copy helper for circuit components.
-def circuit_deepcopy(circuit_component):
+def circuit_deepcopy(circuit_component: CircuitComponent) -> CircuitComponent:
+    """Return a deep clone of a circuit component.
+
+    Warning:
+        This uses the component's `clone` method and does not deep-copy
+        external resources.
+
+    Args:
+        circuit_component (CircuitComponent): Component to clone.
+
+    Returns:
+        CircuitComponent: Cloned component.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import R, circuit_deepcopy
+        r = R(1)
+        r2 = circuit_deepcopy(r)
+        ```
+    """
     return circuit_component.clone()
 
 # Search helpers for nested CircuitGroup structures.
-def find_subgroups_by_name(circuit_group, target_name):
+def find_subgroups_by_name(circuit_group: "CircuitGroup", target_name: str) -> List[CircuitComponent]:
+    """Find subgroups with a matching name.
+
+    Args:
+        circuit_group (CircuitGroup): Root group to search.
+        target_name (str): Name to match.
+
+    Returns:
+        List[CircuitComponent]: Matching subgroups.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import CircuitGroup, R
+        group = CircuitGroup([R(1)], connection="series", name="root")
+        len(find_subgroups_by_name(group, "root")) # 1
+        ```
+    """
     result = []
     for element in circuit_group.subgroups:
         if hasattr(element, 'name') and element.name == target_name:
@@ -850,7 +1658,27 @@ def find_subgroups_by_name(circuit_group, target_name):
     return result
 
 # Search helpers for tags in nested CircuitGroup structures.
-def find_subgroups_by_tag(circuit_group, tag):
+def find_subgroups_by_tag(circuit_group: "CircuitGroup", tag: Any) -> List[CircuitComponent]:
+    """Find subgroups with a matching tag.
+
+    Warning:
+        This uses name-based recursion for nested groups and may not find
+        tagged children in all cases.
+
+    Args:
+        circuit_group (CircuitGroup): Root group to search.
+        tag (Any): Tag value to match.
+
+    Returns:
+        List[CircuitComponent]: Matching subgroups.
+
+    Example:
+        ```python
+        from PV_Circuit_Model.circuit_model import series, R
+        group = series(R(1, tag="R1"), R(2))
+        len(find_subgroups_by_tag(group, "R1")) # 1
+        ```
+    """
     result = []
     for element in circuit_group.subgroups:
         if hasattr(element, 'tag') and element.tag == tag:

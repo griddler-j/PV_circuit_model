@@ -3,9 +3,11 @@
 # This notebook shows how to build and run a circuit model of a PV module.
 
 #%%
-from PV_Circuit_Model.device import *
-from PV_Circuit_Model.device_analysis import *
+from PV_Circuit_Model.circuit_model import R, Drev
+from PV_Circuit_Model.device import Module, Device
+from PV_Circuit_Model.device_analysis import Module_
 from PV_Circuit_Model.utilities import Artifact
+import numpy as np
 from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 
