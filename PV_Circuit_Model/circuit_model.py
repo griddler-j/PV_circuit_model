@@ -1457,8 +1457,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 current_source = self.findElementType(CurrentSource)
                 current_source[0].aux["current_offset"] = current_offset
 
-        circles: list[list[Any]] = []
-        max_I_: float = 0
         def update(frame):
             global circles
             global max_I_

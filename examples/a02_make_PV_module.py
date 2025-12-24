@@ -3,8 +3,8 @@
 # This notebook shows how to build and run a circuit model of a PV module.
 
 #%%
-from PV_Circuit_Model.circuit_model import R, D_bypass
-from PV_Circuit_Model.device import Module, Device
+from PV_Circuit_Model.circuit_model import R
+from PV_Circuit_Model.device import Module, Device, Dbypass
 from PV_Circuit_Model.device_analysis import Module_
 from PV_Circuit_Model.utilities import Artifact
 import numpy as np
