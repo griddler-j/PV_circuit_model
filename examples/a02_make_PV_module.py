@@ -3,8 +3,8 @@
 # This notebook shows how to build and run a circuit model of a PV module.
 
 #%%
-from PV_Circuit_Model.circuit_model import R, Drev
-from PV_Circuit_Model.device import Module, Device
+from PV_Circuit_Model.circuit_model import R
+from PV_Circuit_Model.device import Module, Device, Dbypass
 from PV_Circuit_Model.device_analysis import Module_
 from PV_Circuit_Model.utilities import Artifact
 import numpy as np
@@ -24,7 +24,7 @@ half_string = (cell*24 + R(0.05)).tile_subgroups(cols=2,x_gap=0.1,y_gap=0.1,turn
 
 # B**2 = B | B = connect 2 copies of B's together in parallel
 # again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization
-section = (half_string**2 | Drev()).tile_subgroups(cols = 1, y_gap = 1, yflip=True)
+section = (half_string**2 | Dbypass()).tile_subgroups(cols = 1, y_gap = 1, yflip=True)
 
 # C*3 = C + C + C = connect 3 copies of C's together in series
 # again, tile_subgroups is optional to arrange the subparts spatially, for ease of visualization
