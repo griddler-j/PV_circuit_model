@@ -1352,26 +1352,58 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         animate: bool = False,
         V_sweep_frames: Optional[Any] = None,
         split_screen_with_IV: bool = False,
+        current_flow_log10_range: float = 4,
         area_multiplier: float = 1,
         is_root: bool = True
     ) -> list[Any] | None:
-        """Draw the circuit group with matplotlib.
+        """Draw the CircuitGroup as a schematic, optionally with animation and an IV subplot.
+
+        If ``animate=True``, the method animates "current flow" using moving circles along the wires.
+        If ``V_sweep_frames`` is provided, the operating point is swept over the specified voltages and
+        the animation updates the operating point (and optionally the IV subplot markers) per frame.
 
         Args:
-            ax (Optional[Any]): Matplotlib Axes to draw into, or None.
-            x (float): X position of the diagram center.
-            y (float): Y position of the diagram center.
-            display_value (bool): If True, show component values.
-            title (str): Figure title when creating a new figure.
-            linewidth (float): Line width for wiring.
-
-        Returns:
-            None
+            ax: Optional Matplotlib Axes for the IV subplot. Not passed by users.
+            ax2: Optional Matplotlib Axes for the IV subplot. Not passed by users.
+            x: X position of the schematic center in diagram coordinates.
+            y: Y position of the schematic center in diagram coordinates.
+            display_value: If True, display component values (where supported by elements).
+            title: Figure window title when creating a new figure.
+            linewidth: Line width for wiring.
+            animate: If True, animate current flow using moving circles on the wires. Requires that
+                operating points have been computed (e.g., via ``get_Pmax()``, ``set_operating_point()``,
+                or similar).
+            V_sweep_frames: Optional sequence of voltages to sweep. If provided, each animation frame
+                sets the circuit operating point to ``V_sweep_frames[frame]``. When omitted, the
+                animation runs as a steady "flow" at the current operating point.
+            split_screen_with_IV: If True, creates a second subplot showing the IV curve 
+            current_flow_log10_range: Controls visual scaling of circle size with current magnitude.
+                Circle radii scale approximately with ``log10(|I|)`` over this range; larger values
+                compress the visual range (less variation), smaller values exaggerate it.
+            area_multiplier: Not passed by users.
+            is_root: Internal recursion flag. Not passed by users.
 
         Example:
+            Basic schematic:
+
             ```python
             from PV_Circuit_Model.circuit_model import series, R
-            series(R(1), R(2)).draw(ax=ax)
+            (R(1) + R(2)).draw()
+            ```
+
+            Animate current flow (after computing an operating point):
+
+            ```python
+            circuit.get_Pmax()
+            circuit.draw(animate=True)
+            ```
+
+            Sweep operating point across voltages and show IV subplot:
+
+            ```python
+            Vs = np.linspace(0, circuit.get_Voc(), 60)
+            circuit.get_Pmax()
+            circuit.draw(animate=True, V_sweep_frames=Vs, split_screen_with_IV=True)
             ```
         """
         if self.num_circuit_elements > 2000:
@@ -1387,7 +1419,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if V_sweep_frames is not None:
                 self.set_operating_point(V=V_sweep_frames[0])
             if split_screen_with_IV:
-                if self.IV_V is not None:
+                if self.IV_V is None:
                     self.get_Pmax()
                 fig, (ax,ax2) = plt.subplots(2,1) 
                 color_scheme = ["red","green","blue","purple"]
@@ -1623,7 +1655,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 ratio = abs(I_)/max_I_
 
                 log_ratio = np.log10(ratio)
-                ball_size = max_ball_size*(3+log_ratio)/3
+                ball_size = max_ball_size*(current_flow_log10_range+log_ratio)/current_flow_log10_range
                 ball_size = max(0,ball_size)
                 displacement = end_pt-start_pt
                 distance = np.sqrt(displacement[0]**2+displacement[1]**2)
