@@ -148,7 +148,7 @@ def rotate_points(xy_pairs, origin, angle_deg):
         rotated.append((rx, ry))
     return rotated
 
-def draw_symbol(draw_func, ax=None,  x=0, y=0, color="black", text=None, **kwargs):
+def draw_symbol(draw_func, ax=None,  x=0, y=0, color="black", text=None, fontsize=6, **kwargs):
     draw_immediately = False
     if ax is None:
         draw_immediately = True
@@ -161,7 +161,7 @@ def draw_symbol(draw_func, ax=None,  x=0, y=0, color="black", text=None, **kwarg
             text_x = 0.21
         elif draw_func==draw_resistor_symbol:
             text_y = -0.15
-        ax.text(x+text_x,y+text_y,text, va='center', fontsize=6, color=color)
+        ax.text(x+text_x,y+text_y,text, va='center', fontsize=fontsize, color=color)
     if draw_immediately:
         plt.show()
 
@@ -199,14 +199,14 @@ def draw_diode_symbol(ax, x=0, y=0, color="black", up_or_down="down", is_LED=Fal
     ax.add_line(plt.Line2D([term_top[0][0], term_top[1][0]], [term_top[0][1], term_top[1][1]], color=color, linewidth=linewidth))
     ax.add_line(plt.Line2D([term_bot[0][0], term_bot[1][0]], [term_bot[0][1], term_bot[1][1]], color=color, linewidth=linewidth))
 
-def draw_forward_diode_symbol(ax, x=0, y=0, color="black", rotation=0):
-    draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="down", is_LED=False, rotation=rotation)
+def draw_forward_diode_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
+    draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="down", is_LED=False, rotation=rotation, linewidth=linewidth)
 
-def draw_reverse_diode_symbol(ax, x=0, y=0, color="black", rotation=0):
-    draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="up", is_LED=False, rotation=rotation)
+def draw_reverse_diode_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
+    draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="up", is_LED=False, rotation=rotation, linewidth=linewidth)
 
-def draw_LED_diode_symbol(ax, x=0, y=0, color="black", rotation=0):
-    draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="down", is_LED=True, rotation=rotation)
+def draw_LED_diode_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
+    draw_diode_symbol(ax=ax, x=x, y=y, color=color, up_or_down="down", is_LED=True, rotation=rotation, linewidth=linewidth)
 
 def draw_CC_symbol(ax, x=0, y=0, color="black", rotation=0, linewidth=1.5):
     origin = (x, y)

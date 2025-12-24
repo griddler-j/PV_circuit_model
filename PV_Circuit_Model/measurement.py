@@ -11,7 +11,7 @@ from datetime import datetime
 from tqdm import tqdm
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-class Measurement():
+class Measurement(utilities.Artifact):
     """Base class for measurement data and simulation comparison.
 
     Stores measurement conditions, experimental data, and simulated outputs.

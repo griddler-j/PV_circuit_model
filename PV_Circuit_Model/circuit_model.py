@@ -509,6 +509,8 @@ class CircuitElement(CircuitComponent):
         x: float = 0,
         y: float = 0,
         color: str = "black",
+        fontsize: float = 6,
+        linewidth: float = 1.5,
         display_value: bool = False,
     ) -> None:
         """Draw this element on a matplotlib axis.
@@ -534,10 +536,10 @@ class CircuitElement(CircuitComponent):
         text = None
         if display_value:
             text = self.get_value_text()
-        utilities.draw_symbol(self.get_draw_func(),ax=ax,x=x,y=y,color=color,text=text)
+        utilities.draw_symbol(self.get_draw_func(),ax=ax,x=x,y=y,color=color,text=text,fontsize=fontsize,linewidth=linewidth)
         if "pos_node" in self.aux:
-            ax.text(x,y-0.5,str(self.aux["neg_node"]), va='center', fontsize=6)
-            ax.text(x,y+0.5,str(self.aux["pos_node"]), va='center', fontsize=6)
+            ax.text(x,y-0.5,str(self.aux["neg_node"]), va='center', fontsize=fontsize)
+            ax.text(x,y+0.5,str(self.aux["pos_node"]), va='center', fontsize=fontsize)
     def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """Compute current for a given voltage.
 
@@ -1354,6 +1356,13 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         split_screen_with_IV: bool = False,
         current_flow_log10_range: float = 4,
         area_multiplier: float = 1,
+        fontsize: float = 6,
+        ax2_width: float = 0.5,
+        ax2_xlim: tuple[float, float] | None = None,
+        ax2_ylim: tuple[float, float] | None = None,
+        figsize: tuple[float, float] | None = None,
+        operating_point_size: float = 20,
+        max_electron_size: float = 0.05,
         is_root: bool = True
     ) -> list[Any] | None:
         """Draw the CircuitGroup as a schematic, optionally with animation and an IV subplot.
@@ -1369,7 +1378,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             y: Y position of the schematic center in diagram coordinates.
             display_value: If True, display component values (where supported by elements).
             title: Figure window title when creating a new figure.
-            linewidth: Line width for wiring.
+            linewidth: Line width for wiring and plots
             animate: If True, animate current flow using moving circles on the wires. Requires that
                 operating points have been computed (e.g., via ``get_Pmax()``, ``set_operating_point()``,
                 or similar).
@@ -1381,6 +1390,13 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 Circle radii scale approximately with ``log10(|I|)`` over this range; larger values
                 compress the visual range (less variation), smaller values exaggerate it.
             area_multiplier: Not passed by users.
+            fontsize: font size to display
+            ax2_width: width of ax2 (max 1)
+            ax2_xlim: xlim of ax2 (dafault None)
+            ax2_ylim: ylim of ax2 (dafault None)
+            figsize: figure width and height (default None)
+            operating_point_size: size of operating point to plot (default 20)
+            max_electron_size: size of electrons in animation (default 0.05)
             is_root: Internal recursion flag. Not passed by users.
 
         Example:
@@ -1421,28 +1437,37 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if split_screen_with_IV:
                 if self.IV_V is None:
                     self.get_Pmax()
-                fig, (ax,ax2) = plt.subplots(2,1) 
+                if figsize is not None:
+                    fig, (ax,ax2) = plt.subplots(2,1,figsize=figsize) 
+                else:
+                    fig, (ax,ax2) = plt.subplots(2,1) 
                 color_scheme = ["red","green","blue","purple"]
                 Voc = self.get_Voc()
                 Isc = self.get_Isc()
                 if self.operating_point is not None:
-                    ax2_pts.append(ax2.scatter([self.operating_point[0]], [-self.operating_point[1]], s=20,color="black"))
+                    ax2_pts.append(ax2.scatter([self.operating_point[0]], [-self.operating_point[1]], s=operating_point_size,color="black"))
                 cells = self.findElementType("Cell")
-                ax2.plot(self.IV_V,-self.IV_I,color="black")
+                ax2.plot(self.IV_V,-self.IV_I,color="black",linewidth=linewidth)
                 for j, cell in enumerate(cells):
                     number = j % len(color_scheme)
                     if cell.operating_point is not None:
-                        ax2_pts.append(ax2.scatter([cell.operating_point[0]], [-cell.operating_point[1]], s=20,color=color_scheme[number]))
-                    ax2.plot(cell.IV_V,-cell.IV_I,color=color_scheme[number])
+                        ax2_pts.append(ax2.scatter([cell.operating_point[0]], [-cell.operating_point[1]], s=operating_point_size,color=color_scheme[number]))
+                    ax2.plot(cell.IV_V,-cell.IV_I,color=color_scheme[number],linewidth=linewidth)
                     Voc = max(Voc,cell.get_Voc())
                     Isc = max(Isc,cell.get_Isc())
-                ax2.set_xlim((0,Voc*1.1))
-                ax2.set_ylim((0,Isc*1.1))
+                if ax2_xlim is None:
+                    ax2.set_xlim((0,Voc*1.1))
+                else:
+                    ax2.set_xlim(ax2_xlim)
+                if ax2_ylim is None:
+                    ax2.set_ylim((0,Isc*1.1))
+                else:
+                    ax2.set_ylim(ax2_ylim)
                 ax2.set_xlabel("V (V)")
                 ax2.set_ylabel("I (A)")
-                ax2.tick_params(axis="both", labelsize=6)
-                ax2.xaxis.label.set_size(6)
-                ax2.yaxis.label.set_size(6)
+                ax2.tick_params(axis="both", labelsize=fontsize)
+                ax2.xaxis.label.set_size(fontsize)
+                ax2.yaxis.label.set_size(fontsize)
             else:
                 fig, ax = plt.subplots() 
         
@@ -1529,9 +1554,9 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 else:
                     center_y = y
                 if isinstance(element,CircuitElement):
-                    element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value)
+                    element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value, fontsize=fontsize, linewidth=linewidth)
                 else:
-                    branch_currents.extend(element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_,is_root=False))
+                    branch_currents.extend(element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_,is_root=False,fontsize=fontsize,linewidth=linewidth))
                 I_ = None
                 if animate and element.operating_point is not None:
                     I_ = element.operating_point[1]*area_
@@ -1617,13 +1642,13 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 fig.tight_layout()
                 if split_screen_with_IV:
                     bbox = ax2.get_position()
-                    new_width = bbox.width * 0.5
+                    new_width = bbox.width * ax2_width
                     new_left = bbox.x0 + (bbox.width - new_width) / 2
                     ax2.set_position([new_left, bbox.y0, new_width, bbox.height])
                 fig.canvas.manager.set_window_title(title)
 
-            ball_spacing = 0.12
-            max_ball_size = 0.05
+            
+            ball_spacing = 0.12/0.05*max_electron_size
             counter = 0
             if frame==-1:
                 circles = []
@@ -1653,7 +1678,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 ratio = abs(I_)/max_I_
 
                 log_ratio = np.log10(ratio)
-                ball_size = max_ball_size*(current_flow_log10_range+log_ratio)/current_flow_log10_range
+                ball_size = max_electron_size*(current_flow_log10_range+log_ratio)/current_flow_log10_range
                 ball_size = max(0,ball_size)
                 displacement = end_pt-start_pt
                 distance = np.sqrt(displacement[0]**2+displacement[1]**2)
