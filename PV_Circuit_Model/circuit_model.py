@@ -1350,6 +1350,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         title: str = "Model",
         linewidth: float = 1.5,
         animate: bool = False,
+        V_sweep_frames: Optional[Any] = None,
+        split_screen_with_IV: bool = False,
         area_multiplier: float = 1,
         is_root: bool = True
     ) -> list[Any] | None:
@@ -1382,18 +1384,23 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             # Create a fresh figure and progress bar for interactive drawing.
             num_of_elements = self.num_circuit_elements
             pbar = tqdm(total=num_of_elements)
-            fig, (ax,ax2) = plt.subplots(2,1) 
-            if self.IV_V is not None:
-                self.set_operating_point(V=0)
+            if V_sweep_frames is not None:
+                self.set_operating_point(V=V_sweep_frames[0])
+            if split_screen_with_IV:
+                if self.IV_V is not None:
+                    self.get_Pmax()
+                fig, (ax,ax2) = plt.subplots(2,1) 
                 color_scheme = ["red","green","blue","purple"]
                 Voc = self.get_Voc()
                 Isc = self.get_Isc()
-                ax2_pts.append(ax2.scatter([self.operating_point[0]], [-self.operating_point[1]], s=20,color="black"))
+                if self.operating_point is not None:
+                    ax2_pts.append(ax2.scatter([self.operating_point[0]], [-self.operating_point[1]], s=20,color="black"))
                 cells = self.findElementType("Cell")
                 ax2.plot(self.IV_V,-self.IV_I,color="black")
                 for j, cell in enumerate(cells):
                     number = j % len(color_scheme)
-                    ax2_pts.append(ax2.scatter([cell.operating_point[0]], [-cell.operating_point[1]], s=20,color=color_scheme[number]))
+                    if cell.operating_point is not None:
+                        ax2_pts.append(ax2.scatter([cell.operating_point[0]], [-cell.operating_point[1]], s=20,color=color_scheme[number]))
                     ax2.plot(cell.IV_V,-cell.IV_I,color=color_scheme[number])
                     Voc = max(Voc,cell.get_Voc())
                     Isc = max(Isc,cell.get_Isc())
@@ -1404,6 +1411,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 ax2.tick_params(axis="both", labelsize=6)
                 ax2.xaxis.label.set_size(6)
                 ax2.yaxis.label.set_size(6)
+            else:
+                fig, ax = plt.subplots() 
         
         if "current_offset" in self.aux:
             current_offset = self.aux["current_offset"]
@@ -1417,8 +1426,32 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 current_source[0].aux["current_offset"] = current_offset
 
         circles: list[list[Any]] = []
+        max_I_: float = 0
         def update(frame):
             global circles
+            global max_I_
+            if frame >= 0 and V_sweep_frames is None:
+                for circle_info in circles:
+                    circle = circle_info[0]
+                    pos = circle_info[1]
+                    distance = circle_info[2]
+                    speed = circle_info[3]
+                    start_pt = circle_info[4]
+                    unit_vector = circle_info[5]
+                    balls_end_to_end_distance = circle_info[6]
+                    new_pos = speed + pos
+                    if new_pos > distance:
+                        new_pos -= balls_end_to_end_distance
+                    x_ = start_pt[0] + unit_vector[0]*new_pos + 0.02
+                    y_ = start_pt[1] + unit_vector[1]*new_pos + 0.02
+                    circle_info[1] = new_pos
+                    circle.center = (x_,y_)
+                    if new_pos < 0:
+                        circle.set_visible(False)
+                    else:
+                        circle.set_visible(True)
+                return [ci[0] for ci in circles] 
+
             branch_currents = []
             area_ = area_multiplier
             current_x = x - self.circuit_diagram_extent[0]/2
@@ -1432,12 +1465,13 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             ax_ = None
             if frame==-1:
                 ax_ = ax
-            if is_root:
-                op_V = max(frame,0)/100*5
-                self.set_operating_point(V=op_V)
-                ax2_pts[0].set_offsets([[self.operating_point[0], -self.operating_point[1]]])
-                for j, cell in enumerate(cells):
-                    ax2_pts[j+1].set_offsets([[cell.operating_point[0], -cell.operating_point[1]]])
+            if V_sweep_frames is not None:
+                frame_ = max(frame,0)
+                self.set_operating_point(V=V_sweep_frames[frame_])
+                if split_screen_with_IV:
+                    ax2_pts[0].set_offsets([[self.operating_point[0], -self.operating_point[1]]])
+                    for j, cell in enumerate(cells):
+                        ax2_pts[j+1].set_offsets([[cell.operating_point[0], -cell.operating_point[1]]])
 
             if animate and self.operating_point is not None:
                 for i_, element in enumerate(reversed(self.subgroups)):
@@ -1551,20 +1585,21 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 for spine in ax.spines.values():
                     spine.set_visible(False)
                 fig.tight_layout()
-                bbox = ax2.get_position()
-                new_width = bbox.width * 0.5
-                new_left = bbox.x0 + (bbox.width - new_width) / 2
-                ax2.set_position([new_left, bbox.y0, new_width, bbox.height])
+                if split_screen_with_IV:
+                    bbox = ax2.get_position()
+                    new_width = bbox.width * 0.5
+                    new_left = bbox.x0 + (bbox.width - new_width) / 2
+                    ax2.set_position([new_left, bbox.y0, new_width, bbox.height])
                 fig.canvas.manager.set_window_title(title)
 
             ball_spacing = 0.12
             max_ball_size = 0.05
-            max_I_ = 0
-            for branch_current in branch_currents:
-                max_I_ = max(max_I_,abs(branch_current[4]))
             counter = 0
             if frame==-1:
                 circles = []
+                max_I_ = 0
+                for branch_current in branch_currents:
+                    max_I_ = max(max_I_,abs(branch_current[4]))
             for branch_current in branch_currents:
                 color = "blue"
                 if isinstance(branch_current[0],CircuitComponent): # a pc connection
@@ -1588,7 +1623,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 ratio = abs(I_)/max_I_
 
                 log_ratio = np.log10(ratio)
-                ball_size = max_ball_size*(8+log_ratio)/8
+                ball_size = max_ball_size*(3+log_ratio)/3
                 ball_size = max(0,ball_size)
                 displacement = end_pt-start_pt
                 distance = np.sqrt(displacement[0]**2+displacement[1]**2)
@@ -1638,16 +1673,20 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         if not is_root:
             return branch_currents
 
-        ani = animation.FuncAnimation(
-            fig,
-            update,
-            frames=100,
-            interval=50,
-            blit=True,
-            cache_frame_data=False
-        )
-        if IN_NOTEBOOK:
-            display(HTML(ani.to_jshtml()))
+        frames_ = 20
+        if V_sweep_frames is not None:
+            frames_ = len(V_sweep_frames)
+        if animate and self.operating_point is not None:
+            ani = animation.FuncAnimation(
+                fig,
+                update,
+                frames=frames_,
+                interval=50,
+                blit=True,
+                cache_frame_data=False
+            )
+            if IN_NOTEBOOK:
+                display(HTML(ani.to_jshtml()))
                                
         plt.show()
 
