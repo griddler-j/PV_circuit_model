@@ -1404,22 +1404,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 ax2.tick_params(axis="both", labelsize=6)
                 ax2.xaxis.label.set_size(6)
                 ax2.yaxis.label.set_size(6)
-
-        if animate and self.operating_point is not None:
-            for i_, element in enumerate(reversed(self.subgroups)):
-                i = len(self.subgroups)-i_-1
-                if type(element).__name__=="Cell":
-                    pc_diodes = element.photon_coupling_diodes
-                    if len(pc_diodes) > 0:
-                        if i > 0:
-                            current_offset = -pc_diodes[0].operating_point[1]*element.area
-                            cell_below = self.subgroups[i-1]
-                            if type(cell_below).__name__=="Cell":
-                                cell_below.aux["current_offset"] = current_offset
-                                current_source = cell_below.findElementType(CurrentSource)
-                                if len(current_source)>0:
-                                    current_source[0].aux["pc_partner"] = pc_diodes[0]
-                                    pc_diodes[0].aux["pc_partner"] = current_source[0]
         
         if "current_offset" in self.aux:
             current_offset = self.aux["current_offset"]
@@ -1449,14 +1433,27 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if frame==-1:
                 ax_ = ax
             if is_root:
-                if frame < 25:
-                    op_V = 0
-                else:
-                    op_V = 1.8 #max(frame,0)/100*10
+                op_V = max(frame,0)/100*5
                 self.set_operating_point(V=op_V)
                 ax2_pts[0].set_offsets([[self.operating_point[0], -self.operating_point[1]]])
                 for j, cell in enumerate(cells):
                     ax2_pts[j+1].set_offsets([[cell.operating_point[0], -cell.operating_point[1]]])
+
+            if animate and self.operating_point is not None:
+                for i_, element in enumerate(reversed(self.subgroups)):
+                    i = len(self.subgroups)-i_-1
+                    if type(element).__name__=="Cell":
+                        pc_diodes = element.photon_coupling_diodes
+                        if len(pc_diodes) > 0:
+                            if i > 0:
+                                current_offset = -pc_diodes[0].operating_point[1]*element.area
+                                cell_below = self.subgroups[i-1]
+                                if type(cell_below).__name__=="Cell":
+                                    cell_below.aux["current_offset"] = current_offset
+                                    current_source = cell_below.findElementType(CurrentSource)
+                                    if len(current_source)>0:
+                                        current_source[0].aux["pc_partner"] = pc_diodes[0]
+                                        pc_diodes[0].aux["pc_partner"] = current_source[0]
 
             for i, element in enumerate(self.subgroups):
                 if isinstance(element,CircuitElement) and frame==-1:
@@ -1607,6 +1604,8 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                         ax.add_patch(circles[-1][0])
                     else:
                         circles[counter][7] = ball_size
+                        circles[counter][4] = start_pt
+                        circles[counter][5] = unit_vector
                         counter += 1
             for circle_info in circles:
                 circle = circle_info[0]
@@ -1642,7 +1641,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         ani = animation.FuncAnimation(
             fig,
             update,
-            frames=50,
+            frames=100,
             interval=50,
             blit=True,
             cache_frame_data=False
