@@ -280,46 +280,76 @@ def convert_ndarrays_to_lists(obj):
         return obj
 
 class Artifact:
-    _critical_fields = ()
+    _critical_fields = ("artifacts_to_save",)
     _artifacts = ()
     _dont_serialize = ()
     _float_rtol = 1e-6
     _float_atol = 1e-23
-    def clone(self,parent=None):    
-        new = self.__class__.__new__(self.__class__)
-        subgroups = getattr(self,"subgroups",[])
-        if subgroups:
-            subgroups_clone = [item.clone(new) for item in subgroups]
-            new.__init__(subgroups=subgroups_clone)
-        new.parent = parent
+    def __init__(self, object_=None, *, artifacts_to_save=None, **kwargs):
+        if artifacts_to_save is not None and object_ is None:
+            object_ = artifacts_to_save
+        self.artifacts_to_save = object_
+    
+    def _clone_field_value(self, k, v):
+        if isinstance(v, Artifact):
+            return v.clone() if k in type(self)._critical_fields else None
+        if isinstance(v, list):
+            out = []
+            for item in v:
+                out.append(self._clone_field_value(k, item) if isinstance(item, Artifact) else (item.copy() if hasattr(item, "copy") else item))
+            return out
+        if isinstance(v, dict):
+            out = {}
+            for key, item in v.items():
+                out[key] = self._clone_field_value(k, item) if isinstance(item, Artifact) else (item.copy() if hasattr(item, "copy") else item)
+            return out
+        if hasattr(v, "copy"):
+            return v.copy()
+        return v
+    def clone(self):    
+        cls = type(self)
+
+        sig = inspect.signature(cls.__init__)
+        params = sig.parameters
+
+        # build init kwargs from critical fields (CLONE, don't RESTORE)
+        raw_kwargs = {}
+        for k in cls._critical_fields:
+            if k in self.__dict__:
+                v = self.__dict__[k]
+                raw_kwargs[k] = self._clone_field_value(k, v)  # helper below
+
+        accepts_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+        if accepts_var_kw:
+            init_kwargs = raw_kwargs
+        else:
+            allowed_names = {
+                name
+                for name, p in params.items()
+                if name != "self"
+                and p.kind in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY,
+                )
+            }
+            init_kwargs = {k: v for k, v in raw_kwargs.items() if k in allowed_names}
+        
+        new = cls(**init_kwargs)
+
         d = {}
         for k, v in self.__dict__.items():
-            if k=="subgroups": # already done, skip
-                continue 
-            if k=="parent": # already done, skip
-                continue 
-            if isinstance(v,Artifact):
-                if k in self._critical_fields:
-                    d[k] = v.clone()
-            elif isinstance(v, list):
-                if len(v)>0 and isinstance(v[0],Artifact):
-                    pass
-                else:
-                    d[k] = v[:]  # shallow list copy
-            elif k in self._dont_serialize:
-                pass # don't copy
-            elif k in self._artifacts:
-                if hasattr(type(self), k):
-                    d[k] = getattr(type(self), k) # revert to default
-                else:
-                    pass # don't copy
-            elif hasattr(v, "copy"):  # NumPy array or similar
-                d[k] = v.copy()
-            elif isinstance(v, dict):
-                d[k] = v.copy()
-            else:
-                d[k] = v  # assume immutable or shared
+            if k in self._dont_serialize:
+                continue
+            if k in new.__dict__: # already done via initialization
+                continue
+            if k in self._artifacts:
+                # revert / drop artifacts
+                if hasattr(cls, k):
+                    d[k] = getattr(cls, k)
+                    continue
+            d[k] = self._clone_field_value(k, v)
         new.__dict__.update(d)
+        
         return new
     
     # equality that checks only _critical_fields, handles nesting too
@@ -328,8 +358,12 @@ class Artifact:
             return NotImplemented
         
         for f in self._critical_fields:
-            a = getattr(self, f)
-            b = getattr(other, f)
+            a = getattr(self, f, None)
+            b = getattr(other, f, None)
+            if a is None and b is None:
+                continue
+            if a is None or b is None:
+                return False
 
             if isinstance(a, float) and isinstance(b, float):
                 if not math.isclose(
@@ -359,7 +393,7 @@ class Artifact:
         for name, value in self.__dict__.items():
             if name in self._artifacts or name in self._dont_serialize or (critical_fields_only and name not in self._critical_fields):
                 continue
-            output = self._save_value(name,value,critical_fields_only=critical_fields_only,critical_fields=self._critical_fields)
+            output = self.__class__._save_value(name,value,critical_fields_only=critical_fields_only,critical_fields=self._critical_fields)
             if output is not None:
                 data[name] = output
         return data
@@ -375,7 +409,7 @@ class Artifact:
             if pos == -1:
                 path += ".bson"
             if not path.endswith(".bson"):
-                raise NotImplementedError("Artifact.dump only suppoers .json or .bson output")
+                raise NotImplementedError("Artifact.dump only supports .json or .bson output")
             data = bson.dumps(params)
             with open(path, "wb") as f:
                 f.write(data)
@@ -392,29 +426,20 @@ class Artifact:
                 params = bson.loads(f.read())
         else:
             raise NotImplementedError("Artifact.load only suppoers .json or .bson input")
-        return Artifact.Restore_fromParams(params)
-
-    @staticmethod
-    def Restore_fromParams(params):
         return Artifact._restore_value(params)
 
-    @staticmethod
-    def _save_value(field_name,value,critical_fields_only=False,critical_fields=None):
-        if isinstance(value, Artifact): # we don't store any references to other Artifacts, except those found in subgroups
-            if field_name != "subgroups" and (critical_fields is None or field_name not in critical_fields):
+    @classmethod
+    def _save_value(cls,field_name,value,critical_fields_only=False,critical_fields=None):
+        if isinstance(value, Artifact): # we don't store any references to other Artifacts, except those found in _critical_fields
+            if field_name not in cls._critical_fields and (critical_fields is None or field_name not in critical_fields):
                 return None
             return value.save_toParams(critical_fields_only=critical_fields_only)
 
-        if isinstance(value, (list, tuple)): # we don't store any references to other Artifacts, except those found in subgroups
-            if field_name == "subgroups":
-                return [Artifact._save_value(field_name, v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for v in value]
-            elif len(value)>0 and isinstance(value[0],Artifact):
-                return None
-            else:
-                return value[:]
+        if isinstance(value, (list, tuple)): 
+            return [cls._save_value(field_name, v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for v in value]
 
         if isinstance(value, dict):
-            return {k: Artifact._save_value("generic",v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for k, v in value.items()}
+            return {k: cls._save_value(field_name,v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for k, v in value.items()}
 
         if isinstance(value, np.ndarray):
             return {
@@ -479,7 +504,8 @@ class Artifact:
 
             # Attach any extra fields as attributes
             for k, v in extra_kwargs.items():
-                setattr(obj, k, v)
+                if k not in obj.__dict__:
+                    setattr(obj, k, v)
 
             return obj
 

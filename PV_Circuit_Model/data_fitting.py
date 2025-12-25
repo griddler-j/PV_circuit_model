@@ -46,7 +46,7 @@ try:
 except Exception:
     _ip_display = None
 
-class Fit_Parameter():
+class Fit_Parameter(utilities.Artifact):
     """Single fit parameter with constraints and scaling.
 
     Tracks nominal values, bounds, and linear/log scaling for optimization.

@@ -54,10 +54,10 @@ class CircuitComponent(utilities.Artifact):
         isinstance(component, CircuitComponent) # True
         ```
     """
-    _critical_fields = ("max_I","max_num_points")
+    _critical_fields = utilities.Artifact._critical_fields #+ ("max_I","max_num_points")
     _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
-    _dont_serialize = ("circuit_depth", "num_circuit_elements")
+    _dont_serialize = ("circuit_depth", "num_circuit_elements","parent")
     max_I = None
     max_num_points = None
     IV_V = None  
@@ -1344,8 +1344,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
     
     def draw(
         self,
-        ax: Optional[Any] = None,
-        ax2: Optional[Any] = None,
         x: float = 0,
         y: float = 0,
         display_value: bool = False,
@@ -1363,8 +1361,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         figsize: tuple[float, float] | None = None,
         operating_point_size: float = 20,
         max_electron_size: float = 0.05,
-        is_root: bool = True
-    ) -> list[Any] | None:
+    ) -> None:
         """Draw the CircuitGroup as a schematic, optionally with animation and an IV subplot.
 
         If ``animate=True``, the method animates "current flow" using moving circles along the wires.
@@ -1372,8 +1369,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         the animation updates the operating point (and optionally the IV subplot markers) per frame.
 
         Args:
-            ax: Optional Matplotlib Axes for the IV subplot. Not passed by users.
-            ax2: Optional Matplotlib Axes for the IV subplot. Not passed by users.
             x: X position of the schematic center in diagram coordinates.
             y: Y position of the schematic center in diagram coordinates.
             display_value: If True, display component values (where supported by elements).
@@ -1397,7 +1392,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             figsize: figure width and height (default None)
             operating_point_size: size of operating point to plot (default 20)
             max_electron_size: size of electrons in animation (default 0.05)
-            is_root: Internal recursion flag. Not passed by users.
 
         Example:
             Basic schematic:
@@ -1422,6 +1416,50 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             circuit.draw(animate=True, V_sweep_frames=Vs, split_screen_with_IV=True)
             ```
         """
+        self._draw_internal(
+        x=x,
+        y=y,
+        display_value=display_value,
+        title=title,
+        linewidth=linewidth,
+        animate=animate,
+        V_sweep_frames=V_sweep_frames,
+        split_screen_with_IV=split_screen_with_IV,
+        current_flow_log10_range=current_flow_log10_range,
+        area_multiplier=area_multiplier,
+        fontsize=fontsize,
+        ax2_width=ax2_width,
+        ax2_xlim=ax2_xlim,
+        ax2_ylim=ax2_ylim,
+        figsize=figsize,
+        operating_point_size=operating_point_size,
+        max_electron_size=max_electron_size,
+        is_root= True)
+
+    def _draw_internal(
+        self,
+        ax: Optional[Any] = None,
+        ax2: Optional[Any] = None,
+        x: float = 0,
+        y: float = 0,
+        display_value: bool = False,
+        title: str = "Model",
+        linewidth: float = 1.5,
+        animate: bool = False,
+        V_sweep_frames: Optional[Any] = None,
+        split_screen_with_IV: bool = False,
+        current_flow_log10_range: float = 4,
+        area_multiplier: float = 1,
+        fontsize: float = 6,
+        ax2_width: float = 0.5,
+        ax2_xlim: tuple[float, float] | None = None,
+        ax2_ylim: tuple[float, float] | None = None,
+        figsize: tuple[float, float] | None = None,
+        operating_point_size: float = 20,
+        max_electron_size: float = 0.05,*,
+        is_root: bool = True
+    ) -> list[Any] | None:
+        
         if self.num_circuit_elements > 2000:
             print(f"There are too many elements to draw ({self.num_circuit_elements}).  I give up!")
             return
@@ -1556,7 +1594,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 if isinstance(element,CircuitElement):
                     element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value, fontsize=fontsize, linewidth=linewidth)
                 else:
-                    branch_currents.extend(element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_,is_root=False,fontsize=fontsize,linewidth=linewidth))
+                    branch_currents.extend(element._draw_internal(ax=ax_, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_,is_root=False,fontsize=fontsize,linewidth=linewidth))
                 I_ = None
                 if animate and element.operating_point is not None:
                     I_ = element.operating_point[1]*area_
