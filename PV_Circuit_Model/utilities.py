@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 from numbers import Number
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, Callable
+from typing import Any, ClassVar, Dict, Callable, Optional, Sequence, Union
 import json
 import importlib
 import math
@@ -280,17 +280,35 @@ def convert_ndarrays_to_lists(obj):
         return obj
 
 class Artifact:
+    """Serializable artifact base class with cloning and persistence helpers.
+    """
     _critical_fields = ("artifacts_to_save",)
     _artifacts = ()
     _dont_serialize = ()
     _float_rtol = 1e-6
     _float_atol = 1e-23
-    def __init__(self, object_=None, *, artifacts_to_save=None, **kwargs):
+    def __init__(self, object_: Optional[Any] = None, *, artifacts_to_save: Optional[Any] = None, **kwargs: Any) -> None:
+        """Wrap an object as Artifact.
+
+        Args:
+            object_ (Optional[Any]): Optional artifact payload.
+            artifacts_to_save (Optional[Any]): Alias for object_.
+            **kwargs (Any): Unused extra arguments for compatibility.
+
+        Returns:
+            None
+
+        Example:
+            ```python
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact(artifacts_to_save={"a": 1})
+            ```
+        """
         if artifacts_to_save is not None and object_ is None:
             object_ = artifacts_to_save
         self.artifacts_to_save = object_
     
-    def _clone_field_value(self, k, v):
+    def _clone_field_value(self, k: str, v: Any) -> Any:
         if isinstance(v, Artifact):
             return v.clone() if k in type(self)._critical_fields else None
         if isinstance(v, list):
@@ -306,7 +324,23 @@ class Artifact:
         if hasattr(v, "copy"):
             return v.copy()
         return v
-    def clone(self):    
+    def clone(self) -> "Artifact":
+        """Clone this Artifact.
+
+        Args:
+            None
+
+        Returns:
+            Artifact: Cloned instance.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact({"a": 1})
+            clone = art.clone()
+            art is clone # True
+            ```
+        """
         cls = type(self)
 
         sig = inspect.signature(cls.__init__)
@@ -353,7 +387,7 @@ class Artifact:
         return new
     
     # equality that checks only _critical_fields, handles nesting too
-    def __eq__(self, other): 
+    def __eq__(self, other: Any) -> bool:
         if self.__class__ is not other.__class__:
             return NotImplemented
         
@@ -378,7 +412,7 @@ class Artifact:
 
         return True
     
-    def clear_artifacts(self):
+    def clear_artifacts(self) -> None:
         for field_ in self._artifacts:
             if hasattr(self, field_):
                 if hasattr(type(self), field_):
@@ -386,7 +420,22 @@ class Artifact:
                 elif field_ in self.__dict__:
                     delattr(self, field_)
 
-    def save_toParams(self, critical_fields_only=False):
+    def save_toParams(self, critical_fields_only: bool = False) -> Dict[str, Any]:
+        """Serialize this artifact to a parameter dict.
+
+        Args:
+            critical_fields_only (bool): If True, only serialize critical fields.
+
+        Returns:
+            Dict[str, Any]: Serialized parameter dict.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact({"a": 1})
+            art.save_toParams()
+            ```
+        """
         data = {
             "__class__": f"{self.__class__.__module__}.{self.__class__.__name__}"
         }
@@ -398,7 +447,29 @@ class Artifact:
                 data[name] = output
         return data
 
-    def dump(self, path, *, indent=2,critical_fields_only=False):
+    def dump(self, path: Union[str, Path], *, indent: int = 2, critical_fields_only: bool = False) -> str:
+        """Write serialized parameters to JSON or BSON.
+
+        Args:
+            path (Union[str, Path]): Output file path.
+            indent (int): JSON indentation.
+            critical_fields_only (bool): If True, only serialize critical fields.
+
+        Returns:
+            str: Final path written.
+
+        Raises:
+            NotImplementedError: If an unsupported file extension is used.
+
+        Example:
+            ```python
+            import tempfile
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact({"a": 1})
+            with tempfile.TemporaryDirectory() as folder:
+                art.dump(Path(folder) / "artifact.json")
+            ```
+        """
         path = str(path)
         params = self.save_toParams(critical_fields_only=critical_fields_only)
         if path.endswith(".json"):
@@ -416,7 +487,29 @@ class Artifact:
         return path
 
     @staticmethod
-    def load(path):
+    def load(path: Union[str, Path]) -> Any:
+        """Load an Artifact or serialized object from JSON or BSON.
+
+        Args:
+            path (Union[str, Path]): Input file path.
+
+        Returns:
+            Any: Restored object.
+
+        Raises:
+            NotImplementedError: If an unsupported file extension is used.
+
+        Example:
+            ```python
+            import tempfile
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact({"a": 1})
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "artifact.json"
+                art.dump(path)
+                Artifact.load(path)
+            ```
+        """
         path = str(path)
         if path.endswith(".json"):
             with open(path, "r") as f:
@@ -429,7 +522,13 @@ class Artifact:
         return Artifact._restore_value(params)
 
     @classmethod
-    def _save_value(cls,field_name,value,critical_fields_only=False,critical_fields=None):
+    def _save_value(
+        cls,
+        field_name: str,
+        value: Any,
+        critical_fields_only: bool = False,
+        critical_fields: Optional[Sequence[str]] = None,
+    ) -> Any:
         if isinstance(value, Artifact): # we don't store any references to other Artifacts, except those found in _critical_fields
             if field_name not in cls._critical_fields and (critical_fields is None or field_name not in critical_fields):
                 return None
@@ -451,7 +550,7 @@ class Artifact:
         return value
 
     @staticmethod
-    def _restore_value(value):
+    def _restore_value(value: Any) -> Any:
         # numpy array
         if isinstance(value, dict) and "__ndarray__" in value:
             arr = np.array(value["__ndarray__"], dtype=value["dtype"])

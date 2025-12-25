@@ -40,6 +40,7 @@ nav:
   - Examples: examples.md
   - API:
       - api/index.md
+      - PV_Circuit_Model.utilities: api/utilities.md
       - PV_Circuit_Model.circuit_model: api/circuit_model.md
       - PV_Circuit_Model.device: api/device.md
       - PV_Circuit_Model.device_analysis: api/device_analysis.md
