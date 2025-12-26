@@ -280,6 +280,7 @@ class Fit_Parameters(utilities.Artifact):
         params.num_of_parameters()
         ```
     """
+    _critical_fields = utilities.Artifact._critical_fields + ("fit_parameters",)
     def __init__(
         self,
         fit_parameters: Optional[List[Fit_Parameter]] = None,

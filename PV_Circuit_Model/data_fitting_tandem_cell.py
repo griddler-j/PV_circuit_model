@@ -35,10 +35,11 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
                        "log_Rs_cond"]
     def __init__(
         self,
-        sample: Any,
+        sample: Any = None,
         bottom_cell_Voc: float = 0.7,
         top_cell_Voc: Optional[float] = 1.2,
         disable_list: Optional[List[str]] = None,
+        fit_parameters: Optional[List[fitting.Fit_Parameter]] = None,
     ) -> None:
         """Initialize tandem-cell fit parameters and bounds.
 
@@ -59,6 +60,13 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
             params.is_tandem
             ```
         """
+        if fit_parameters is not None:
+            super().__init__(fit_parameters=fit_parameters)
+            return
+        
+        if sample is None:
+            raise TypeError("Tandem_Cell_Fit_Parameters need to be initialized by either sample or fit_parameters")
+        
         if disable_list is None:
             disable_list = ["dshunt_cond"]
         super().__init__(names=self.parameter_names)
@@ -68,9 +76,8 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
                                         "top_cell_logJ01","top_cell_logJ02","top_cell_PC_logJ01",
                                         "bottom_cell_log_shunt_cond",
                                         "top_cell_log_shunt_cond","log_Rs_cond"])
+        
         VT = utilities.VT_at_25C
-        self.approx_bottom_cell_Voc = bottom_cell_Voc
-        self.approx_top_cell_Voc = top_cell_Voc
         max_J01 = 0.01/np.exp(bottom_cell_Voc/VT)
         max_J02 = 0.01/np.exp(bottom_cell_Voc/(2*VT))
         self.set("abs_min", [np.log10(max_J01)-4,np.log10(max_J02)-4], ["bottom_cell_logJ01","bottom_cell_logJ02"])
