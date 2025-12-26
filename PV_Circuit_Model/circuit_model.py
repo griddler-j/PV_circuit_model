@@ -54,10 +54,11 @@ class CircuitComponent(utilities.Artifact):
         isinstance(component, CircuitComponent) # True
         ```
     """
-    _critical_fields = utilities.Artifact._critical_fields #+ ("max_I","max_num_points")
-    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
+    _parent_pointer_name = "parent"
+    _parent_pointer_class = None
+    _ephemeral_fields = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
-    _dont_serialize = ("circuit_depth", "num_circuit_elements","parent")
+    _dont_serialize = ("circuit_depth", "num_circuit_elements")
     max_I = None
     max_num_points = None
     IV_V = None  
@@ -133,12 +134,12 @@ class CircuitComponent(utilities.Artifact):
         self.IV_I = value[1, :].copy()
 
     def null_IV(self) -> None:
-        self.clear_artifacts()
+        self.clear_ephemeral_fields()
         if self.parent is not None:
             self.parent.null_IV()
 
     def null_all_IV(self) -> None:
-        self.clear_artifacts()
+        self.clear_ephemeral_fields()
         if isinstance(self,CircuitGroup):
             for element in self.subgroups:
                 element.null_all_IV()
@@ -354,7 +355,7 @@ class CircuitComponent(utilities.Artifact):
     def show(self) -> None:
         pass
 
-
+CircuitComponent._parent_pointer_class=CircuitComponent
 
 # Helper to collapse nested CircuitGroups with the same connection type.
 def flatten_connection(parts_list: Sequence["CircuitComponent"], connection: str) -> List["CircuitComponent"]:
@@ -1068,27 +1069,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         self.connection = connection
         self.subgroups = subgroups
         self.num_circuit_elements = 0
-        max_I = 0
-        max_max_I = 0
-        for element in self.subgroups:
-            element.parent = self
-            self.num_circuit_elements += element.num_circuit_elements
-            self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
-            if element.max_I is not None:
-                max_max_I = max(max_max_I, element.max_I)
-                if connection=="series":
-                    max_I = max(max_I, element.max_I)
-                else:
-                    max_I += element.max_I
-        if max_I > 0:
-            self.max_I = max_I
-        if max_max_I > 0:
-            for element in self.subgroups:
-                if isinstance(element,Diode) and element.max_I is None:
-                    element.max_I = max_max_I
-
-        if self.num_circuit_elements > REMESH_NUM_ELEMENTS_THRESHOLD:
-            self.max_num_points = int(REMESH_POINTS_DENSITY*np.sqrt(self.num_circuit_elements))
         self.name = name
         if location is None:
             self.location = np.array([0,0])
@@ -1102,7 +1082,29 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         else:
             self.extent = get_extent(subgroups)
         self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
-        self.is_circuit_group = True
+        self.__post_init__()
+
+    def __post_init__(self):
+        super().__post_init__()
+        max_I = 0
+        max_max_I = 0
+        for element in self.subgroups:
+            self.num_circuit_elements += element.num_circuit_elements
+            self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
+            if element.max_I is not None:
+                max_max_I = max(max_max_I, element.max_I)
+                if self.connection=="series":
+                    max_I = max(max_I, element.max_I)
+                else:
+                    max_I += element.max_I
+        if max_I > 0:
+            self.max_I = max_I
+        if max_max_I > 0:
+            for element in self.subgroups:
+                if isinstance(element,Diode) and element.max_I is None:
+                    element.max_I = max_max_I
+        if self.num_circuit_elements > REMESH_NUM_ELEMENTS_THRESHOLD:
+            self.max_num_points = int(REMESH_POINTS_DENSITY*np.sqrt(self.num_circuit_elements))
 
     @property
     def parts(self) -> Sequence["CircuitComponent"]:
@@ -1295,11 +1297,12 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         for currentSource in currentSources:
             currentSource.changeTemperatureAndSuns(temperature=temperature)
 
-    def findElementType(self, type_: Union[type, str]) -> List["CircuitComponent"]:
+    def findElementType(self, type_: Union[type, str], stop_at_type_: Union[type, str] | None = None) -> List["CircuitComponent"]:
         """Find all elements of a given type in the subtree.
 
         Args:
             type_ (Union[type, str]): Class or class name to match.
+            stop_at_type_ (Union[type, str]): if encounter element of stop_at_type_, do not search within it
 
         Returns:
             List[CircuitComponent]: Matching elements.
@@ -1315,8 +1318,10 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         for element in self.subgroups:
             if (not isinstance(type_,str) and isinstance(element,type_))  or (isinstance(type_,str) and type(element).__name__==type_):
                 list_.append(element)
+            elif stop_at_type_ is not None and ((not isinstance(stop_at_type_,str) and isinstance(element,stop_at_type_))  or (isinstance(stop_at_type_,str) and type(element).__name__==stop_at_type_)):
+                pass
             elif isinstance(element,CircuitGroup):
-                list_.extend(element.findElementType(type_))
+                list_.extend(element.findElementType(type_,stop_at_type_))
         return list_
     
     def __getitem__(self, type_: Union[type, str]) -> List["CircuitComponent"]:

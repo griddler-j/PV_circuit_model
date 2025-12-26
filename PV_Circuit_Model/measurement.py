@@ -36,6 +36,8 @@ class Measurement(utilities.Artifact):
         meas.keys
         ```
     """
+    _parent_pointer_name = "parent_device"
+    _parent_pointer_class=circuit.CircuitComponent
     keys = []
     data_rows = []
     # measurement can be on its own, or belonging to a device
@@ -522,16 +524,13 @@ class Measurement(utilities.Artifact):
         if "tag" in json_:
             self.tag = json_["tag"]
 
-def assign_measurements(self: circuit.CircuitGroup, measurements: Sequence[Measurement]) -> None:
+def assign_measurements(device: device_module.Device, measurements: Sequence[Measurement]) -> None:
     """Attach measurements to a device and set parent references.
 
     This updates each measurement's parent_device and the device list.
 
-    Warning:
-        This function is monkey-patched onto `CircuitGroup` at import time.
-
     Args:
-        self (CircuitGroup): Device to attach measurements to.
+        device: Device to attach measurements to.
         measurements (Sequence[Measurement]): Measurements to assign.
 
     Returns:
@@ -550,9 +549,8 @@ def assign_measurements(self: circuit.CircuitGroup, measurements: Sequence[Measu
         ```
     """
     for measurement in measurements:
-        measurement.parent_device = self
-    self.measurements = measurements
-circuit.CircuitGroup.assign_measurements = assign_measurements
+        measurement.parent_device = device
+    device.measurements = measurements
 
 def set_simulation_baseline(measurements: Sequence[Measurement]) -> None:
     """Set baseline simulated parameters for all measurements.

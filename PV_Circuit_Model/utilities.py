@@ -4,11 +4,14 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 from numbers import Number
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, Callable, Optional, Sequence, Union
+from typing import Any, ClassVar, Dict, Callable, Optional, Sequence, Union, Literal
 import json
 import importlib
 import math
 import inspect
+from pathlib import Path
+from datetime import date, datetime
+import base64
 try:
     import bson
 except ModuleNotFoundError:
@@ -280,21 +283,25 @@ def convert_ndarrays_to_lists(obj):
     else:
         return obj
 
+class SerializedPackage:
+    # blah blah
+    pass
+
 class Artifact:
-    """Serializable artifact base class with cloning and persistence helpers.
+    """Serializable artifact base class.
     """
-    _critical_fields = ("artifacts_to_save",)
-    _artifacts = ()
-    _dont_serialize = ()
-    _float_rtol = 1e-6
-    _float_atol = 1e-23
-    def __init__(self, object_: Optional[Any] = None, *, artifacts_to_save: Optional[Any] = None, **kwargs: Any) -> None:
-        """Wrap an object as Artifact.
+    _critical_fields = () # equality is based on _critical_fields
+    _parent_pointer_name = None # name of the field that points to a parent
+    _parent_pointer_class = None # class of parent
+    _ephemeral_fields = () # these are erased on clear_ephemeral_fields()
+    _dont_serialize = () # these fields are ignored and not saved. Usually they are pointers.
+    _float_rtol = 1e-6 # used in comparison for equality
+    _float_atol = 1e-23 # used in comparison for equality
+    def __init__(self, object_) -> None:
+        """Wrap an object as Artifact so that it can be saved via dump and loaded via load like pickle
 
         Args:
-            object_ (Optional[Any]): Optional artifact payload.
-            artifacts_to_save (Optional[Any]): Alias for object_.
-            **kwargs (Any): Unused extra arguments for compatibility.
+            object_ (Optional[Any]): artifact payload.
 
         Returns:
             None
@@ -302,30 +309,161 @@ class Artifact:
         Example:
             ```python
             from PV_Circuit_Model.utilities import Artifact
-            art = Artifact(artifacts_to_save={"a": 1})
+            art = Artifact({"a": 1})
             ```
         """
-        if artifacts_to_save is not None and object_ is None:
-            object_ = artifacts_to_save
         self.artifacts_to_save = object_
+
+    def __post_init__(self) -> None: # One can add on for child classes, for instance to set other pointers
+        for k, v in vars(self).items():
+            if k == self._parent_pointer_name:
+                continue
+            if k in self._dont_serialize:
+                continue
+            if isinstance(v,Artifact) and v._parent_pointer_name is not None and v._parent_pointer_class is not None and isinstance(self,v._parent_pointer_class):
+                if v is self: # if by some accident there's circular ref
+                    continue
+                setattr(v,v._parent_pointer_name,self)
+            elif isinstance(v,list): 
+                for item in v:
+                    if item is self: # if by some accident there's circular ref
+                        continue
+                    if isinstance(item,Artifact) and item._parent_pointer_name is not None:
+                        setattr(item,item._parent_pointer_name,self)
+
+    @staticmethod
+    def clone_or_package(obj,mode: Literal["clone","json","bson","unpack"]="clone", critical_fields_only: bool = False) -> Any:
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        if isinstance(obj,Artifact) or (mode == "unpack" and isinstance(obj, dict) and "__module__" in obj and "__qualname__" in obj):
+            if mode == "unpack" and isinstance(obj, dict) and "__module__" in obj and "__qualname__" in obj:
+                module_name = obj["__module__"]
+                qualname = obj["__qualname__"]
+
+                mod = importlib.import_module(module_name)
+                cls = mod
+                for part in qualname.split("."):
+                    cls = getattr(cls, part)
+
+                fields = {k: v for k, v in obj.items() if k not in ("__module__", "__qualname__")}
+            else:
+                cls = type(obj)
+                fields = vars(obj)
+
+            if mode in ("clone","unpack"):
+                new = cls.__new__(cls)
+            else:
+                new = {"__module__": cls.__module__, "__qualname__": cls.__qualname__}
+            skip = set(cls._ephemeral_fields) | set(cls._dont_serialize)
+            if cls._parent_pointer_name is not None:
+                skip.add(cls._parent_pointer_name)
+            for k, v in fields.items():
+                if k in skip:
+                    continue
+                if critical_fields_only and k not in cls._critical_fields:
+                    continue
+                if mode in ("clone","unpack"):
+                    setattr(new, k, Artifact.clone_or_package(v,mode=mode,critical_fields_only=critical_fields_only))
+                else:
+                    new[k] = Artifact.clone_or_package(v,mode=mode,critical_fields_only=critical_fields_only)
+            if mode in ("clone", "unpack"):
+                new.__post_init__()
+            return new
+        
+        if isinstance(obj, dict):
+            if mode == "unpack":
+                if "_Packaging_Flag" in obj:
+                    flag = obj["_Packaging_Flag"]
+                    if "value" not in obj:
+                        raise TypeError(f"Malformed packaged object (missing 'value'): {obj!r}")
+                    value = obj["value"]
+                    if flag in ("tuple","set"):
+                        items = [Artifact.clone_or_package(i, mode=mode,critical_fields_only=critical_fields_only) for i in value]
+                        if flag=="tuple":
+                            return tuple(items)
+                        if flag=="set":
+                            return set(items)
+                    if flag == "np.generic":
+                        return np.array(value).item()
+                    if flag == "np.ndarray":
+                        return np.array(value)
+                    if flag == "datetime":
+                        return value if isinstance(value, datetime) else datetime.fromisoformat(value)
+                    if flag == "date":
+                        if isinstance(value, datetime):
+                            return value.date()          # you stored a datetime for BSON
+                        return date.fromisoformat(value) # you stored ISO string for JSON
+                    if flag == "Path":
+                        return Path(value)
+                    if flag == "__bytes_b64__":
+                        return base64.b64decode(value.encode("ascii"))
+                    raise TypeError(f"Unknown _Packaging_Flag: {flag!r}")
+            if mode in ("clone","unpack"):
+                return {k: Artifact.clone_or_package(v, mode=mode,critical_fields_only=critical_fields_only) for k, v in obj.items()}
+            else:
+                return {str(k): Artifact.clone_or_package(v, mode=mode,critical_fields_only=critical_fields_only) for k, v in obj.items()}
+
+        if isinstance(obj, list):
+            return [Artifact.clone_or_package(item,mode=mode,critical_fields_only=critical_fields_only) for item in obj]
+        
+        if isinstance(obj, tuple):
+            items = [Artifact.clone_or_package(i, mode=mode,critical_fields_only=critical_fields_only) for i in obj]
+            return tuple(items) if mode == "clone" else {"_Packaging_Flag": "tuple", "value": items}
+        
+        if isinstance(obj, set):
+            if mode=="clone":
+                return set([Artifact.clone_or_package(item,mode=mode,critical_fields_only=critical_fields_only) for item in obj])
+            else:
+                return {"_Packaging_Flag": "set",
+                    "value": [Artifact.clone_or_package(item, mode=mode, critical_fields_only=critical_fields_only)
+                    for item in sorted(obj, key=repr)]}
+        
+        if isinstance(obj, np.generic):
+            if mode=="clone":
+                return obj
+            else:
+                return {"_Packaging_Flag": "np.generic", "value":  obj.item()}
+        
+        if isinstance(obj, np.ndarray):      
+            if mode=="clone":
+                return obj.copy()
+            else:      
+                return {"_Packaging_Flag": "np.ndarray", "value":  obj.tolist()}
+            
+        if isinstance(obj, datetime):
+            if mode=="clone":
+                return obj
+            if mode=="bson":
+                return obj
+            if mode=="json":
+                return {"_Packaging_Flag": "datetime", "value": obj.isoformat()}
+        
+        if isinstance(obj, date):
+            if mode=="clone":
+                return obj
+            if mode=="bson":
+                return {"_Packaging_Flag": "date", "value": datetime(obj.year, obj.month, obj.day)}
+            if mode=="json":
+                return {"_Packaging_Flag": "date", "value": obj.isoformat()}
+            
+        if isinstance(obj, Path):
+            if mode=="clone":
+                return obj
+            else:
+                return {"_Packaging_Flag": "Path", "value": str(obj)}
+        
+        if isinstance(obj, bytes):
+            if mode=="clone":
+                return obj
+            if mode=="bson":
+                return obj
+            if mode=="json":
+                return {"_Packaging_Flag": "__bytes_b64__", "value":  base64.b64encode(obj).decode("ascii")}
+
+        return None # whatever falls through isn't serializable, like Fit_Dashboard or something like that.  Just return None    
     
-    def _clone_field_value(self, k: str, v: Any) -> Any:
-        if isinstance(v, Artifact):
-            return v.clone() if k in type(self)._critical_fields else None
-        if isinstance(v, list):
-            out = []
-            for item in v:
-                out.append(self._clone_field_value(k, item) if isinstance(item, Artifact) else (item.copy() if hasattr(item, "copy") else item))
-            return out
-        if isinstance(v, dict):
-            out = {}
-            for key, item in v.items():
-                out[key] = self._clone_field_value(k, item) if isinstance(item, Artifact) else (item.copy() if hasattr(item, "copy") else item)
-            return out
-        if hasattr(v, "copy"):
-            return v.copy()
-        return v
-    def clone(self) -> "Artifact":
+    def clone(self,critical_fields_only: bool = False) -> "Artifact":
         """Clone this Artifact.
 
         Args:
@@ -339,67 +477,82 @@ class Artifact:
             from PV_Circuit_Model.utilities import Artifact
             art = Artifact({"a": 1})
             clone = art.clone()
-            art is clone # True
             ```
         """
-        cls = type(self)
-
-        sig = inspect.signature(cls.__init__)
-        params = sig.parameters
-
-        # build init kwargs from critical fields (CLONE, don't RESTORE)
-        raw_kwargs = {}
-        for k in cls._critical_fields:
-            if k in self.__dict__:
-                v = self.__dict__[k]
-                raw_kwargs[k] = self._clone_field_value(k, v)  # helper below
-
-        accepts_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
-        if accepts_var_kw:
-            init_kwargs = raw_kwargs
-        else:
-            allowed_names = {
-                name
-                for name, p in params.items()
-                if name != "self"
-                and p.kind in (
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    inspect.Parameter.KEYWORD_ONLY,
-                )
-            }
-            init_kwargs = {k: v for k, v in raw_kwargs.items() if k in allowed_names}
-        
-        new = cls(**init_kwargs)
-
-        d = {}
-        for k, v in self.__dict__.items():
-            if k in self._dont_serialize:
-                continue
-            if k in self._artifacts:
-                # revert / drop artifacts
-                if hasattr(cls, k):
-                    d[k] = getattr(cls, k)
-                    continue
-            if isinstance(v,Artifact) and (k not in cls._critical_fields or k in new.__dict__): 
-                    continue
-            skip = False
-            if isinstance(v,list):
-                for item in v:
-                    if isinstance(item,Artifact) and (k not in cls._critical_fields or k in new.__dict__): 
-                        skip = True
-                        break
-            if isinstance(v,dict):
-                for _, item in v.items():
-                    if isinstance(item,Artifact) and (k not in cls._critical_fields or k in new.__dict__): 
-                        skip = True
-                        break
-            if skip:
-                continue
-            d[k] = self._clone_field_value(k, v)
-        new.__dict__.update(d)
-        
-        return new
+        return Artifact.clone_or_package(self,mode="clone",critical_fields_only=critical_fields_only)
     
+    def dump(self, path: Union[str, Path], *, indent: int = 2, critical_fields_only: bool = False) -> str:
+        """Write serialized parameters to JSON or BSON.
+
+        Args:
+            path (Union[str, Path]): Output file path.
+            indent (int): JSON indentation.
+            critical_fields_only (bool): If True, only serialize critical fields.
+
+        Returns:
+            str: Final path written.
+
+        Raises:
+            NotImplementedError: If an unsupported file extension is used.
+
+        Example:
+            ```python
+            import tempfile
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact({"a": 1})
+            with tempfile.TemporaryDirectory() as folder:
+                art.dump(Path(folder) / "artifact.json")
+            ```
+        """
+        path = str(path)
+        if path.endswith(".json"):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(Artifact.clone_or_package(self,mode="json",critical_fields_only=critical_fields_only), f, indent=indent)
+        else:
+            pos = path.find(".")
+            if pos == -1:
+                path += ".bson"
+            if not path.endswith(".bson"):
+                raise NotImplementedError("Artifact.dump only supports .json or .bson output")
+            with open(path, "wb") as f:
+                f.write(Artifact.clone_or_package(self,mode="bson",critical_fields_only=critical_fields_only))
+        return path
+    
+    @staticmethod
+    def load(path: Union[str, Path]) -> Any:
+        """Load an Artifact or serialized object from JSON or BSON.
+
+        Args:
+            path (Union[str, Path]): Input file path.
+
+        Returns:
+            Any: Restored object.
+
+        Raises:
+            NotImplementedError: If an unsupported file extension is used.
+
+        Example:
+            ```python
+            import tempfile
+            from PV_Circuit_Model.utilities import Artifact
+            art = Artifact({"a": 1})
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "artifact.json"
+                art.dump(path)
+                Artifact.load(path)
+            ```
+        """
+        path = str(path)
+        if path.endswith(".json"):
+            with open(path, "r", encoding="utf-8") as f:
+                params = json.load(f)
+        elif path.endswith(".bson"):
+            with open(path, "rb") as f:
+                params = bson.loads(f.read())
+        else:
+            raise NotImplementedError("Artifact.load only supports .json or .bson input")
+        return Artifact.clone_or_package(params,mode="unpack")
+
     # equality that checks only _critical_fields, handles nesting too
     def __eq__(self, other: Any) -> bool:
         if self.__class__ is not other.__class__:
@@ -433,237 +586,13 @@ class Artifact:
 
         return True
     
-    def clear_artifacts(self) -> None:
-        for field_ in self._artifacts:
+    def clear_ephemeral_fields(self) -> None:
+        for field_ in self._ephemeral_fields:
             if hasattr(self, field_):
                 if hasattr(type(self), field_):
                     setattr(self, field_, getattr(type(self), field_))
                 elif field_ in self.__dict__:
                     delattr(self, field_)
-
-    def save_toParams(self, critical_fields_only: bool = False) -> Dict[str, Any]:
-        """Serialize this artifact to a parameter dict.
-
-        Args:
-            critical_fields_only (bool): If True, only serialize critical fields.
-
-        Returns:
-            Dict[str, Any]: Serialized parameter dict.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.utilities import Artifact
-            art = Artifact({"a": 1})
-            art.save_toParams()
-            ```
-        """
-        data = {
-            "__class__": f"{self.__class__.__module__}.{self.__class__.__name__}"
-        }
-        for name, value in self.__dict__.items():
-            if name in self._artifacts or name in self._dont_serialize or (critical_fields_only and name not in self._critical_fields):
-                continue
-            output = self.__class__._save_value(name,value,critical_fields_only=critical_fields_only,critical_fields=self._critical_fields)
-            if output is not None:
-                data[name] = output
-        return data
-
-    def dump(self, path: Union[str, Path], *, indent: int = 2, critical_fields_only: bool = False) -> str:
-        """Write serialized parameters to JSON or BSON.
-
-        Args:
-            path (Union[str, Path]): Output file path.
-            indent (int): JSON indentation.
-            critical_fields_only (bool): If True, only serialize critical fields.
-
-        Returns:
-            str: Final path written.
-
-        Raises:
-            NotImplementedError: If an unsupported file extension is used.
-
-        Example:
-            ```python
-            import tempfile
-            from PV_Circuit_Model.utilities import Artifact
-            art = Artifact({"a": 1})
-            with tempfile.TemporaryDirectory() as folder:
-                art.dump(Path(folder) / "artifact.json")
-            ```
-        """
-        path = str(path)
-        params = self.save_toParams(critical_fields_only=critical_fields_only)
-        if path.endswith(".json"):
-            with open(path, "w") as f:
-                json.dump(params, f, indent=indent)
-        else: # bson
-            pos = path.find(".")
-            if pos == -1:
-                path += ".bson"
-            if not path.endswith(".bson"):
-                raise NotImplementedError("Artifact.dump only supports .json or .bson output")
-            data = bson.dumps(params)
-            with open(path, "wb") as f:
-                f.write(data)
-        return path
-
-    @staticmethod
-    def load(path: Union[str, Path]) -> Any:
-        """Load an Artifact or serialized object from JSON or BSON.
-
-        Args:
-            path (Union[str, Path]): Input file path.
-
-        Returns:
-            Any: Restored object.
-
-        Raises:
-            NotImplementedError: If an unsupported file extension is used.
-
-        Example:
-            ```python
-            import tempfile
-            from PV_Circuit_Model.utilities import Artifact
-            art = Artifact({"a": 1})
-            with tempfile.TemporaryDirectory() as folder:
-                path = Path(folder) / "artifact.json"
-                art.dump(path)
-                Artifact.load(path)
-            ```
-        """
-        path = str(path)
-        if path.endswith(".json"):
-            with open(path, "r") as f:
-                params = json.load(f)
-        elif path.endswith(".bson"):
-            with open(path, "rb") as f:
-                params = bson.loads(f.read())
-        else:
-            raise NotImplementedError("Artifact.load only suppoers .json or .bson input")
-        return Artifact._restore_value(params)
-
-    @classmethod
-    def _save_value(
-        cls,
-        field_name: str,
-        value: Any,
-        critical_fields_only: bool = False,
-        critical_fields: Optional[Sequence[str]] = None,
-    ) -> Any:
-        if isinstance(value, Artifact): # we don't store any references to other Artifacts, except those found in _critical_fields
-            if field_name not in cls._critical_fields and (critical_fields is None or field_name not in critical_fields):
-                return None
-            return value.save_toParams(critical_fields_only=critical_fields_only)
-
-        if isinstance(value, (list, tuple)): 
-            return [cls._save_value(field_name, v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for v in value]
-
-        if isinstance(value, dict):
-            return {k: cls._save_value(field_name,v,critical_fields_only=critical_fields_only,critical_fields=critical_fields) for k, v in value.items()}
-
-        if isinstance(value, np.ndarray):
-            return {
-                "__ndarray__": value.tolist(),
-                "dtype": str(value.dtype),
-                "shape": value.shape,
-            }
-
-        return value
-
-    @staticmethod
-    def _restore_value(value: Any) -> Any:
-        # numpy array
-        if isinstance(value, dict) and "__ndarray__" in value:
-            arr = np.array(value["__ndarray__"], dtype=value["dtype"])
-            return arr.reshape(value["shape"])
-
-        # nested Artifact subclass (or any class we serialized)
-        if isinstance(value, dict) and "__class__" in value:
-            cls_path = value["__class__"]
-            module_name, class_name = cls_path.rsplit(".", 1)
-
-            # dynamic import trick
-            mod = importlib.import_module(module_name)
-            cls = getattr(mod, class_name)
-
-            # recursively restore all fields except __class__
-            raw_kwargs = {
-                k: Artifact._restore_value(v)
-                for k, v in value.items()
-                if k != "__class__"
-            }
-
-            # Look at __init__ signature
-            sig = inspect.signature(cls.__init__)
-            params = sig.parameters
-
-            # If class accepts **kwargs, just pass everything
-            accepts_var_kw = any(
-                p.kind == inspect.Parameter.VAR_KEYWORD
-                for p in params.values()
-            )
-            if accepts_var_kw:
-                return cls(**raw_kwargs)
-
-            # Otherwise, split into "constructor args" and "extra attrs"
-            allowed_names = {
-                name
-                for name, p in params.items()
-                if name != "self"
-                and p.kind in (
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    inspect.Parameter.KEYWORD_ONLY,
-                )
-            }
-
-            init_kwargs = {k: v for k, v in raw_kwargs.items() if k in allowed_names}
-            extra_kwargs = {k: v for k, v in raw_kwargs.items() if k not in allowed_names}
-
-            # Instantiate with the allowed kwargs
-            obj = cls(**init_kwargs)
-
-            # Attach any extra fields as attributes
-            for k, v in extra_kwargs.items():
-                contains_Artifact = False
-                if (isinstance(v,Artifact) and k not in cls._critical_fields) or (k in obj.__dict__ and isinstance(getattr(obj,k),Artifact)): 
-                    contains_Artifact = True
-                elif isinstance(v,list):
-                    if k in obj.__dict__:
-                        for item in getattr(obj,k):
-                            if isinstance(item,Artifact):
-                                contains_Artifact = True
-                                break
-                    else:              
-                        for item in v:
-                            if isinstance(item,Artifact) and (k not in cls._critical_fields): 
-                                contains_Artifact = True
-                                break
-                elif isinstance(v,dict):
-                    if k in obj.__dict__:
-                        for _, item in getattr(obj,k).items():
-                            if isinstance(item,Artifact): 
-                                contains_Artifact = True
-                                break
-                    else:
-                        for _, item in v.items():
-                            if isinstance(item,Artifact) and (k not in cls._critical_fields): 
-                                contains_Artifact = True
-                                break
-                if not contains_Artifact:
-                    setattr(obj, k, v)   
-
-            return obj
-
-        # list
-        if isinstance(value, list):
-            return [Artifact._restore_value(v) for v in value]
-
-        # regular dict
-        if isinstance(value, dict):
-            return {k: Artifact._restore_value(v) for k, v in value.items()}
-
-        # primitives
-        return value
     
 def filter_kwargs(func, kwargs):
     sig = inspect.signature(func)
