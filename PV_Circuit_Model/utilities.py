@@ -1,4 +1,5 @@
 import numpy as np
+import numbers
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 from numbers import Number
@@ -374,13 +375,26 @@ class Artifact:
         for k, v in self.__dict__.items():
             if k in self._dont_serialize:
                 continue
-            if k in new.__dict__: # already done via initialization
-                continue
             if k in self._artifacts:
                 # revert / drop artifacts
                 if hasattr(cls, k):
                     d[k] = getattr(cls, k)
                     continue
+            if isinstance(v,Artifact) and (k not in cls._critical_fields or k in new.__dict__): 
+                    continue
+            skip = False
+            if isinstance(v,list):
+                for item in v:
+                    if isinstance(item,Artifact) and (k not in cls._critical_fields or k in new.__dict__): 
+                        skip = True
+                        break
+            if isinstance(v,dict):
+                for _, item in v.items():
+                    if isinstance(item,Artifact) and (k not in cls._critical_fields or k in new.__dict__): 
+                        skip = True
+                        break
+            if skip:
+                continue
             d[k] = self._clone_field_value(k, v)
         new.__dict__.update(d)
         
@@ -399,11 +413,18 @@ class Artifact:
             if a is None or b is None:
                 return False
 
-            if isinstance(a, float) and isinstance(b, float):
+            if isinstance(a, numbers.Number) and isinstance(b, numbers.Number):
                 if not math.isclose(
-                    a, b,
+                    float(a), float(b),
                     rel_tol=self._float_rtol,
                     abs_tol=self._float_atol,
+                ):
+                    return False
+            elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+                if not np.allclose(
+                    a, b,
+                    rtol=self._float_rtol,
+                    atol=self._float_atol,
                 ):
                     return False
             else:
@@ -603,8 +624,33 @@ class Artifact:
 
             # Attach any extra fields as attributes
             for k, v in extra_kwargs.items():
-                if k not in obj.__dict__:
-                    setattr(obj, k, v)
+                contains_Artifact = False
+                if (isinstance(v,Artifact) and k not in cls._critical_fields) or (k in obj.__dict__ and isinstance(getattr(obj,k),Artifact)): 
+                    contains_Artifact = True
+                elif isinstance(v,list):
+                    if k in obj.__dict__:
+                        for item in getattr(obj,k):
+                            if isinstance(item,Artifact):
+                                contains_Artifact = True
+                                break
+                    else:              
+                        for item in v:
+                            if isinstance(item,Artifact) and (k not in cls._critical_fields): 
+                                contains_Artifact = True
+                                break
+                elif isinstance(v,dict):
+                    if k in obj.__dict__:
+                        for _, item in getattr(obj,k).items():
+                            if isinstance(item,Artifact): 
+                                contains_Artifact = True
+                                break
+                    else:
+                        for _, item in v.items():
+                            if isinstance(item,Artifact) and (k not in cls._critical_fields): 
+                                contains_Artifact = True
+                                break
+                if not contains_Artifact:
+                    setattr(obj, k, v)   
 
             return obj
 

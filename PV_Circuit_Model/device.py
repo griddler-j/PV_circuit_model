@@ -10,6 +10,8 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import ScalarFormatter
 import numbers
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+# Backward-compat for old pickles that expect Intrinsic_Si_diode here
+from PV_Circuit_Model.circuit_model import Intrinsic_Si_diode  # noqa: F401
 
 class Device(circuit.CircuitGroup):
     """Wrapper class for CircuitGroup
@@ -94,7 +96,7 @@ class Cell(Device,_type_number=6):
     irradiance/temperature handling.
     """
     photon_coupling_diodes = None
-    _critical_fields = circuit.CircuitGroup._critical_fields + ("area",)
+    _critical_fields = circuit.CircuitGroup._critical_fields + ("area","shape")
     def __init__(
         self,
         subgroups: Sequence[circuit.CircuitComponent],
@@ -1669,7 +1671,7 @@ class MultiJunctionCell(Device):
             kwargs["Rs"] = total_Rs
         return cls(subcells=subcells,**kwargs)
 
-    # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
+# colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
 def draw_cells(
     self: Union[circuit.CircuitGroup, "Cell", List[Any]],
     display: bool = True,
@@ -1736,7 +1738,7 @@ def draw_cells(
     elif hasattr(self,"shape"): # a solar cell
         shapes.append(self.shape.copy())
         names.append(self.name)
-        if self.operating_point is not None:
+        if self.diode_branch.operating_point is not None:
             Vints.append(self.diode_branch.operating_point[0])
             Is.append(self.operating_point[1])
         if self.aux is not None and "EL_Vint" in self.aux:
