@@ -535,7 +535,8 @@ class Artifact:
             if not path.endswith(".bson"):
                 raise NotImplementedError("Artifact.dump only supports .json or .bson output")
             with open(path, "wb") as f:
-                f.write(Artifact.clone_or_package(self,mode="bson",critical_fields_only=critical_fields_only))
+                payload = Artifact.clone_or_package(self, mode="bson", critical_fields_only=critical_fields_only)
+                f.write(bson.dumps(payload))
         return path
     
     @staticmethod
