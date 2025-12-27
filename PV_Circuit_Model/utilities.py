@@ -315,6 +315,8 @@ class Artifact:
         self.artifacts_to_save = object_
 
     def __post_init__(self) -> None: # One can add on for child classes, for instance to set other pointers
+        if self._parent_pointer_name is not None and self._parent_pointer_class is not None:
+            setattr(self,self._parent_pointer_name,None)
         for k, v in vars(self).items():
             if k == self._parent_pointer_name:
                 continue
@@ -336,20 +338,38 @@ class Artifact:
         if obj is None or isinstance(obj, (str, int, float, bool)):
             return obj
 
-        if isinstance(obj,Artifact) or (mode == "unpack" and isinstance(obj, dict) and "__module__" in obj and "__qualname__" in obj):
-            if mode == "unpack" and isinstance(obj, dict) and "__module__" in obj and "__qualname__" in obj:
-                module_name = obj["__module__"]
-                qualname = obj["__qualname__"]
+        if isinstance(obj,Artifact) or (mode == "unpack" and isinstance(obj, dict) and ("__class__" in obj or ("__module__" in obj and "__qualname__" in obj))):
+            if isinstance(obj,Artifact):
+                cls = type(obj)
+                fields = vars(obj)
+            else:
+                if ("__module__" in obj and "__qualname__" in obj):
+                    module_name = obj["__module__"]
+                    qualname = obj["__qualname__"]
+                else:
+                    classpath = obj["__class__"]
+                    parts = classpath.split(".")
+                    module_name = None
+                    qualname = None
+                    for i in range(len(parts) - 1, 0, -1):
+                        candidate_module = ".".join(parts[:i])
+                        candidate_qualname = ".".join(parts[i:])
+                        try:
+                            importlib.import_module(candidate_module)
+                            module_name = candidate_module
+                            qualname = candidate_qualname
+                            break
+                        except Exception:
+                            continue
+                    if module_name is None:
+                        raise ImportError(f"Could not resolve legacy __class__: {classpath!r}")
 
                 mod = importlib.import_module(module_name)
                 cls = mod
                 for part in qualname.split("."):
                     cls = getattr(cls, part)
 
-                fields = {k: v for k, v in obj.items() if k not in ("__module__", "__qualname__")}
-            else:
-                cls = type(obj)
-                fields = vars(obj)
+                fields = {k: v for k, v in obj.items() if k not in ("__module__", "__qualname__","__class__")}
 
             if mode in ("clone","unpack"):
                 new = cls.__new__(cls)
