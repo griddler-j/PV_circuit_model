@@ -37,7 +37,7 @@ class Measurement(utilities.Artifact):
         ```
     """
     _parent_pointer_name = "parent_device"
-    _parent_pointer_class=circuit.CircuitComponent
+    _parent_pointer_class=device_module.Device
     keys = []
     data_rows = []
     # measurement can be on its own, or belonging to a device

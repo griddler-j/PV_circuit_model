@@ -35,16 +35,15 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
                        "log_Rs_cond"]
     def __init__(
         self,
-        sample: Any = None,
+        sample: device_module.Device,
         bottom_cell_Voc: float = 0.7,
         top_cell_Voc: Optional[float] = 1.2,
         disable_list: Optional[List[str]] = None,
-        fit_parameters: Optional[List[fitting.Fit_Parameter]] = None,
     ) -> None:
         """Initialize tandem-cell fit parameters and bounds.
 
         Args:
-            sample (Any): Reference sample (Cell or MultiJunctionCell).
+            sample: Reference sample (Cell or MultiJunctionCell).
             bottom_cell_Voc (float): Approximate Voc for bottom cell.
             top_cell_Voc (Optional[float]): Approximate Voc for top cell.
             disable_list (Optional[List[str]]): Parameter names to disable.
@@ -60,13 +59,6 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
             params.is_tandem
             ```
         """
-        if fit_parameters is not None:
-            super().__init__(fit_parameters=fit_parameters)
-            return
-        
-        if sample is None:
-            raise TypeError("Tandem_Cell_Fit_Parameters need to be initialized by either sample or fit_parameters")
-        
         if disable_list is None:
             disable_list = ["dshunt_cond"]
         super().__init__(names=self.parameter_names)
@@ -85,8 +77,10 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
         self.is_tandem = True
         if isinstance(sample,device_module.MultiJunctionCell):
             self.is_tandem = True
-        else:
+        elif isinstance(sample,device_module.Cell):
             self.is_tandem = False
+        else:
+            raise NotImplementedError("Sample must be either MultiJunctionCell or Cell")
         if top_cell_Voc is None:
             disable_list.extend(["top_cell_logJ01","top_cell_logJ012","top_cell_PC_logJ01","top_cell_log_shunt_cond"])
             self.set("abs_min", [-6,-2], ["bottom_cell_log_shunt_cond","log_Rs_cond"])
@@ -101,7 +95,7 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
             self.disable_parameter(item)
         self.initialize_from_sample(sample)
         self.set_d_value()
-    def initialize_from_sample(self, sample: Any) -> None:
+    def initialize_from_sample(self, sample: device_module.Device) -> None:
         """Initialize parameter values from a reference sample.
 
         Args:
@@ -375,7 +369,7 @@ def analyze_solar_cell_measurements(
 
         cell = device_module.make_solar_cell(Jsc_, J01, J02, Rshunt_, Rs_, test_cell_area, shape=None, **kwargs_to_pass)
 
-    cell.assign_measurements(measurements)
+    measurement_module.assign_measurements(cell,measurements)
 
     fit_parameters = Tandem_Cell_Fit_Parameters(cell)
 

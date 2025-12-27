@@ -4,6 +4,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 import PV_Circuit_Model.utilities as utilities
 import PV_Circuit_Model.measurement as measurement_module
+import PV_Circuit_Model.device as device_module
 import inspect
 import numbers
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -280,6 +281,8 @@ class Fit_Parameters(utilities.Artifact):
         params.num_of_parameters()
         ```
     """
+    _parent_pointer_name = "ref_sample"
+    _parent_pointer_class = device_module.Device
     _critical_fields = utilities.Artifact._critical_fields + ("fit_parameters",)
     def __init__(
         self,
