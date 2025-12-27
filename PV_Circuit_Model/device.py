@@ -143,16 +143,17 @@ class Cell(Device,_type_number=6):
         super().__init__(subgroups, connection,location=location,rotation=rotation,
                          name=name,extent=np.array([x_extent,y_extent]).astype(float))
         self.area = area
-        if self.max_I is not None:
-            self.max_I *= area
         self.shape = shape
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
-        self.__post_init__()
+        Cell.__compile__(self)
 
     def __post_init__(self):
         super().__post_init__()
+        Cell.__compile__(self)
+        
+    def __compile__(self):
         self.photon_coupling_diodes = self.findElementType(circuit.PhotonCouplingDiode)
         if self.connection=="series":
             for branch in self.subgroups:
@@ -163,6 +164,10 @@ class Cell(Device,_type_number=6):
         else:
             self.series_resistor = None
             self.diode_branch = self
+        if self.max_I is not None:
+            self.max_I *= self.area
+        if not hasattr(self,"shape"): # some legacy bsons don't store shape
+            self.shape = None
 
     # a weak copy, only the parameters
     def copy_values(self, cell2: "Cell") -> None:
@@ -1206,10 +1211,13 @@ class Module(Device):
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns 
-        self.__post_init__()
+        Module.__compile__(self)
 
     def __post_init__(self):
         super().__post_init__()
+        Module.__compile__(self)
+
+    def __compile__(self):
         self.interconnect_resistors = self.findElementType(circuit.Resistor, Cell)
         self.interconnect_conds = []
         for r in self.interconnect_resistors:
@@ -1384,10 +1392,13 @@ class MultiJunctionCell(Device):
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
-        self.set_Suns(Suns)     
+        MultiJunctionCell.__compile__(self)  
 
     def __post_init__(self):
         super().__post_init__()
+        MultiJunctionCell.__compile__(self)
+
+    def __compile__(self):
         self.cells = []
         self.series_resistor = None
         for item in self.subgroups:

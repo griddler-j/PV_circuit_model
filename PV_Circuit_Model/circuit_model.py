@@ -73,13 +73,24 @@ class CircuitComponent(utilities.Artifact):
     registered_type_numbers = set()
 
     def __init__(self, tag: Optional[str] = None) -> None:
-        self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
-        self.aux = {}
-        self.tag = tag
-        self.extrapolation_allowed = [False,False]
-        self.extrapolation_dI_dV = [0,0]
-        self.has_I_domain_limit = [False,False]
+        CircuitComponent.__compile__(self)
+
+    def __post_init__(self):
+        utilities.Artifact.__post_init__(self)
+        CircuitComponent.__compile__(self)
+        
+    def __compile__(self):
+        if "circuit_diagram_extent" not in self.__dict__:
+            self.circuit_diagram_extent = [0, 0.8]
+        if "aux" not in self.__dict__:
+            self.aux = {}
+        if "tag" not in self.__dict__:
+            self.tag = None
+        if "extrapolation_allowed" not in self.__dict__:
+            self.extrapolation_allowed = [False,False]
+            self.extrapolation_dI_dV = [0,0]
+            self.has_I_domain_limit = [False,False]
 
     def __init_subclass__(cls, *, _type_number: int = -1, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -600,6 +611,18 @@ class CurrentSource(CircuitElement,_type_number=0):
         self.refT = temperature
         self.T = temperature
         self.temp_coeff = temp_coeff
+    def __post_init__(self):
+        super().__post_init__()
+        if not hasattr(self,"Suns"):
+            self.Suns = 1.0
+        if not hasattr(self,"refSuns"):
+            self.refSuns = 1.0
+        if not hasattr(self,"refIL"):
+            self.ref_IL = self.IL
+        if not hasattr(self,"temp_coeff"):
+            self.temp_coeff = 0
+        if not hasattr(self,"temperature"):
+            self.temperature = 25 
     def set_operating_point(self, V: Optional[float] = None, I: Optional[float] = None) -> None: # noqa: E741
         if I is not None:
             raise NotImplementedError
@@ -797,6 +820,12 @@ class Diode(CircuitElement,_type_number=2):
         self.refT = temperature
         if max_I is not None:
             self.max_I = max_I
+    def __post_init__(self):
+        super().__post_init__()
+        if not hasattr(self,"refI0"):
+            self.refI0 = self.I0
+        if not hasattr(self,"refT"):
+            self.refT = 25
     def set_I0(self, I0: float) -> None:
         """Update saturation current and invalidate IV caches.
 
@@ -977,6 +1006,20 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         self.ni = silicon.get_ni(self.temperature)
         if max_I is not None:
             self.max_I = max_I
+    def __post_init__(self):
+        CircuitElement.__post_init__(self)
+        if not hasattr(self,"base_thickness"):
+            self.base_thickness = 180e-4
+        if not hasattr(self,"base_type"):
+            self.base_type = "n"
+        if not hasattr(self,"base_doping"):
+            self.base_doping = 1e15
+        if not hasattr(self,"area"):
+            self.area = 1
+        if not hasattr(self,"temperature"):
+            self.temperature = 25
+        self.VT = utilities.get_VT(self.temperature)
+        self.ni = silicon.get_ni(self.temperature)
     def __str__(self) -> str:
         return "Si Intrinsic Diode"
     def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
@@ -1068,7 +1111,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         super().__init__()
         self.connection = connection
         self.subgroups = subgroups
-        self.num_circuit_elements = 0
         self.name = name
         if location is None:
             self.location = np.array([0,0])
@@ -1081,11 +1123,15 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             self.extent = extent
         else:
             self.extent = get_extent(subgroups)
-        self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
-        self.__post_init__()
+        CircuitGroup.__compile__(self)
 
     def __post_init__(self):
         super().__post_init__()
+        CircuitGroup.__compile__(self)
+
+    def __compile__(self):
+        self.circuit_diagram_extent = get_circuit_diagram_extent(self.subgroups,self.connection)
+        self.num_circuit_elements = 0
         max_I = 0
         max_max_I = 0
         for element in self.subgroups:
@@ -1218,7 +1264,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if I is not None:
                 V_ = np.interp(I,self.IV_I,self.IV_V)
             self.operating_point = [V_,I_]
-            if hasattr(self,"area") and hasattr(self,"shape"): # cell
+            if type(self).__name__=="Cell": # cell
                 I_ /= self.area
             if shallow:   
                 return
