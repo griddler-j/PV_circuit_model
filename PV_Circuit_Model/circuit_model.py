@@ -74,6 +74,7 @@ class CircuitComponent(utilities.Artifact):
 
     def __init__(self, tag: Optional[str] = None) -> None:
         self.parent = None
+        self.tag = tag
         CircuitComponent.__compile__(self)
 
     def __post_init__(self):
