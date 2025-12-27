@@ -1135,6 +1135,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         max_I = 0
         max_max_I = 0
         for element in self.subgroups:
+            element.parent = self
             self.num_circuit_elements += element.num_circuit_elements
             self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
             if element.max_I is not None:

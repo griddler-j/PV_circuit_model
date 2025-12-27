@@ -610,8 +610,7 @@ class Artifact:
     def clear_ephemeral_fields(self) -> None:
         for field_ in self._ephemeral_fields:
             if hasattr(self, field_):
-                default = getattr(type(self), field_,None)
-                if default:
+                if hasattr(type(self), field_):
                     default = getattr(type(self), field_)
                     if isinstance(default, (list, dict, set)):
                         setattr(self, field_, default.copy())
