@@ -4,7 +4,7 @@ import sys
 import types
 import importlib
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 
 def _get_git_info():
     try:
