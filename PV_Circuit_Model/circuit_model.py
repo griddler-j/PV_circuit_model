@@ -54,11 +54,12 @@ class CircuitComponent(utilities.Artifact):
         isinstance(component, CircuitComponent) # True
         ```
     """
+    _critical_fields = ()
     _parent_pointer_name = "parent"
     _parent_pointer_class = None
     _ephemeral_fields = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
-    _dont_serialize = ("circuit_depth", "num_circuit_elements")
+    _dont_serialize = ("circuit_depth", "num_circuit_elements", "IV_table", "dark_IV_table")
     max_I = None
     max_num_points = None
     IV_V = None  
@@ -827,6 +828,7 @@ class Diode(CircuitElement,_type_number=2):
             self.refI0 = self.I0
         if not hasattr(self,"refT"):
             self.refT = 25
+        self.VT = utilities.get_VT(self.refT)
     def set_I0(self, I0: float) -> None:
         """Update saturation current and invalidate IV caches.
 

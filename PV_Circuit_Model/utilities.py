@@ -293,7 +293,7 @@ class Artifact:
     _critical_fields = () # equality is based on _critical_fields
     _parent_pointer_name = None # name of the field that points to a parent
     _parent_pointer_class = None # class of parent
-    _ephemeral_fields = () # these are erased on clear_ephemeral_fields()
+    _ephemeral_fields = () # these are erased on clear_ephemeral_fields().  They are also ignored and not saved.
     _dont_serialize = () # these fields are ignored and not saved. Usually they are pointers.
     _float_rtol = 1e-6 # used in comparison for equality
     _float_atol = 1e-23 # used in comparison for equality
@@ -315,23 +315,25 @@ class Artifact:
         self.artifacts_to_save = object_
 
     def __post_init__(self) -> None: # One can add on for child classes, for instance to set other pointers
-        if self._parent_pointer_name is not None and self._parent_pointer_class is not None:
-            setattr(self,self._parent_pointer_name,None)
+        if self.__class__._parent_pointer_name is not None and self.__class__._parent_pointer_class is not None:
+            setattr(self,self.__class__._parent_pointer_name,None)
         for k, v in vars(self).items():
-            if k == self._parent_pointer_name:
+            if k == self.__class__._parent_pointer_name:
                 continue
-            if k in self._dont_serialize:
+            if k in self.__class__._dont_serialize:
                 continue
-            if isinstance(v,Artifact) and v._parent_pointer_name is not None and v._parent_pointer_class is not None and isinstance(self,v._parent_pointer_class):
+            if k in self.__class__._ephemeral_fields:
+                continue
+            if isinstance(v,Artifact) and v.__class__._parent_pointer_name is not None and v.__class__._parent_pointer_class is not None and isinstance(self,v.__class__._parent_pointer_class):
                 if v is self: # if by some accident there's circular ref
                     continue
-                setattr(v,v._parent_pointer_name,self)
+                setattr(v,v.__class__._parent_pointer_name,self)
             elif isinstance(v,list): 
                 for item in v:
                     if item is self: # if by some accident there's circular ref
                         continue
-                    if isinstance(item,Artifact) and item._parent_pointer_name is not None:
-                        setattr(item,item._parent_pointer_name,self)
+                    if isinstance(item,Artifact) and item.__class__._parent_pointer_name is not None:
+                        setattr(item,item.__class__._parent_pointer_name,self)
 
     @staticmethod
     def clone_or_package(obj,mode: Literal["clone","json","bson","unpack"]="clone", critical_fields_only: bool = False) -> Any:
