@@ -9,26 +9,6 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
     """Fit parameters for tandem and single-junction solar cells.
-
-    Encapsulates log-scaled parameters for diode currents, shunts, and series
-    resistance, with helper methods to apply values to a reference sample.
-
-    Args:
-        sample (Any): Reference sample (Cell or MultiJunctionCell).
-        bottom_cell_Voc (float): Approximate Voc for bottom cell.
-        top_cell_Voc (Optional[float]): Approximate Voc for top cell; None for single junction.
-        disable_list (Optional[List[str]]): Parameter names to disable initially.
-
-    Returns:
-        Tandem_Cell_Fit_Parameters: The constructed parameter collection.
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting_tandem_cell import Tandem_Cell_Fit_Parameters
-        from PV_Circuit_Model.device import quick_tandem_cell
-        params = Tandem_Cell_Fit_Parameters(quick_tandem_cell())
-        params.num_of_parameters()
-        ```
     """
     parameter_names = ["bottom_cell_logJ01","bottom_cell_logJ02","bottom_cell_log_shunt_cond",
                        "top_cell_logJ01","top_cell_logJ02","top_cell_PC_logJ01","top_cell_log_shunt_cond",
@@ -431,22 +411,6 @@ def analyze_solar_cell_measurements(
     return fit_parameters.ref_sample, interactive_fit_dashboard
 
 def generate_differentials(measurements: Sequence[Any], cell: Any) -> Any:
-    """Generate differential outputs for a given cell and measurements.
-
-    Args:
-        measurements (Sequence[Any]): Measurement objects.
-        cell (Any): Cell or MultiJunctionCell instance.
-
-    Returns:
-        Any: Output from the zero-round analysis.
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting_tandem_cell import generate_differentials
-        from PV_Circuit_Model.device import quick_tandem_cell
-        generate_differentials([], quick_tandem_cell())
-        ```
-    """
     is_tandem = False
     if isinstance(cell,device_module.MultiJunctionCell):
         is_tandem = True
