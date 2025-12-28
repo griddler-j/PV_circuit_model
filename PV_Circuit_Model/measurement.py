@@ -1,6 +1,5 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import PV_Circuit_Model.circuit_model as circuit
 import PV_Circuit_Model.device as device_module
 import PV_Circuit_Model.utilities as utilities
 import PV_Circuit_Model.device_analysis as analysis
@@ -13,29 +12,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 class Measurement(utilities.Artifact):
     """Base class for measurement data and simulation comparison.
-
-    Stores measurement conditions, experimental data, and simulated outputs.
-
-    Args:
-        measurement_condition (Optional[Dict[str, Any]]): Condition metadata.
-        measurement_data (Optional[np.ndarray]): Measurement data array.
-        json_filepath (Optional[str]): Path to JSON file to read.
-        device (Optional[Any]): Parent device for simulation.
-        key_parameters (Optional[Dict[str, Any]]): Precomputed key parameters.
-        measurement_time (Optional[datetime]): Timestamp of measurement.
-
-    Returns:
-        Measurement: The constructed measurement object.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import Measurement
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-        meas.keys
-        ```
     """
+    _parent_pointer_name = "parent_device"
+    _parent_pointer_class=device_module.Device
     keys = []
     data_rows = []
     # measurement can be on its own, or belonging to a device
@@ -60,24 +39,18 @@ class Measurement(utilities.Artifact):
             key_parameters (Optional[Dict[str, Any]]): Precomputed key parameters.
             measurement_time (Optional[datetime]): Timestamp of measurement.
 
-        Returns:
-            None
-
-        Raises:
-            AssertionError: If required inputs are missing.
-
         Example:
             ```python
             import numpy as np
             from PV_Circuit_Model.measurement import Measurement
             data = np.array([[0.0, 0.1], [0.0, -1.0]])
             meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.measurement_condition["temperature"]
             ```
         """
         # either must input the measurement_condition + measurement_data, or
         # read these from a json file
-        assert((measurement_condition is not None and (measurement_data is not None or key_parameters is not None)) or json_filepath is not None)
+        if not ((measurement_condition is not None and (measurement_data is not None or key_parameters is not None)) or json_filepath is not None):
+            raise NotImplementedError("Measurement must be initialized with either measurement_condition + measurement_data, or a json file to read from")
         self.aux = {}
         if json_filepath is not None:
             self.aux["filepath"] = json_filepath
@@ -100,27 +73,6 @@ class Measurement(utilities.Artifact):
             self.derive_key_parameters(self.measurement_data,self.key_parameters,self.measurement_condition)
         self.set_unit_errors()
     def set_unit_error(self, key: str, value: Optional[float] = None) -> None:
-        """Set or infer a unit error for a key parameter.
-
-        If value is None, the error is derived from the parameter magnitude.
-
-        Args:
-            key (str): Key parameter name.
-            value (Optional[float]): Explicit unit error; if None, infer.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.set_unit_error("Voc", value=0.01)
-            meas.unit_errors["Voc"]
-            ```
-        """
         if value is not None:
             self.unit_errors[key] = value
         else: # just make as percentage, say, one in a thousand
@@ -131,51 +83,10 @@ class Measurement(utilities.Artifact):
                 avg_ = np.mean(np.abs(self.key_parameters[key])) 
                 self.unit_errors[key] = avg_*np.sqrt(self.key_parameters[key].size)/1000
     def set_unit_errors(self) -> None:
-        """Initialize unit errors for all keys in this measurement.
-
-        This iterates over `self.keys` and calls `set_unit_error` for each.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.set_unit_errors()
-            ```
-        """
         for key in self.keys:
             self.set_unit_error(key)
     @staticmethod
     def derive_key_parameters(data: np.ndarray, key_parameters: Dict[str, Any], conditions: Dict[str, Any]) -> None:
-        """Populate key parameters from measurement data.
-
-        Subclasses should override this to compute relevant metrics.
-
-        Warning:
-            This is a stub meant to be implemented in subclasses.
-
-        Args:
-            data (np.ndarray): Measurement data array.
-            key_parameters (Dict[str, Any]): Output dict for key parameters.
-            conditions (Dict[str, Any]): Measurement conditions.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            Measurement.derive_key_parameters(np.array([]), {}, {})
-            ```
-        """
         pass
     def simulate(self, device: Optional[Any] = None) -> None:
         """Simulate the measurement using the parent device.
@@ -187,40 +98,9 @@ class Measurement(utilities.Artifact):
 
         Args:
             device (Optional[Any]): Device to simulate; defaults to parent.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.simulate()
-            ```
         """
         pass
     def plot(self) -> None:
-        """Plot experimental and simulated data if available.
-
-        This uses `plot_func` for each dataset and shows the figure.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.plot()
-            ```
-        """
         self.plot_func(self.measurement_data,color="blue")
         if self.simulated_data is not None:
             self.plot_func(self.simulated_data,color="red")
@@ -236,32 +116,6 @@ class Measurement(utilities.Artifact):
         ax: Optional[Any] = None,
         kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Plot a curve on a matplotlib axis or current figure.
-
-        This is a thin wrapper around matplotlib plotting calls.
-
-        Warning:
-            The default kwargs argument is mutable; pass a dict to avoid reuse.
-
-        Args:
-            x (Sequence[float]): X values.
-            y (Sequence[float]): Y values.
-            xlabel (Optional[str]): X-axis label.
-            ylabel (Optional[str]): Y-axis label.
-            title (Optional[str]): Plot title.
-            color (str): Line color.
-            ax (Optional[Any]): Matplotlib Axes to draw into.
-            kwargs (Optional[Dict[str, Any]]): Matplotlib plot kwargs.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.measurement import Measurement
-            Measurement.plot_func([0, 1], [0, 1], xlabel="x", ylabel="y")
-            ```
-        """
         if kwargs is None:
             kwargs = {}
         if "color" not in kwargs:
@@ -288,29 +142,6 @@ class Measurement(utilities.Artifact):
         key_parameters1: Dict[str, Any],
         key_parameters2: Optional[Dict[str, Any]] = None,
     ) -> np.ndarray:
-        """Compute a normalized difference vector between parameter sets.
-
-        Applies fit weights and unit error normalization per key.
-
-        Args:
-            key_parameters1 (Dict[str, Any]): Primary parameter dict.
-            key_parameters2 (Optional[Dict[str, Any]]): Secondary dict to subtract.
-
-        Returns:
-            np.ndarray: Difference vector normalized by unit errors.
-
-        Raises:
-            AssertionError: If NaNs are detected in parameter arrays.
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.get_diff_vector(meas.key_parameters, meas.key_parameters)
-            ```
-        """
         diff = []
         for key in self.keys:
             fit_weight = 1.0
@@ -348,129 +179,16 @@ class Measurement(utilities.Artifact):
             diff.extend(list(diff_vector/self.unit_errors[key]*fit_weight))
         return np.array(diff)
     def set_simulation_baseline(self) -> None:
-        """Store simulated key parameters as the baseline.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.set_simulation_baseline()
-            ```
-        """
         self.simulated_key_parameters_baseline = self.simulated_key_parameters.copy()
     def get_baseline_vector(self) -> np.ndarray:
-        """Return baseline difference vector.
-
-        This uses the stored simulation baseline for comparison.
-
-        Args:
-            None
-
-        Returns:
-            np.ndarray: Baseline difference vector.
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.get_baseline_vector()
-            ```
-        """
         return self.get_diff_vector(self.simulated_key_parameters_baseline,None)
     def get_error_vector(self) -> np.ndarray:
-        """Return error vector between experimental and simulated parameters.
-
-        This compares key parameters against simulated values.
-
-        Args:
-            None
-
-        Returns:
-            np.ndarray: Error vector.
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.get_error_vector()
-            ```
-        """
         return self.get_diff_vector(self.key_parameters,self.simulated_key_parameters)
     def get_differential_vector(self) -> np.ndarray:
-        """Return differential vector versus baseline simulation.
-
-        This compares simulated values against the baseline.
-
-        Args:
-            None
-
-        Returns:
-            np.ndarray: Differential vector.
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.get_differential_vector()
-            ```
-        """
         return self.get_diff_vector(self.simulated_key_parameters,self.simulated_key_parameters_baseline)
     def __str__(self) -> str:
-        """Return a string representation of key parameters.
-
-        This uses the current `key_parameters` dict.
-
-        Args:
-            None
-
-        Returns:
-            str: Key parameter string.
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            str(meas)
-            ```
-        """
         return str(self.key_parameters)
     def write_file(self, filename: str, exp_or_sim: str = "exp") -> None:
-        """Write measurement data to a JSON file.
-
-        Includes experimental and/or simulated data based on `exp_or_sim`.
-
-        Args:
-            filename (str): Output file path.
-            exp_or_sim (str): "exp", "sim", or "both".
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            import numpy as np
-            from PV_Circuit_Model.measurement import Measurement
-            data = np.array([[0.0, 0.1], [0.0, -1.0]])
-            meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-            meas.write_file("measurement.json")
-            ```
-        """
         output = {"measurement_type": self.__class__.__name__, 
                   "measurement_condition": self.measurement_condition.copy(),
                   "fit_weight": self.fit_weight.copy(),
@@ -487,22 +205,6 @@ class Measurement(utilities.Artifact):
         with open(filename, "w") as f:
             json.dump(output, f, indent=4)
     def read_file(self, filename: str) -> None:
-        """Read measurement data from a JSON file.
-
-        Populates measurement attributes from the file contents.
-
-        Args:
-            filename (str): Input file path.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.measurement import Measurement
-            Measurement(measurement_condition={"temperature": 25}, measurement_data=[[0.0]])
-            ```
-        """
         with open(filename, "r") as f:
             json_ = json.load(f)
         if "measurement_condition" in json_:
@@ -522,16 +224,13 @@ class Measurement(utilities.Artifact):
         if "tag" in json_:
             self.tag = json_["tag"]
 
-def assign_measurements(self: circuit.CircuitGroup, measurements: Sequence[Measurement]) -> None:
+def assign_measurements(device: device_module.Device, measurements: Sequence[Measurement]) -> None:
     """Attach measurements to a device and set parent references.
 
     This updates each measurement's parent_device and the device list.
 
-    Warning:
-        This function is monkey-patched onto `CircuitGroup` at import time.
-
     Args:
-        self (CircuitGroup): Device to attach measurements to.
+        device: Device to attach measurements to.
         measurements (Sequence[Measurement]): Measurements to assign.
 
     Returns:
@@ -546,34 +245,13 @@ def assign_measurements(self: circuit.CircuitGroup, measurements: Sequence[Measu
         meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
         cell = make_solar_cell()
         assign_measurements(cell, [meas])
-        cell.measurements[0] is meas
         ```
     """
     for measurement in measurements:
-        measurement.parent_device = self
-    self.measurements = measurements
-circuit.CircuitGroup.assign_measurements = assign_measurements
+        measurement.parent_device = device
+    device.measurements = measurements
 
 def set_simulation_baseline(measurements: Sequence[Measurement]) -> None:
-    """Set baseline simulated parameters for all measurements.
-
-    This copies simulated parameters into the baseline store.
-
-    Args:
-        measurements (Sequence[Measurement]): Measurement list.
-
-    Returns:
-        None
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import Measurement, set_simulation_baseline
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-        set_simulation_baseline([meas])
-        ```
-    """
     for measurement in measurements:
         measurement.set_simulation_baseline()
 
@@ -583,28 +261,6 @@ def get_measurements_baseline_vector(
     include_tags: Optional[Sequence[str]] = None,
     exclude_tags: Optional[Sequence[str]] = ("do_not_fit",),
 ) -> List[float]:
-    """Collect baseline vectors for a set of measurements.
-
-    This filters by class and tags before aggregating.
-
-    Args:
-        measurements (Sequence[Measurement]): Measurement list.
-        measurement_class (Optional[type]): Filter by measurement class.
-        include_tags (Optional[Sequence[str]]): Only include these tags.
-        exclude_tags (Optional[Sequence[str]]): Exclude these tags.
-
-    Returns:
-        List[float]: Combined baseline vector.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import Measurement, get_measurements_baseline_vector
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-        get_measurements_baseline_vector([meas])
-        ```
-    """
     vector = []
     for measurement in measurements:
         if measurement_class is None or isinstance(measurement,measurement_class):
@@ -618,28 +274,6 @@ def get_measurements_error_vector(
     include_tags: Optional[Sequence[str]] = None,
     exclude_tags: Optional[Sequence[str]] = ("do_not_fit",),
 ) -> List[float]:
-    """Collect error vectors for a set of measurements.
-
-    This filters by class and tags before aggregating.
-
-    Args:
-        measurements (Sequence[Measurement]): Measurement list.
-        measurement_class (Optional[type]): Filter by measurement class.
-        include_tags (Optional[Sequence[str]]): Only include these tags.
-        exclude_tags (Optional[Sequence[str]]): Exclude these tags.
-
-    Returns:
-        List[float]: Combined error vector.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import Measurement, get_measurements_error_vector
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-        get_measurements_error_vector([meas])
-        ```
-    """
     vector = []
     for measurement in measurements:
         if measurement_class is None or isinstance(measurement,measurement_class):
@@ -653,28 +287,6 @@ def get_measurements_differential_vector(
     include_tags: Optional[Sequence[str]] = None,
     exclude_tags: Optional[Sequence[str]] = ("do_not_fit",),
 ) -> List[float]:
-    """Collect differential vectors for a set of measurements.
-
-    This filters by class and tags before aggregating.
-
-    Args:
-        measurements (Sequence[Measurement]): Measurement list.
-        measurement_class (Optional[type]): Filter by measurement class.
-        include_tags (Optional[Sequence[str]]): Only include these tags.
-        exclude_tags (Optional[Sequence[str]]): Exclude these tags.
-
-    Returns:
-        List[float]: Combined differential vector.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import Measurement, get_measurements_differential_vector
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-        get_measurements_differential_vector([meas])
-        ```
-    """
     vector = []
     for measurement in measurements:
         if measurement_class is None or isinstance(measurement,measurement_class):
@@ -691,32 +303,6 @@ def get_measurements_groups(
     optional_x_axis: Optional[str] = None,
     plot_offset: bool = False,
 ) -> Union[Tuple[Dict[Any, List[Any]], Dict[Any, List[Any]]], Tuple[Dict[Any, List[Any]], Dict[Any, List[Any]], Dict[Any, List[Any]]]]:
-    """Group measurement key parameters by conditions and keys.
-
-    This builds grouped lists for experimental and simulated values.
-
-    Args:
-        measurements (Sequence[Measurement]): Measurement list.
-        measurement_class (Optional[type]): Filter by measurement class.
-        include_tags (Optional[Sequence[str]]): Only include these tags.
-        exclude_tags (Optional[Sequence[str]]): Exclude these tags.
-        categories (Optional[Sequence[str]]): Condition keys to group by.
-        optional_x_axis (Optional[str]): Optional x-axis condition key.
-        plot_offset (bool): If True, apply per-measurement plot offset.
-
-    Returns:
-        Union[Tuple[Dict[Any, List[Any]], Dict[Any, List[Any]]], Tuple[Dict[Any, List[Any]], Dict[Any, List[Any]], Dict[Any, List[Any]]]]:
-            Grouped experimental and simulated data, and optional x-axis data.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import Measurement, get_measurements_groups
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = Measurement(measurement_condition={"temperature": 25}, measurement_data=data)
-        get_measurements_groups([meas])
-        ```
-    """
     if categories is None:
         categories = []
     exp_groups = {}
@@ -781,14 +367,6 @@ def collate_device_measurements(
 
     Returns:
         List[Measurement]: Collected measurements.
-
-    Example:
-        ```python
-        from PV_Circuit_Model.device import make_solar_cell
-        from PV_Circuit_Model.measurement import collate_device_measurements
-        cell = make_solar_cell()
-        collate_device_measurements(cell)
-        ```
     """
     measurement_list = []
     if not isinstance(devices,list):
@@ -821,14 +399,6 @@ def simulate_device_measurements(
 
     Returns:
         None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.device import make_solar_cell
-        from PV_Circuit_Model.measurement import simulate_device_measurements
-        cell = make_solar_cell()
-        simulate_device_measurements([cell], show_progress=False)
-        ```
     """
     job_list = []
     for device in devices:
@@ -846,29 +416,6 @@ def simulate_device_measurements(
 # row 0 = voltage, row 1 = current
 class IV_measurement(Measurement):
     """IV measurement with Voc, Isc, and Pmax parameters.
-
-    Args:
-        Suns (Optional[float]): Irradiance multiplier.
-        IV_curve (Optional[np.ndarray]): IV curve array (2xN or Nx2).
-        temperature (float): Temperature in Celsius.
-        measurement_cond_kwargs (Optional[Dict[str, Any]]): Extra condition fields.
-        IL (Optional[float]): Light current for explicit setting.
-        JL (Optional[float]): Light current density for explicit setting.
-        json_filepath (Optional[str]): Path to JSON file to read.
-        key_parameters (Optional[Dict[str, Any]]): Precomputed key parameters.
-        **kwargs (Any): Forwarded to Measurement.
-
-    Returns:
-        IV_measurement: The constructed IV measurement.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.measurement import IV_measurement
-        data = np.array([[0.0, 0.1], [0.0, -1.0]])
-        meas = IV_measurement(IV_curve=data)
-        meas.keys
-        ```
     """
     keys = ["Voc", "Isc", "Pmax"]
     data_rows = ["Voltage(V)","Current(A)"]
@@ -908,7 +455,6 @@ class IV_measurement(Measurement):
             from PV_Circuit_Model.measurement import IV_measurement
             data = np.array([[0.0, 0.1], [0.0, -1.0]])
             meas = IV_measurement(IV_curve=data)
-            meas.measurement_condition["temperature"]
             ```
         """
         if measurement_cond_kwargs is None:

@@ -10,6 +10,8 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import ScalarFormatter
 import numbers
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+# Backward-compat for old pickles that expect Intrinsic_Si_diode here
+from PV_Circuit_Model.circuit_model import Intrinsic_Si_diode  # noqa: F401
 
 class Device(circuit.CircuitGroup):
     """Wrapper class for CircuitGroup
@@ -35,6 +37,7 @@ class Device(circuit.CircuitGroup):
         ```
     """
     _is_atomic = True
+    
     @classmethod
     def from_circuitgroup(cls, comp, **kwargs: Any) -> "Device":
         """Create a Device from an existing CircuitGroup.
@@ -94,7 +97,7 @@ class Cell(Device,_type_number=6):
     irradiance/temperature handling.
     """
     photon_coupling_diodes = None
-    _critical_fields = circuit.CircuitGroup._critical_fields + ("area",)
+    _dont_serialize = Device._dont_serialize + ("series_resistor","diode_branch","photon_coupling_diodes")
     def __init__(
         self,
         subgroups: Sequence[circuit.CircuitComponent],
@@ -140,17 +143,18 @@ class Cell(Device,_type_number=6):
         super().__init__(subgroups, connection,location=location,rotation=rotation,
                          name=name,extent=np.array([x_extent,y_extent]).astype(float))
         self.area = area
-        if self.max_I is not None:
-            self.max_I *= area
-        self.is_cell = True
         self.shape = shape
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns
-        self.get_branches()
-        self.photon_coupling_diodes = self.findElementType(circuit.PhotonCouplingDiode)
+        Cell.__compile__(self)
 
-    def get_branches(self) -> None:
+    def __post_init__(self):
+        super().__post_init__()
+        Cell.__compile__(self)
+        
+    def __compile__(self):
+        self.photon_coupling_diodes = self.findElementType(circuit.PhotonCouplingDiode)
         if self.connection=="series":
             for branch in self.subgroups:
                 if isinstance(branch,circuit.Resistor):
@@ -160,6 +164,10 @@ class Cell(Device,_type_number=6):
         else:
             self.series_resistor = None
             self.diode_branch = self
+        if self.max_I is not None:
+            self.max_I *= self.area
+        if not hasattr(self,"shape"): # some legacy bsons don't store shape
+            self.shape = None
 
     # a weak copy, only the parameters
     def copy_values(self, cell2: "Cell") -> None:
@@ -1165,6 +1173,7 @@ class Cell(Device,_type_number=6):
 class Module(Device):
     """Module composed of multiple cells or cell groups.
     """
+    _dont_serialize = Device._dont_serialize + ("interconnect_resistors","interconnect_conds","cells")
     def __init__(
         self,
         subgroups: Sequence[circuit.CircuitComponent],
@@ -1199,11 +1208,22 @@ class Module(Device):
             ```
         """
         super().__init__(subgroups, connection,location=location,rotation=rotation,name=name)
-        cells = self.findElementType(Cell)
-        self.cells = cells
         self.temperature = temperature
         self.set_temperature(temperature)
         self.Suns = Suns 
+        Module.__compile__(self)
+
+    def __post_init__(self):
+        super().__post_init__()
+        Module.__compile__(self)
+
+    def __compile__(self):
+        self.interconnect_resistors = self.findElementType(circuit.Resistor, Cell)
+        self.interconnect_conds = []
+        for r in self.interconnect_resistors:
+            self.interconnect_conds.append(r.cond)
+        self.cells = self.findElementType(Cell)
+    
     def set_Suns(self, Suns: float) -> None:
         """Set irradiance on all cells in the module.
 
@@ -1270,6 +1290,31 @@ class Module(Device):
             ```
         """
         return cls(comp.subgroups,comp.connection, **kwargs)
+    def set_interconnect_resistors(
+        self: circuit.CircuitGroup,
+        interconnect_conds: list[float] | float | None = None
+    ) -> None:
+        """set half-string resistors conductance.
+
+        Uses the module's `aux["interconnect_conds"]` when available.
+
+        Args:
+            interconnect_conds (list[float] | float | None): conductance value(s) to apply.
+
+        Example:
+            ```python
+            from PV_Circuit_Model.device import make_module, make_solar_cell
+            cells = [make_solar_cell() for _ in range(60)]
+            module = make_module(cells, num_strings=3, num_cells_per_halfstring=20)
+            module.set_interconnect_resistors()
+            ```
+        """
+        if interconnect_conds is None:
+            interconnect_conds = self.interconnect_conds
+        elif isinstance(interconnect_conds,numbers.Number):
+            interconnect_conds = [interconnect_conds for _ in range(len(self.interconnect_resistors))]
+        for i, r in enumerate(self.interconnect_resistors):
+            r.set_cond(interconnect_conds[i])
 
 
 class ByPassDiode(circuit.ReverseDiode):
@@ -1306,10 +1351,10 @@ class MultiJunctionCell(Device):
 
     Combines multiple Cell instances in series with shared geometry.
     """
+    _dont_serialize = Device._dont_serialize + ("series_resistor","cells")
     def __init__(
         self,
         subcells: Optional[List[Cell]] = None,
-        subgroups: Optional[Sequence[circuit.CircuitComponent]] = None,
         Rs: float = 0.1,
         location: Optional[Sequence[float]] = None,
         rotation: float = 0,
@@ -1323,7 +1368,6 @@ class MultiJunctionCell(Device):
 
         Args:
             subcells (Optional[List[Cell]]): List of cell subcomponents.
-            subgroups (Optional[Sequence[CircuitComponent]]): Direct subgroups.
             Rs (float): Specific series resistance used when building subgroups.
             location (Optional[Sequence[float]]): XY location for layout.
             rotation (float): Rotation in degrees.
@@ -1341,13 +1385,20 @@ class MultiJunctionCell(Device):
             mj = MultiJunctionCell(subcells=[cell.clone(),cell.clone()], Rs=0.1)
             ```
         """
-        if subgroups is not None:
-            components = subgroups
-        else:
-            components = subcells
-            components.append(circuit.Resistor(cond=subcells[0].area/Rs))
+        components = subcells
+        components.append(circuit.Resistor(cond=subcells[0].area/Rs))
         super().__init__(components, connection="series",location=location,rotation=rotation,
                          name=name,extent=components[0].extent)
+        self.temperature = temperature
+        self.set_temperature(temperature)
+        self.Suns = Suns
+        MultiJunctionCell.__compile__(self)  
+
+    def __post_init__(self):
+        super().__post_init__()
+        MultiJunctionCell.__compile__(self)
+
+    def __compile__(self):
         self.cells = []
         self.series_resistor = None
         for item in self.subgroups:
@@ -1358,10 +1409,7 @@ class MultiJunctionCell(Device):
         self.area = self.cells[0].area
         if self.series_resistor is not None:
             self.series_resistor.aux["area"] = self.area
-        self.temperature = temperature
-        self.set_temperature(temperature)
-        self.Suns = Suns
-        self.set_Suns(Suns)     
+    
     def set_Suns(self, Suns: Union[float, Sequence[float]]) -> None:
         """Set irradiance on each subcell.
 
@@ -1669,7 +1717,7 @@ class MultiJunctionCell(Device):
             kwargs["Rs"] = total_Rs
         return cls(subcells=subcells,**kwargs)
 
-    # colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
+# colormap: choose between cm.magma, inferno, plasma, cividis, viridis, turbo, gray
 def draw_cells(
     self: Union[circuit.CircuitGroup, "Cell", List[Any]],
     display: bool = True,
@@ -1736,7 +1784,7 @@ def draw_cells(
     elif hasattr(self,"shape"): # a solar cell
         shapes.append(self.shape.copy())
         names.append(self.name)
-        if self.operating_point is not None:
+        if self.diode_branch.operating_point is not None:
             Vints.append(self.diode_branch.operating_point[0])
             Is.append(self.operating_point[1])
         if self.aux is not None and "EL_Vint" in self.aux:
@@ -2061,7 +2109,6 @@ def make_module(
 
     circuit.tile_elements(cell_strings, rows=1, x_gap = 1, y_gap = 0.0)
     module = Module(cell_strings,"series")
-    module.aux["halfstring_resistor"] = halfstring_resistor
     return module
 
 def make_butterfly_module(
@@ -2095,44 +2142,6 @@ def make_butterfly_module(
     """
     return make_module(cells, num_strings, num_cells_per_halfstring, 
                          halfstring_resistor, I0_rev, butterfly=True)
-
-def reset_half_string_resistors(
-    self: circuit.CircuitGroup,
-    halfstring_resistor: Optional[float] = None,
-) -> None:
-    """Reset half-string resistors using stored module metadata.
-
-    Uses the module's `aux["halfstring_resistor"]` when available.
-
-    Warning:
-        This function is monkey-patched onto `CircuitGroup` at import time.
-
-    Args:
-        self (CircuitGroup): Group to update.
-        halfstring_resistor (Optional[float]): Resistance value to apply.
-
-    Returns:
-        None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.device import make_module, make_solar_cell
-        cells = [make_solar_cell() for _ in range(60)]
-        module = make_module(cells, num_strings=3, num_cells_per_halfstring=20)
-        module.reset_half_string_resistors()
-        ```
-    """
-    if halfstring_resistor is None:
-        if self.aux is not None and "halfstring_resistor" in self.aux:
-            halfstring_resistor = self.aux["halfstring_resistor"]
-    for element in self.subgroups:
-        if isinstance(element,Cell):
-            pass
-        elif isinstance(element,circuit.CircuitGroup):
-            element.reset_half_string_resistors(halfstring_resistor=halfstring_resistor)
-        elif isinstance(element,circuit.Resistor):
-            element.set_cond(1/halfstring_resistor)
-circuit.CircuitGroup.reset_half_string_resistors = reset_half_string_resistors
 
 def get_cell_col_row(self: circuit.CircuitGroup, fuzz_distance: float = 0.2) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute a grid index mapping for cell positions.

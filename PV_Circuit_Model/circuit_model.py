@@ -54,10 +54,12 @@ class CircuitComponent(utilities.Artifact):
         isinstance(component, CircuitComponent) # True
         ```
     """
-    _critical_fields = ("max_I","max_num_points")
-    _artifacts = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
+    _critical_fields = ()
+    _parent_pointer_name = "parent"
+    _parent_pointer_class = None
+    _ephemeral_fields = ("IV_V", "IV_I", "IV_V_lower", "IV_I_lower", "IV_V_upper", "IV_I_upper","extrapolation_allowed", "extrapolation_dI_dV",
                   "has_I_domain_limit","job_heap", "refined_IV","operating_point","bottom_up_operating_point")
-    _dont_serialize = ("circuit_depth", "num_circuit_elements")
+    _dont_serialize = ("circuit_depth", "num_circuit_elements", "IV_table", "dark_IV_table")
     max_I = None
     max_num_points = None
     IV_V = None  
@@ -72,13 +74,25 @@ class CircuitComponent(utilities.Artifact):
     registered_type_numbers = set()
 
     def __init__(self, tag: Optional[str] = None) -> None:
-        self.circuit_diagram_extent = [0, 0.8]
         self.parent = None
-        self.aux = {}
         self.tag = tag
-        self.extrapolation_allowed = [False,False]
-        self.extrapolation_dI_dV = [0,0]
-        self.has_I_domain_limit = [False,False]
+        CircuitComponent.__compile__(self)
+
+    def __post_init__(self):
+        utilities.Artifact.__post_init__(self)
+        CircuitComponent.__compile__(self)
+        
+    def __compile__(self):
+        if "circuit_diagram_extent" not in self.__dict__:
+            self.circuit_diagram_extent = [0, 0.8]
+        if "aux" not in self.__dict__:
+            self.aux = {}
+        if "tag" not in self.__dict__:
+            self.tag = None
+        if "extrapolation_allowed" not in self.__dict__:
+            self.extrapolation_allowed = [False,False]
+            self.extrapolation_dI_dV = [0,0]
+            self.has_I_domain_limit = [False,False]
 
     def __init_subclass__(cls, *, _type_number: int = -1, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -133,12 +147,12 @@ class CircuitComponent(utilities.Artifact):
         self.IV_I = value[1, :].copy()
 
     def null_IV(self) -> None:
-        self.clear_artifacts()
+        self.clear_ephemeral_fields()
         if self.parent is not None:
             self.parent.null_IV()
 
     def null_all_IV(self) -> None:
-        self.clear_artifacts()
+        self.clear_ephemeral_fields()
         if isinstance(self,CircuitGroup):
             for element in self.subgroups:
                 element.null_all_IV()
@@ -354,7 +368,7 @@ class CircuitComponent(utilities.Artifact):
     def show(self) -> None:
         pass
 
-
+CircuitComponent._parent_pointer_class=CircuitComponent
 
 # Helper to collapse nested CircuitGroups with the same connection type.
 def flatten_connection(parts_list: Sequence["CircuitComponent"], connection: str) -> List["CircuitComponent"]:
@@ -599,6 +613,18 @@ class CurrentSource(CircuitElement,_type_number=0):
         self.refT = temperature
         self.T = temperature
         self.temp_coeff = temp_coeff
+    def __post_init__(self):
+        super().__post_init__()
+        if not hasattr(self,"Suns"):
+            self.Suns = 1.0
+        if not hasattr(self,"refSuns"):
+            self.refSuns = 1.0
+        if not hasattr(self,"refIL"):
+            self.ref_IL = self.IL
+        if not hasattr(self,"temp_coeff"):
+            self.temp_coeff = 0
+        if not hasattr(self,"temperature"):
+            self.temperature = 25 
     def set_operating_point(self, V: Optional[float] = None, I: Optional[float] = None) -> None: # noqa: E741
         if I is not None:
             raise NotImplementedError
@@ -796,6 +822,13 @@ class Diode(CircuitElement,_type_number=2):
         self.refT = temperature
         if max_I is not None:
             self.max_I = max_I
+    def __post_init__(self):
+        super().__post_init__()
+        if not hasattr(self,"refI0"):
+            self.refI0 = self.I0
+        if not hasattr(self,"refT"):
+            self.refT = 25
+        self.VT = utilities.get_VT(self.refT)
     def set_I0(self, I0: float) -> None:
         """Update saturation current and invalidate IV caches.
 
@@ -976,6 +1009,20 @@ class Intrinsic_Si_diode(ForwardDiode,_type_number=4):
         self.ni = silicon.get_ni(self.temperature)
         if max_I is not None:
             self.max_I = max_I
+    def __post_init__(self):
+        CircuitElement.__post_init__(self)
+        if not hasattr(self,"base_thickness"):
+            self.base_thickness = 180e-4
+        if not hasattr(self,"base_type"):
+            self.base_type = "n"
+        if not hasattr(self,"base_doping"):
+            self.base_doping = 1e15
+        if not hasattr(self,"area"):
+            self.area = 1
+        if not hasattr(self,"temperature"):
+            self.temperature = 25
+        self.VT = utilities.get_VT(self.temperature)
+        self.ni = silicon.get_ni(self.temperature)
     def __str__(self) -> str:
         return "Si Intrinsic Diode"
     def calc_I(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
@@ -1067,28 +1114,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         super().__init__()
         self.connection = connection
         self.subgroups = subgroups
-        self.num_circuit_elements = 0
-        max_I = 0
-        max_max_I = 0
-        for element in self.subgroups:
-            element.parent = self
-            self.num_circuit_elements += element.num_circuit_elements
-            self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
-            if element.max_I is not None:
-                max_max_I = max(max_max_I, element.max_I)
-                if connection=="series":
-                    max_I = max(max_I, element.max_I)
-                else:
-                    max_I += element.max_I
-        if max_I > 0:
-            self.max_I = max_I
-        if max_max_I > 0:
-            for element in self.subgroups:
-                if isinstance(element,Diode) and element.max_I is None:
-                    element.max_I = max_max_I
-
-        if self.num_circuit_elements > REMESH_NUM_ELEMENTS_THRESHOLD:
-            self.max_num_points = int(REMESH_POINTS_DENSITY*np.sqrt(self.num_circuit_elements))
         self.name = name
         if location is None:
             self.location = np.array([0,0])
@@ -1101,8 +1126,35 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             self.extent = extent
         else:
             self.extent = get_extent(subgroups)
-        self.circuit_diagram_extent = get_circuit_diagram_extent(subgroups,connection)
-        self.is_circuit_group = True
+        CircuitGroup.__compile__(self)
+
+    def __post_init__(self):
+        super().__post_init__()
+        CircuitGroup.__compile__(self)
+
+    def __compile__(self):
+        self.circuit_diagram_extent = get_circuit_diagram_extent(self.subgroups,self.connection)
+        self.num_circuit_elements = 0
+        max_I = 0
+        max_max_I = 0
+        for element in self.subgroups:
+            element.parent = self
+            self.num_circuit_elements += element.num_circuit_elements
+            self.circuit_depth = max(self.circuit_depth,element.circuit_depth+1)
+            if element.max_I is not None:
+                max_max_I = max(max_max_I, element.max_I)
+                if self.connection=="series":
+                    max_I = max(max_I, element.max_I)
+                else:
+                    max_I += element.max_I
+        if max_I > 0:
+            self.max_I = max_I
+        if max_max_I > 0:
+            for element in self.subgroups:
+                if isinstance(element,Diode) and element.max_I is None:
+                    element.max_I = max_max_I
+        if self.num_circuit_elements > REMESH_NUM_ELEMENTS_THRESHOLD:
+            self.max_num_points = int(REMESH_POINTS_DENSITY*np.sqrt(self.num_circuit_elements))
 
     @property
     def parts(self) -> Sequence["CircuitComponent"]:
@@ -1216,7 +1268,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             if I is not None:
                 V_ = np.interp(I,self.IV_I,self.IV_V)
             self.operating_point = [V_,I_]
-            if hasattr(self,"area") and hasattr(self,"shape"): # cell
+            if type(self).__name__=="Cell": # cell
                 I_ /= self.area
             if shallow:   
                 return
@@ -1295,11 +1347,12 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         for currentSource in currentSources:
             currentSource.changeTemperatureAndSuns(temperature=temperature)
 
-    def findElementType(self, type_: Union[type, str]) -> List["CircuitComponent"]:
+    def findElementType(self, type_: Union[type, str], stop_at_type_: Union[type, str] | None = None) -> List["CircuitComponent"]:
         """Find all elements of a given type in the subtree.
 
         Args:
             type_ (Union[type, str]): Class or class name to match.
+            stop_at_type_ (Union[type, str]): if encounter element of stop_at_type_, do not search within it
 
         Returns:
             List[CircuitComponent]: Matching elements.
@@ -1315,8 +1368,10 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         for element in self.subgroups:
             if (not isinstance(type_,str) and isinstance(element,type_))  or (isinstance(type_,str) and type(element).__name__==type_):
                 list_.append(element)
+            elif stop_at_type_ is not None and ((not isinstance(stop_at_type_,str) and isinstance(element,stop_at_type_))  or (isinstance(stop_at_type_,str) and type(element).__name__==stop_at_type_)):
+                pass
             elif isinstance(element,CircuitGroup):
-                list_.extend(element.findElementType(type_))
+                list_.extend(element.findElementType(type_,stop_at_type_))
         return list_
     
     def __getitem__(self, type_: Union[type, str]) -> List["CircuitComponent"]:
@@ -1344,8 +1399,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
     
     def draw(
         self,
-        ax: Optional[Any] = None,
-        ax2: Optional[Any] = None,
         x: float = 0,
         y: float = 0,
         display_value: bool = False,
@@ -1363,8 +1416,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         figsize: tuple[float, float] | None = None,
         operating_point_size: float = 20,
         max_electron_size: float = 0.05,
-        is_root: bool = True
-    ) -> list[Any] | None:
+    ) -> None:
         """Draw the CircuitGroup as a schematic, optionally with animation and an IV subplot.
 
         If ``animate=True``, the method animates "current flow" using moving circles along the wires.
@@ -1372,8 +1424,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
         the animation updates the operating point (and optionally the IV subplot markers) per frame.
 
         Args:
-            ax: Optional Matplotlib Axes for the IV subplot. Not passed by users.
-            ax2: Optional Matplotlib Axes for the IV subplot. Not passed by users.
             x: X position of the schematic center in diagram coordinates.
             y: Y position of the schematic center in diagram coordinates.
             display_value: If True, display component values (where supported by elements).
@@ -1397,7 +1447,6 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             figsize: figure width and height (default None)
             operating_point_size: size of operating point to plot (default 20)
             max_electron_size: size of electrons in animation (default 0.05)
-            is_root: Internal recursion flag. Not passed by users.
 
         Example:
             Basic schematic:
@@ -1422,6 +1471,50 @@ class CircuitGroup(CircuitComponent,_type_number=5):
             circuit.draw(animate=True, V_sweep_frames=Vs, split_screen_with_IV=True)
             ```
         """
+        self._draw_internal(
+        x=x,
+        y=y,
+        display_value=display_value,
+        title=title,
+        linewidth=linewidth,
+        animate=animate,
+        V_sweep_frames=V_sweep_frames,
+        split_screen_with_IV=split_screen_with_IV,
+        current_flow_log10_range=current_flow_log10_range,
+        area_multiplier=area_multiplier,
+        fontsize=fontsize,
+        ax2_width=ax2_width,
+        ax2_xlim=ax2_xlim,
+        ax2_ylim=ax2_ylim,
+        figsize=figsize,
+        operating_point_size=operating_point_size,
+        max_electron_size=max_electron_size,
+        is_root= True)
+
+    def _draw_internal(
+        self,
+        ax: Optional[Any] = None,
+        ax2: Optional[Any] = None,
+        x: float = 0,
+        y: float = 0,
+        display_value: bool = False,
+        title: str = "Model",
+        linewidth: float = 1.5,
+        animate: bool = False,
+        V_sweep_frames: Optional[Any] = None,
+        split_screen_with_IV: bool = False,
+        current_flow_log10_range: float = 4,
+        area_multiplier: float = 1,
+        fontsize: float = 6,
+        ax2_width: float = 0.5,
+        ax2_xlim: tuple[float, float] | None = None,
+        ax2_ylim: tuple[float, float] | None = None,
+        figsize: tuple[float, float] | None = None,
+        operating_point_size: float = 20,
+        max_electron_size: float = 0.05,*,
+        is_root: bool = True
+    ) -> list[Any] | None:
+        
         if self.num_circuit_elements > 2000:
             print(f"There are too many elements to draw ({self.num_circuit_elements}).  I give up!")
             return
@@ -1556,7 +1649,7 @@ class CircuitGroup(CircuitComponent,_type_number=5):
                 if isinstance(element,CircuitElement):
                     element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value, fontsize=fontsize, linewidth=linewidth)
                 else:
-                    branch_currents.extend(element.draw(ax=ax_, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_,is_root=False,fontsize=fontsize,linewidth=linewidth))
+                    branch_currents.extend(element._draw_internal(ax=ax_, x=center_x, y=center_y, display_value=display_value,animate=animate,area_multiplier=area_,is_root=False,fontsize=fontsize,linewidth=linewidth))
                 I_ = None
                 if animate and element.operating_point is not None:
                     I_ = element.operating_point[1]*area_

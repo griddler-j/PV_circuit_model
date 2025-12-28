@@ -4,6 +4,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 import PV_Circuit_Model.utilities as utilities
 import PV_Circuit_Model.measurement as measurement_module
+import PV_Circuit_Model.device as device_module
 import inspect
 import numbers
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -46,7 +47,7 @@ try:
 except Exception:
     _ip_display = None
 
-class Fit_Parameter():
+class Fit_Parameter(utilities.Artifact):
     """Single fit parameter with constraints and scaling.
 
     Tracks nominal values, bounds, and linear/log scaling for optimization.
@@ -96,41 +97,8 @@ class Fit_Parameter():
         self.is_differential = False
         self.aux = {}
     def set_nominal(self) -> None:
-        """Set the nominal value to the current value.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.set_nominal()
-            param.nominal_value
-            ```
-        """
         self.nominal_value = self.value
     def get_parameter(self) -> float:
-        """Return the effective parameter value.
-
-        Applies differential offset and log scaling when configured.
-
-        Args:
-            None
-
-        Returns:
-            float: Effective parameter value.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.get_parameter()
-            ```
-        """
         value_ = self.value
         if self.is_differential:
             value_ += self.d_value
@@ -139,22 +107,6 @@ class Fit_Parameter():
         else:
             return value_
     def set_d_value(self, d_value: Optional[float] = None) -> None:
-        """Set or infer the differential step size.
-
-        Args:
-            d_value (Optional[float]): Explicit delta value; if None, infer.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.set_d_value(0.01)
-            param.d_value
-            ```
-        """
         if d_value is not None:
             self.d_value = d_value
         else:
@@ -163,22 +115,6 @@ class Fit_Parameter():
             else:
                 self.d_value = self.value / 100
     def limit_order_of_mag(self, order_of_mag: float = 1.0) -> None:
-        """Set bounds based on orders of magnitude.
-
-        Args:
-            order_of_mag (float): Number of decades to allow.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.limit_order_of_mag(1.0)
-            param.get_min() < param.get_max()
-            ```
-        """
         self.aux["limit_order_of_mag"] = order_of_mag
         if self.is_log:
             self.this_min = self.value - order_of_mag
@@ -187,75 +123,13 @@ class Fit_Parameter():
             self.this_min = self.value/10**(order_of_mag)
             self.this_max = self.value*10**(order_of_mag)
     def limit_delta(self, delta: float) -> None:
-        """Set bounds based on a fixed delta from current value.
-
-        Args:
-            delta (float): Delta to apply on each side of the value.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.limit_delta(0.1)
-            param.get_min()
-            ```
-        """
         self.this_min = self.value - delta
         self.this_max = self.value + delta
     def get_min(self) -> float:
-        """Return the active minimum bound.
-
-        Args:
-            None
-
-        Returns:
-            float: Active minimum value.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.get_min()
-            ```
-        """
         return max(self.this_min,self.abs_min)       
     def get_max(self) -> float:
-        """Return the active maximum bound.
-
-        Args:
-            None
-
-        Returns:
-            float: Active maximum value.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0)
-            param.get_max()
-            ```
-        """
         return min(self.this_max,self.abs_max)    
     def check_max_min(self) -> None:
-        """Clamp nominal and current values to absolute bounds.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameter
-            param = Fit_Parameter(value=1.0, abs_min=0.0, abs_max=2.0)
-            param.check_max_min()
-            param.value
-            ```
-        """
         self.nominal_value = max(self.nominal_value,self.abs_min)    
         self.nominal_value = min(self.nominal_value,self.abs_max)  
         self.value = max(self.value,self.abs_min)    
@@ -280,6 +154,9 @@ class Fit_Parameters(utilities.Artifact):
         params.num_of_parameters()
         ```
     """
+    _parent_pointer_name = "ref_sample"
+    _parent_pointer_class = device_module.Device
+    _critical_fields = utilities.Artifact._critical_fields + ("fit_parameters",)
     def __init__(
         self,
         fit_parameters: Optional[List[Fit_Parameter]] = None,
@@ -693,21 +570,6 @@ class Fit_Parameters(utilities.Artifact):
         """
         pass
     def __str__(self) -> str:
-        """Return a string representation of parameter values.
-
-        Args:
-            None
-
-        Returns:
-            str: Stringified parameter mapping.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Parameters
-            params = Fit_Parameters(names=["Rs"])
-            str(params)
-            ```
-        """
         return str(self.get_parameters())
 
 # generally, measurment samples may not be equal to fit_parameters.ref_sample
@@ -812,28 +674,6 @@ class Fit_Dashboard():
         title: Optional[str] = None,
         plot_style_parameters: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Add a plot specification to the dashboard.
-
-        Args:
-            which_axs (Optional[int]): Axis index to use; auto if None.
-            measurement_type (Optional[Any]): Measurement class filter.
-            key_parameter (Optional[str]): Parameter to plot.
-            measurement_condition (Optional[Dict[str, Any]]): Filter conditions.
-            plot_type (str): "error", "exp_vs_sim", "overlap_curves", or "overlap_key_parameter".
-            x_axis (Optional[str]): Key for x-axis data.
-            title (Optional[str]): Plot title.
-            plot_style_parameters (Optional[Dict[str, Any]]): Matplotlib style kwargs.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            dashboard = Fit_Dashboard(1, 1)
-            dashboard.define_plot_what(plot_type="error")
-            ```
-        """
         if measurement_condition is None:
             measurement_condition = {}
         if plot_style_parameters is None:
@@ -857,20 +697,6 @@ class Fit_Dashboard():
                              "plot_style_parameters": plot_style_parameters})
     @staticmethod 
     def convert_scatter_valid_kwargs(plot_style_parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Filter kwargs to those accepted by `Axes.scatter`.
-
-        Args:
-            plot_style_parameters (Dict[str, Any]): Candidate kwargs.
-
-        Returns:
-            Dict[str, Any]: Filtered kwargs.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            Fit_Dashboard.convert_scatter_valid_kwargs({"s": 5, "bad": 1})
-            ```
-        """
         scatter_args = inspect.signature(plt.Axes.scatter).parameters
         kwargs = {}
         for key, value in plot_style_parameters.items():
@@ -878,21 +704,6 @@ class Fit_Dashboard():
                 kwargs[key] = value
         return kwargs
     def prep_plot(self) -> None:
-        """Prepare axes and draw plots based on configured specs.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            dashboard = Fit_Dashboard(1, 1)
-            dashboard.prep_plot()
-            ```
-        """
         for ax in self.axs.flatten():
             ax.clear()
         for i in range(len(self.plot_what)):
@@ -972,21 +783,6 @@ class Fit_Dashboard():
                         ax.set_title(title, fontsize=6)
         # self.fig.tight_layout()
     def plt_plot(self) -> None:
-        """Render or update the dashboard figure.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            dashboard = Fit_Dashboard(1, 1)
-            dashboard.plt_plot()
-            ```
-        """
         # draw/flush the existing fig; do NOT call plt.show() in loops
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
@@ -1018,39 +814,9 @@ class Fit_Dashboard():
             self.fig.savefig(word, format='jpg', dpi=300)
         plt.pause(0.1)
     def plot(self) -> None:
-        """Prepare and render the dashboard.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            dashboard = Fit_Dashboard(1, 1)
-            dashboard.plot()
-            ```
-        """
         self.prep_plot()
         self.plt_plot()
     def close(self) -> None:
-        """Close the dashboard figure safely.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            dashboard = Fit_Dashboard(1, 1)
-            dashboard.close()
-            ```
-        """
         # stop trying to draw/update
         try:
             self.fig.canvas.draw_idle()
@@ -1064,40 +830,8 @@ class Fit_Dashboard():
         except Exception:
             pass
     def __enter__(self) -> "Fit_Dashboard":
-        """Return the dashboard for context-manager usage.
-
-        Args:
-            None
-
-        Returns:
-            Fit_Dashboard: This dashboard instance.
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            with Fit_Dashboard(1, 1) as dashboard:
-                dashboard.plot()
-            ```
-        """
         return self
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
-        """Close the dashboard on context exit.
-
-        Args:
-            exc_type (Any): Exception type, if any.
-            exc (Any): Exception instance, if any.
-            tb (Any): Traceback, if any.
-
-        Returns:
-            None
-
-        Example:
-            ```python
-            from PV_Circuit_Model.data_fitting import Fit_Dashboard
-            with Fit_Dashboard(1, 1) as dashboard:
-                pass
-            ```
-        """
         self.close()
 
 class Interactive_Fit_Dashboard(Fit_Dashboard):
@@ -1168,22 +902,6 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.fit_parameters = fit_parameters
 
     def sync_slider_to_entry(self, i: int) -> None:
-        """Update slider label and refresh plots.
-
-        Args:
-            i (int): Slider index.
-
-        Returns:
-            None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
-        params = Fit_Parameters(names=["Rs", "Rsh"])
-        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
-        dashboard.close()
-        ```
-    """
         val = self.sliders[i].get()
         if max(abs(self.min[i]),abs(self.max[i])) >= 0.1:
             self.display_values[i].config(text=f"{val:.2f}")
@@ -1192,63 +910,15 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.plot()
 
     def reset_slider(self, i: int) -> None:
-        """Reset a slider to its default value.
-
-        Args:
-            i (int): Slider index.
-
-        Returns:
-            None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
-        params = Fit_Parameters(names=["Rs", "Rsh"])
-        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
-        dashboard.close()
-        ```
-    """
         self.sliders[i].set(self.default_values[i])
         self.sync_slider_to_entry(i)
 
     def on_close(self) -> None:
-        """Close the interactive dashboard windows.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
-        params = Fit_Parameters(names=["Rs", "Rsh"])
-        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
-        dashboard.close()
-        ```
-    """
         self.control_root.quit()
         self.plot_root.destroy()
         self.control_root.destroy()
 
     def plot(self) -> None:
-        """Update simulations and redraw the dashboard plot.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
-        params = Fit_Parameters(names=["Rs", "Rsh"])
-        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
-        dashboard.close()
-        ```
-    """
         update_values = []
         for slider in self.sliders:
             update_values.append(slider.get())
@@ -1263,25 +933,6 @@ class Interactive_Fit_Dashboard(Fit_Dashboard):
         self.canvas.draw()
 
     def run(self) -> None:
-        """Start the interactive Tk UI event loop.
-
-        Warning:
-            Requires Tkinter and a display environment.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting import Interactive_Fit_Dashboard, Fit_Parameters
-        params = Fit_Parameters(names=["Rs", "Rsh"])
-        dashboard = Interactive_Fit_Dashboard([], params, nrows=1, ncols=1)
-        # dashboard.run()
-        ```
-    """
         plot_what = self.plot_what
         super().__init__(self.nrows,self.ncols,measurements=self.measurements)
         self.plot_what = plot_what
@@ -1336,29 +987,6 @@ def linear_regression(
     fit_parameters: Fit_Parameters,
     aux: Optional[Dict[str, Any]] = None,
 ) -> np.ndarray:
-    """Perform constrained linear regression update for fit parameters.
-
-    Applies bounds, regularization, and updates parameter values in place.
-
-    Args:
-        M (np.ndarray): Sensitivity matrix.
-        Y (np.ndarray): Error vector.
-        fit_parameters (Fit_Parameters): Parameter collection to update.
-        aux (Optional[Dict[str, Any]]): Options like alpha and regularization.
-
-    Returns:
-        np.ndarray: Updated parameter values.
-
-    Example:
-        ```python
-        import numpy as np
-        from PV_Circuit_Model.data_fitting import Fit_Parameters, linear_regression
-        params = Fit_Parameters(names=["Rs"])
-        M = np.array([[1.0]])
-        Y = np.array([0.1])
-        linear_regression(M, Y, params)
-        ```
-    """
     if aux is None:
         aux = {}
     alpha = 1e-5 

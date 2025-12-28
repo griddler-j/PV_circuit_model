@@ -9,33 +9,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
     """Fit parameters for tandem and single-junction solar cells.
-
-    Encapsulates log-scaled parameters for diode currents, shunts, and series
-    resistance, with helper methods to apply values to a reference sample.
-
-    Args:
-        sample (Any): Reference sample (Cell or MultiJunctionCell).
-        bottom_cell_Voc (float): Approximate Voc for bottom cell.
-        top_cell_Voc (Optional[float]): Approximate Voc for top cell; None for single junction.
-        disable_list (Optional[List[str]]): Parameter names to disable initially.
-
-    Returns:
-        Tandem_Cell_Fit_Parameters: The constructed parameter collection.
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting_tandem_cell import Tandem_Cell_Fit_Parameters
-        from PV_Circuit_Model.device import quick_tandem_cell
-        params = Tandem_Cell_Fit_Parameters(quick_tandem_cell())
-        params.num_of_parameters()
-        ```
     """
     parameter_names = ["bottom_cell_logJ01","bottom_cell_logJ02","bottom_cell_log_shunt_cond",
                        "top_cell_logJ01","top_cell_logJ02","top_cell_PC_logJ01","top_cell_log_shunt_cond",
                        "log_Rs_cond"]
     def __init__(
         self,
-        sample: Any,
+        sample: device_module.Device,
         bottom_cell_Voc: float = 0.7,
         top_cell_Voc: Optional[float] = 1.2,
         disable_list: Optional[List[str]] = None,
@@ -43,7 +23,7 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
         """Initialize tandem-cell fit parameters and bounds.
 
         Args:
-            sample (Any): Reference sample (Cell or MultiJunctionCell).
+            sample: Reference sample (Cell or MultiJunctionCell).
             bottom_cell_Voc (float): Approximate Voc for bottom cell.
             top_cell_Voc (Optional[float]): Approximate Voc for top cell.
             disable_list (Optional[List[str]]): Parameter names to disable.
@@ -68,9 +48,8 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
                                         "top_cell_logJ01","top_cell_logJ02","top_cell_PC_logJ01",
                                         "bottom_cell_log_shunt_cond",
                                         "top_cell_log_shunt_cond","log_Rs_cond"])
+        
         VT = utilities.VT_at_25C
-        self.approx_bottom_cell_Voc = bottom_cell_Voc
-        self.approx_top_cell_Voc = top_cell_Voc
         max_J01 = 0.01/np.exp(bottom_cell_Voc/VT)
         max_J02 = 0.01/np.exp(bottom_cell_Voc/(2*VT))
         self.set("abs_min", [np.log10(max_J01)-4,np.log10(max_J02)-4], ["bottom_cell_logJ01","bottom_cell_logJ02"])
@@ -78,8 +57,10 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
         self.is_tandem = True
         if isinstance(sample,device_module.MultiJunctionCell):
             self.is_tandem = True
-        else:
+        elif isinstance(sample,device_module.Cell):
             self.is_tandem = False
+        else:
+            raise NotImplementedError("Sample must be either MultiJunctionCell or Cell")
         if top_cell_Voc is None:
             disable_list.extend(["top_cell_logJ01","top_cell_logJ012","top_cell_PC_logJ01","top_cell_log_shunt_cond"])
             self.set("abs_min", [-6,-2], ["bottom_cell_log_shunt_cond","log_Rs_cond"])
@@ -94,7 +75,7 @@ class Tandem_Cell_Fit_Parameters(fitting.Fit_Parameters):
             self.disable_parameter(item)
         self.initialize_from_sample(sample)
         self.set_d_value()
-    def initialize_from_sample(self, sample: Any) -> None:
+    def initialize_from_sample(self, sample: device_module.Device) -> None:
         """Initialize parameter values from a reference sample.
 
         Args:
@@ -368,7 +349,7 @@ def analyze_solar_cell_measurements(
 
         cell = device_module.make_solar_cell(Jsc_, J01, J02, Rshunt_, Rs_, test_cell_area, shape=None, **kwargs_to_pass)
 
-    cell.assign_measurements(measurements)
+    measurement_module.assign_measurements(cell,measurements)
 
     fit_parameters = Tandem_Cell_Fit_Parameters(cell)
 
@@ -430,22 +411,6 @@ def analyze_solar_cell_measurements(
     return fit_parameters.ref_sample, interactive_fit_dashboard
 
 def generate_differentials(measurements: Sequence[Any], cell: Any) -> Any:
-    """Generate differential outputs for a given cell and measurements.
-
-    Args:
-        measurements (Sequence[Any]): Measurement objects.
-        cell (Any): Cell or MultiJunctionCell instance.
-
-    Returns:
-        Any: Output from the zero-round analysis.
-
-    Example:
-        ```python
-        from PV_Circuit_Model.data_fitting_tandem_cell import generate_differentials
-        from PV_Circuit_Model.device import quick_tandem_cell
-        generate_differentials([], quick_tandem_cell())
-        ```
-    """
     is_tandem = False
     if isinstance(cell,device_module.MultiJunctionCell):
         is_tandem = True
