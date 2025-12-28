@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 from numbers import Number
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, Callable, Optional, Sequence, Union, Literal
+from typing import Any, ClassVar, Dict, Callable, Union, Literal
 import json
 import importlib
 import math
@@ -16,7 +16,6 @@ try:
     import bson
 except ModuleNotFoundError:
     bson = None
-from pathlib import Path
 
 @dataclass
 class ParameterSet:

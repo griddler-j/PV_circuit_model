@@ -1,6 +1,5 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import PV_Circuit_Model.circuit_model as circuit
 import PV_Circuit_Model.device as device_module
 import PV_Circuit_Model.utilities as utilities
 import PV_Circuit_Model.device_analysis as analysis
