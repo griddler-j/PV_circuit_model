@@ -331,7 +331,7 @@ class Artifact:
                 for item in v:
                     if item is self: # if by some accident there's circular ref
                         continue
-                    if isinstance(item,Artifact) and item.__class__._parent_pointer_name is not None:
+                    if isinstance(item,Artifact) and item.__class__._parent_pointer_name is not None and item.__class__._parent_pointer_class is not None and isinstance(self,item.__class__._parent_pointer_class):
                         setattr(item,item.__class__._parent_pointer_name,self)
 
     @staticmethod
