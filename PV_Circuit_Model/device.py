@@ -1773,7 +1773,7 @@ def draw_cells(
     if isinstance(self,list):
         for element in self:
             if hasattr(element,"extent") and element.extent is not None:
-                shapes_, names_, Vints_, EL_Vints_, Is_ = element.draw_cells(display=False)
+                shapes_, names_, Vints_, EL_Vints_, Is_ = element.draw_cells(display=False, colour_what=colour_what)
                 shapes.extend(shapes_)
                 names.extend(names_)
                 Vints.extend(Vints_)
@@ -1787,12 +1787,12 @@ def draw_cells(
         if self.diode_branch.operating_point is not None:
             Vints.append(self.diode_branch.operating_point[0])
             Is.append(self.operating_point[1])
-        if self.aux is not None and "EL_Vint" in self.aux:
-            EL_Vints.append(self.aux["EL_Vint"])
+        if self.aux is not None and colour_what in self.aux:
+            EL_Vints.append(self.aux[colour_what])
     else:
         for element in self.subgroups:
             if hasattr(element,"extent") and element.extent is not None:
-                shapes_, names_, Vints_, EL_Vints_, Is_ = element.draw_cells(display=False)
+                shapes_, names_, Vints_, EL_Vints_, Is_ = element.draw_cells(display=False, colour_what=colour_what)
                 shapes.extend(shapes_)
                 names.extend(names_)
                 Vints.extend(Vints_)
@@ -1805,7 +1805,7 @@ def draw_cells(
     norm = None
     vmin = None
     vmax = None
-    if len(EL_Vints)==len(shapes) and colour_what=="EL_Vint": # every cell has a EL_Vint
+    if len(EL_Vints)==len(shapes): 
         has_EL_Vint = True
         vmin = min(EL_Vints)
         vmax=max(EL_Vints)
@@ -1872,7 +1872,7 @@ def draw_cells(
                 color = cmap(norm(powers[i]))
             elif has_aux:
                 color = cmap(norm(all_aux[i]))
-            polygon = patches.Polygon(shape, closed=True, facecolor=color, edgecolor='black')
+            polygon = patches.Polygon(shape, closed=True, facecolor=color, edgecolor=color)
             x = 0.5*(np.max(shape[:,0])+np.min(shape[:,0]))
             y = 0.5*(np.max(shape[:,1])+np.min(shape[:,1]))
             if show_names:
