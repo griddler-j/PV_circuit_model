@@ -1262,6 +1262,7 @@ def fit_routine(
                 if parallel:
                     if "fit_parameters" in output:
                         fit_parameters_clone = output["fit_parameters"]
+                        fit_parameters.aux = fit_parameters_clone.aux
                         fit_parameters.set("value", fit_parameters_clone.get("value", enabled_only=False), enabled_only=False)
                         fit_parameters.set("nominal_value", fit_parameters_clone.get("nominal_value", enabled_only=False), enabled_only=False)
                     baseline_vector = output["baseline_vector"]
@@ -1276,6 +1277,7 @@ def fit_routine(
                         for j, measurement in enumerate(sample.measurements):
                             measurement.simulated_data = measurement_samples_list_[i].measurements[j].simulated_data
                             measurement.simulated_key_parameters = measurement_samples_list_[i].measurements[j].simulated_key_parameters
+                            measurement.key_parameters = measurement_samples_list_[i].measurements[j].key_parameters
                             measurement.simulated_key_parameters_baseline = measurement_samples_list_[i].measurements[j].simulated_key_parameters_baseline
                 Y = np.array(output["error_vector"])
                 this_RMS_errors.append(np.sqrt(np.mean(Y**2)))
